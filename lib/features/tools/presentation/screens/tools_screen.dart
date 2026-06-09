@@ -1735,6 +1735,37 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
     });
   }
 
+  void _captureImage() {
+  final input = html.FileUploadInputElement()
+    ..accept = 'image/*'
+    ..setAttribute('capture', 'environment');
+  input.click();
+  input.onChange.listen((e) {
+    final file = input.files!.first;
+    final reader = html.FileReader();
+    reader.readAsDataUrl(file);
+    reader.onLoadEnd.listen((_) {
+      final img = html.ImageElement();
+      img.src = reader.result as String;
+      img.onLoad.listen((_) {
+        double ratio = 1.0;
+        if (img.width! > 1600 || img.height! > 1200) {
+          ratio = img.width! > img.height! ? 1600 / img.width! : 1200 / img.height!;
+        }
+        final w = (img.width! * ratio).toInt();
+        final h = (img.height! * ratio).toInt();
+        final canvas = html.CanvasElement(width: w, height: h);
+        canvas.context2D.drawImageScaled(img, 0, 0, w, h);
+        final compressed = canvas.toDataUrl('image/jpeg', 0.92);
+        setState(() {
+          _imageBase64 = compressed.split(',')[1];
+          _result = ''; _explanation = ''; _extractedText = '';
+        });
+      });
+    });
+  });
+}
+
   Future<void> _translate() async {
     if (_imageBase64 == null) return;
     if (!_isVip && _freeLeft <= 0) { _showVipDialog(); return; }
@@ -1943,52 +1974,71 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
 
           // Buttons
           Row(children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: _DS.white,
-                    borderRadius: BorderRadius.circular(_DS.radiusSm),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.photo_library_rounded, size: 18, color: _DS.textDark),
-                    SizedBox(width: 8),
-                    Text('Chọn ảnh khác', style: TextStyle(fontWeight: FontWeight.w700, color: _DS.textDark, fontSize: 13)),
-                  ]),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: (_imageBase64 != null && !_isLoading) ? _translate : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    gradient: _imageBase64 != null
-                        ? const LinearGradient(colors: [_DS.orange, _DS.yellow])
-                        : LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade200]),
-                    borderRadius: BorderRadius.circular(_DS.radiusSm),
-                    boxShadow: _imageBase64 != null
-                        ? [BoxShadow(color: _DS.orange.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))]
-                        : [],
-                  ),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    _isLoading
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.translate_rounded, size: 18, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(_isLoading ? 'Đang dịch...' : 'Dịch ảnh',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ]),
-                ),
-              ),
-            ),
-          ]),
+  Expanded(
+    child: GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: _DS.white,
+          borderRadius: BorderRadius.circular(_DS.radiusSm),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.photo_library_rounded, size: 20, color: _DS.textDark),
+          SizedBox(height: 4),
+          Text('Thư viện', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.textDark)),
+        ]),
+      ),
+    ),
+  ),
+  const SizedBox(width: 8),
+  Expanded(
+    child: GestureDetector(
+      onTap: _captureImage,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: _DS.orangeLight,
+          borderRadius: BorderRadius.circular(_DS.radiusSm),
+          border: Border.all(color: _DS.orange.withOpacity(0.3)),
+        ),
+        child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.camera_alt_rounded, size: 20, color: _DS.orange),
+          SizedBox(height: 4),
+          Text('Chụp ảnh', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.orange)),
+        ]),
+      ),
+    ),
+  ),
+  const SizedBox(width: 8),
+  Expanded(
+    child: GestureDetector(
+      onTap: (_imageBase64 != null && !_isLoading) ? _translate : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: _imageBase64 != null
+              ? const LinearGradient(colors: [_DS.orange, _DS.yellow])
+              : LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade200]),
+          borderRadius: BorderRadius.circular(_DS.radiusSm),
+          boxShadow: _imageBase64 != null
+              ? [BoxShadow(color: _DS.orange.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))]
+              : [],
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          _isLoading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.translate_rounded, size: 20, color: Colors.white),
+          const SizedBox(height: 4),
+          Text(_isLoading ? 'Đang dịch...' : 'Dịch ảnh',
+              style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+        ]),
+      ),
+    ),
+  ),
+]),
 
           const SizedBox(height: 16),
 

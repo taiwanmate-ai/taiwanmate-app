@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:html' as html;
 import 'dart:convert';
 import 'dart:js' as js;
+import 'dart:async';
 
 // ─── Design System (nhất quán với home/login) ─────────────────
 class _DS {
@@ -61,6 +62,7 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _extractedText = '';
   bool _imageLoading = false;
   String _imageTargetLang = 'zh-TW';
+  String _imageLoadingMsg = 'Đang xử lý...';
 
   // Voice tab
   html.MediaRecorder? _mediaRecorder;
@@ -226,43 +228,103 @@ class _TranslateScreenState extends State<TranslateScreen>
     });
   }
 
-  Future<void> _translateImage() async {
-    if (_imageBase64 == null) return;
-    setState(() => _imageLoading = true);
-    try {
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
-      final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
-        data: {'image_base64': _imageBase64, 'target_lang': _imageTargetLang},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      setState(() {
-        _extractedText = response.data['extracted_text'] ?? '';
-        _imageResult = response.data['translated'] ?? '';
-        _imageResultSimplified = response.data['translated_simplified'] ?? '';
-        _imageResultEnglish = response.data['translated_english'] ?? '';
-        _imageResultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
-        _imagePinyin = response.data['pinyin'] ?? '';
-        _imageExplanation = response.data['explanation'] ?? '';
-      });
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 403) {
-        final detail = e.response?.data?['detail'];
-        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
-          final limit = detail['limit'] ?? 5;
-          setState(() => _imageResult = '');
-          if (mounted) _showQuotaDialog('dịch ảnh', limit);
-          return;
+  void _captureImage() {
+  final input = html.FileUploadInputElement()
+    ..accept = 'image/*'
+    ..setAttribute('capture', 'environment'); // mở camera sau
+  input.click();
+  input.onChange.listen((e) {
+    final file = input.files!.first;
+    final urlReader = html.FileReader();
+    urlReader.readAsDataUrl(file);
+    urlReader.onLoadEnd.listen((_) {
+      final img = html.ImageElement();
+      img.src = urlReader.result as String;
+      img.onLoad.listen((_) {
+        double ratio = 1.0;
+        if (img.width! > 1600 || img.height! > 1200) {
+          ratio = (img.width! > img.height!) ? 1600 / img.width! : 1200 / img.height!;
         }
-      }
-      setState(() => _imageResult = 'Lỗi kết nối. Vui lòng thử lại.');
-    } catch (e) {
-      setState(() => _imageResult = 'Lỗi: $e');
-    } finally {
-      setState(() => _imageLoading = false);
+        final w = (img.width! * ratio).toInt();
+        final h = (img.height! * ratio).toInt();
+        final canvas = html.CanvasElement(width: w, height: h);
+        canvas.context2D.drawImageScaled(img, 0, 0, w, h);
+        final compressed = canvas.toDataUrl('image/jpeg', 0.92);
+        setState(() {
+          _imageBase64 = compressed.split(',')[1];
+          _imageResult = ''; _imageResultSimplified = ''; _imageResultEnglish = '';
+          _imageResultVietnamese = ''; _imagePinyin = ''; _imageExplanation = ''; _extractedText = '';
+        });
+      });
+    });
+  });
+}
+
+  Future<void> _translateImage() async {
+  if (_imageBase64 == null) return;
+  setState(() {
+    _imageLoading = true;
+    _imageResult = '';
+    _imageLoadingMsg = 'Đang đọc văn bản trong ảnh...'; // ← thêm biến này
+  });
+
+  // Cập nhật message theo thời gian — user biết app đang xử lý
+  final msgs = [
+    'Đang đọc văn bản trong ảnh...',
+    'Đang phân tích nội dung...',
+    'Đang dịch sang tiếng Việt...',
+    'Sắp xong rồi...',
+  ];
+  int msgIdx = 0;
+  final msgTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    if (mounted && msgIdx < msgs.length - 1) {
+      setState(() => _imageLoadingMsg = msgs[++msgIdx]);
     }
+  });
+
+  try {
+    final token = await _storage.read(key: 'access_token');
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 90), // ← tăng lên 90s cho hợp đồng dài
+    ));
+    final response = await dio.post(
+      'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
+      data: {'image_base64': _imageBase64, 'target_lang': _imageTargetLang},
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    setState(() {
+      _extractedText = response.data['extracted_text'] ?? '';
+      _imageResult = response.data['translated'] ?? '';
+      _imageResultSimplified = response.data['translated_simplified'] ?? '';
+      _imageResultEnglish = response.data['translated_english'] ?? '';
+      _imageResultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+      _imagePinyin = response.data['pinyin'] ?? '';
+      _imageExplanation = response.data['explanation'] ?? '';
+    });
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 403) {
+      final detail = e.response?.data?['detail'];
+      if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+        final limit = detail['limit'] ?? 5;
+        setState(() => _imageResult = '');
+        if (mounted) _showQuotaDialog('dịch ảnh', limit);
+        return;
+      }
+    }
+    // Timeout riêng — thông báo rõ hơn
+    if (e.type == DioExceptionType.receiveTimeout) {
+      setState(() => _imageResult = '⚠️ Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
+    } else {
+      setState(() => _imageResult = '⚠️ Lỗi kết nối. Vui lòng thử lại.');
+    }
+  } catch (e) {
+    setState(() => _imageResult = '⚠️ Lỗi: $e');
+  } finally {
+    msgTimer.cancel();
+    setState(() => _imageLoading = false);
   }
+}
 
   Future<void> _startRecording() async {
     try {
@@ -840,17 +902,69 @@ class _TranslateScreenState extends State<TranslateScreen>
         ),
         const SizedBox(height: 14),
         Row(children: [
-          Expanded(child: _buildOutlineBtn(label: 'Chọn ảnh khác', icon: Icons.photo_library_rounded, onTap: _pickImage)),
-          const SizedBox(width: 12),
-          Expanded(child: _buildGradientBtn(
-            label: _imageLoading ? 'Đang dịch...' : 'Dịch ảnh',
-            icon: Icons.translate_rounded,
-            loading: _imageLoading,
-            enabled: _imageBase64 != null,
-            onTap: _translateImage,
-          )),
-        ]),
+  Expanded(child: _buildOutlineBtn(
+    label: 'Thư viện',
+    icon: Icons.photo_library_rounded,
+    onTap: _pickImage,
+  )),
+  const SizedBox(width: 8),
+  Expanded(child: _buildOutlineBtn(
+    label: 'Chụp ảnh',
+    icon: Icons.camera_alt_rounded,
+    onTap: _captureImage,
+  )),
+  const SizedBox(width: 8),
+  Expanded(child: _buildGradientBtn(
+    label: _imageLoading ? 'Đang dịch...' : 'Dịch ảnh',
+    icon: Icons.translate_rounded,
+    loading: _imageLoading,
+    enabled: _imageBase64 != null,
+    onTap: _translateImage,
+  )),
+]),
+Container(
+  margin: const EdgeInsets.only(top: 14),
+  padding: const EdgeInsets.all(12),
+  decoration: BoxDecoration(
+    color: _DS.blueLight,
+    borderRadius: BorderRadius.circular(12),
+  ),
+  child: const Row(children: [
+    Text('💡', style: TextStyle(fontSize: 14)),
+    SizedBox(width: 8),
+    Expanded(child: Text(
+      'Mẹo: Chụp thẳng, đủ sáng, chữ rõ nét → dịch nhanh & chính xác hơn',
+      style: TextStyle(fontSize: 11, color: _DS.blue, fontWeight: FontWeight.w600),
+    )),
+  ]),
+),
+
         const SizedBox(height: 14),
+        // Loading indicator — thêm vào đây
+if (_imageLoading)
+  Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: _DS.white,
+      borderRadius: BorderRadius.circular(_DS.radius),
+    ),
+    child: Column(children: [
+      const CircularProgressIndicator(color: _DS.orange, strokeWidth: 3),
+      const SizedBox(height: 16),
+      Text(
+        _imageLoadingMsg,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _DS.textGrey),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'Hợp đồng dài có thể mất 20-30 giây',
+        style: TextStyle(fontSize: 12, color: _DS.textGrey),
+      ),
+    ]),
+  ),
+
+// Dòng cũ giữ nguyên bên dưới
+if (_imageResult.isNotEmpty || _imageResultEnglish.isNotEmpty || _imageResultVietnamese.isNotEmpty)
         if (_imageResult.isNotEmpty || _imageResultEnglish.isNotEmpty || _imageResultVietnamese.isNotEmpty)
           _buildResultCard(
             targetLang: _imageTargetLang,
@@ -862,6 +976,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       ]),
     );
   }
+  
+
 
   // ── VOICE TAB ─────────────────────────────────────────────────
   Widget _buildVoiceTab() {

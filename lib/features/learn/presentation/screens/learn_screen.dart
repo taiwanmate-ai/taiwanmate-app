@@ -1313,7 +1313,7 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
         (function() {
           if (window._listenAudio) { window._listenAudio.pause(); }
           var a = new Audio("data:audio/mpeg;base64,$b64");
-          a.playbackRate = 0.65;
+          a.playbackRate = ${widget.lang == 'en' ? 0.9 : 1.0};
           window._listenAudio = a;
           setTimeout(function() { a.play(); }, 500);
         })();
