@@ -15,6 +15,10 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
   <title>TaiwanMate AI - Học tiếng Trung thông minh</title>
+  <!-- Auto-update: không cache -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -418,11 +422,24 @@
     }
 
     // Service Worker
+    // ✅ Mới — tự reload khi có bản mới
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('flutter_service_worker.js?v=4').catch(function(){});
-      });
-    }
+    window.addEventListener('load', function() {
+    navigator.serviceWorker.register('flutter_service_worker.js?v=4').catch(function(){});
+  });
+
+  // Tự reload khi service worker cập nhật
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    window.location.reload();
+  });
+
+  // Kiểm tra update mỗi 5 phút
+  setInterval(function() {
+    navigator.serviceWorker.getRegistration().then(function(reg) {
+      if (reg) reg.update();
+    });
+  }, 5 * 60 * 1000);
+}
 
     document.addEventListener('touchmove', function(e) {
       if (e.target === document.body) e.preventDefault();

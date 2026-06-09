@@ -544,7 +544,7 @@ class _JobSearchPageState extends State<JobSearchPage> with SingleTickerProvider
   final List<Map<String, String>> _messages = [];
   bool _isLoading = false;
   bool _isVip = false;
-  int _freeAiLeft = 3; // free 3 lần hỏi AI
+  int _freeAiLeft = 10; // free 3 lần hỏi AI
 
   static const _systemPrompt = '''Bạn là chuyên gia tư vấn việc làm cho người Việt tại Đài Loan.
 
@@ -605,7 +605,7 @@ Thực tế, cụ thể, không nói chung chung.''';
     setState(() {
       _messages.add({'role': 'user', 'content': text});
       _isLoading = true;
-      if (!_isVip) _freeAiLeft--;
+      
     });
     _scrollToBottom();
 
@@ -622,6 +622,21 @@ Thực tế, cụ thể, không nói chung chung.''';
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() => _messages.add({'role': 'assistant', 'content': response.data['reply'] ?? ''}));
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          if (mounted) {
+            setState(() => _freeAiLeft = 0);
+            _showVipDialog(
+              featureName: 'AI tư vấn việc làm',
+              limit: detail['limit'] as int? ?? 10,
+            );
+          }
+          return;
+        }
+      }
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
     } catch (e) {
       setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
     } finally {
@@ -639,10 +654,16 @@ Thực tế, cụ thể, không nói chung chung.''';
     });
   }
 
-  void _showVipDialog() {
+  void _showVipDialog({String? featureName, int? limit}) {
+    final title = featureName != null
+        ? 'Hết lượt $featureName hôm nay'
+        : 'Hết lượt hỏi AI miễn phí!';
+    final subtitle = limit != null
+        ? 'Gói Free giới hạn $limit lượt/ngày.\nVIP mở khóa:\n✅ AI soạn CV tiếng Trung\n✅ AI soạn thư xin việc\n✅ Hỏi AI không giới hạn\n✅ Chat AI không giới hạn'
+        : 'VIP mở khóa:\n✅ AI soạn CV tiếng Trung\n✅ AI soạn thư xin việc\n✅ Hỏi AI không giới hạn\n✅ Chat AI không giới hạn';
     showDialog(
       context: context,
-      builder: (_) => Dialog(
+      builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -656,16 +677,17 @@ Thực tế, cụ thể, không nói chung chung.''';
               child: const Center(child: Text('⭐', style: TextStyle(fontSize: 36))),
             ),
             const SizedBox(height: 16),
-            const Text('Nâng cấp VIP', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
+            Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark), textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            const Text(
-              'Hết lượt hỏi AI miễn phí!\nVIP mở khóa:\n✅ AI soạn CV tiếng Trung\n✅ AI soạn thư xin việc\n✅ Hỏi AI không giới hạn\n✅ Chat AI không giới hạn',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _DS.textGrey, height: 1.6),
-            ),
+            Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey, height: 1.6)),
             const SizedBox(height: 24),
             GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Thanh toán VIP sắp ra mắt!')),
+                );
+              },
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -681,7 +703,7 @@ Thực tế, cụ thể, không nói chung chung.''';
             ),
             const SizedBox(height: 10),
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Để sau', style: TextStyle(color: _DS.textGrey)),
             ),
           ]),
@@ -1216,6 +1238,16 @@ class _AiToolPageState extends State<AiToolPage> {
         _messages.add({'role': 'assistant', 'content': response.data['reply'] ?? ''});
         _showCompletion = true;
       });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 3;
+          if (mounted) _showToolQuotaDialog(limit);
+          return;
+        }
+      }
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
     } catch (e) {
       setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
     } finally {
@@ -1231,6 +1263,64 @@ class _AiToolPageState extends State<AiToolPage> {
             duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
+  }
+
+  void _showToolQuotaDialog(int limit) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🔒', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                'Hết lượt ${widget.tool.title} hôm nay',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _DS.textGrey),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Thanh toán VIP sắp ra mắt!')),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: widget.tool.gradient),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      '⭐ Nâng lên VIP — NT\$149/tháng',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Để sau', style: TextStyle(color: _DS.textGrey)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _copyAll() {

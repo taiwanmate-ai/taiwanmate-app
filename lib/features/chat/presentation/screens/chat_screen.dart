@@ -42,11 +42,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final _storage = const FlutterSecureStorage();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
-  int _freeMessagesLeft = 5;
+  int _freeMessagesLeft = 10;
   bool _isVip = false;
   String _aiGender = 'female';
   bool _autoSpeak = true;
   bool _isListening = false;
+  bool _isSpeakingChunks = false;
   String _liveTranscript = '';
   String _userType = 'student';
   String _learningMode = 'zh_vi';
@@ -228,6 +229,7 @@ $memoryNote
       CurvedAnimation(parent: _xpPopCtrl, curve: Curves.elasticOut),
     );
     _loadMemory();
+    _loadQuota();
   }
 
   @override
@@ -257,6 +259,27 @@ $memoryNote
         });
       }
     } catch (e) {}
+  }
+
+  Future<void> _loadQuota() async {
+    try {
+      if (!mounted) return;
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final response = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/quota',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (!mounted) return;
+      final isVip = response.data['is_vip'] == true;
+      final chatRemaining = response.data['chat_remaining'] as int? ?? 10;
+      setState(() {
+        _isVip = isVip;
+        if (!isVip) _freeMessagesLeft = chatRemaining;
+      });
+    } catch (e) {
+      // Giữ giá trị mặc định nếu lỗi
+    }
   }
 
   Future<void> _saveMemory() async {
@@ -422,14 +445,51 @@ $memoryNote
     return text.trim();
   }
 
+  List<String> _splitTextForTTS(String text) {
+    final chunks = <String>[];
+    final parts = text.split(RegExp(r'(?<=[。！？!?\n])'));
+    String current = '';
+    for (final part in parts) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+      if ((current + trimmed).length > 100) {
+        if (current.isNotEmpty) chunks.add(current.trim());
+        current = trimmed;
+      } else {
+        current += trimmed;
+      }
+    }
+    if (current.trim().isNotEmpty) chunks.add(current.trim());
+    // Nếu không tách được thì cắt mỗi 100 ký tự
+    if (chunks.isEmpty && text.isNotEmpty) {
+      for (int i = 0; i < text.length; i += 100) {
+        chunks.add(text.substring(i, (i + 100).clamp(0, text.length)));
+      }
+    }
+    return chunks;
+  }
+
   Future<void> _speak(String text) async {
     if (!_autoSpeak) return;
+    _stopSpeak();
+    final ttsText = _cleanForTTS(text);
+    if (ttsText.isEmpty) return;
+    final chunks = _splitTextForTTS(ttsText);
+    if (chunks.isEmpty) return;
+    _isSpeakingChunks = true;
+    _speakChunks(chunks, 0);
+  }
+
+  Future<void> _speakChunks(List<String> chunks, int index) async {
+    if (!_isSpeakingChunks) return;
+    if (!_autoSpeak) return;
+    if (index >= chunks.length) {
+      _isSpeakingChunks = false;
+      return;
+    }
     try {
-      if (!mounted) return;
-      final ttsText = _cleanForTTS(text);
-      if (ttsText.isEmpty) return;
+      if (!mounted) { _isSpeakingChunks = false; return; }
       final token = await _storage.read(key: 'access_token');
-      _stopSpeak();
       final dio = Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
@@ -437,10 +497,13 @@ $memoryNote
       ));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts-mixed',
-        data: {'text': ttsText, 'gender': _aiGender, 'learning_mode': _learningMode},
+        data: {'text': chunks[index], 'gender': _aiGender, 'learning_mode': _learningMode},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (!_isSpeakingChunks) return;
       final b64 = base64Encode(response.data as List<int>);
+      final charCount = chunks[index].length;
+      final estimatedMs = (charCount * 250).clamp(1500, 10000);
       js.context.callMethod('eval', ['''
         (function() {
           if (window._currentAudio) { window._currentAudio.pause(); window._currentAudio = null; }
@@ -449,10 +512,16 @@ $memoryNote
           a.play().catch(function(e) { console.log("Audio play error:", e); });
         })();
       ''']);
-    } catch (e) {}
+      await Future.delayed(Duration(milliseconds: estimatedMs));
+      _speakChunks(chunks, index + 1);
+    } catch (e) {
+      // Bỏ qua lỗi đoạn này, đọc đoạn tiếp
+      if (_isSpeakingChunks) _speakChunks(chunks, index + 1);
+    }
   }
 
   void _stopSpeak() {
+    _isSpeakingChunks = false;
     try {
       js.context.callMethod('eval', ['if(window._currentAudio){window._currentAudio.pause();window._currentAudio=null;}']);
     } catch (e) {}
@@ -556,7 +625,7 @@ $memoryNote
       _streamingText = '';
       _newVocabSuggestions.clear();
       _typingDotSpeed = 400 + math.Random().nextInt(400);
-      if (!_isVip) _freeMessagesLeft--;
+      // Không trừ ở client nữa — đọc từ header X-Quota-Remaining sau khi backend trả về
     });
     _scrollToBottom();
     if (_sessionMessages == 5) _showXpReward(10);
@@ -570,12 +639,31 @@ $memoryNote
         data: {'message': text, 'system_prompt': _systemPrompt, 'history': _cleanHistory, 'learning_mode': _learningMode},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      // Đọc quota còn lại từ header
+      final quotaHeader = response.headers.value('x-quota-remaining');
+      if (quotaHeader != null && quotaHeader != 'unlimited') {
+        final parsed = int.tryParse(quotaHeader);
+        if (parsed != null && mounted) setState(() => _freeMessagesLeft = parsed);
+      }
       final rawReply = response.data['reply'] as String? ?? '';
       final displayReply = rawReply.replaceAllMapped(RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
       _updateMood(displayReply);
       _extractNewVocab(rawReply);
       setState(() => _messages.add({'role': 'assistant', 'content': displayReply}));
       if (_autoSpeak) _speak(displayReply);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          // Hết quota — hiện dialog VIP thay vì error message
+          if (mounted) {
+            setState(() => _freeMessagesLeft = 0);
+            _showUpgradeDialog();
+          }
+          return;
+        }
+      }
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
     } catch (e) {
       setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
     } finally {

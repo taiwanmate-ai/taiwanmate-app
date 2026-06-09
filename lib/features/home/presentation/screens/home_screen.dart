@@ -21,22 +21,19 @@ class _DS {
   static const radiusSm = 14.0;
 }
 
-// ─── Rating Service ───────────────────────────────────────────
+// ─── Feedback/Rating Service ──────────────────────────────────
 class _RatingService {
   static const _storage = FlutterSecureStorage();
 
-  // Keys
   static const _keySessionCount = 'rating_session_count';
   static const _keyFirstOpenDate = 'rating_first_open_date';
   static const _keyLastPromptDate = 'rating_last_prompt_date';
   static const _keyRated = 'rating_rated';
 
-  /// Gọi mỗi lần HomeScreen initState — tăng session count
   static Future<void> trackSession() async {
     final rated = await _storage.read(key: _keyRated);
-    if (rated == 'true') return; // Đã rate rồi, không hỏi nữa
+    if (rated == 'true') return;
 
-    // Lưu ngày mở app lần đầu
     final firstOpen = await _storage.read(key: _keyFirstOpenDate);
     if (firstOpen == null) {
       await _storage.write(
@@ -45,13 +42,11 @@ class _RatingService {
       );
     }
 
-    // Tăng session count
     final countStr = await _storage.read(key: _keySessionCount) ?? '0';
     final count = int.parse(countStr) + 1;
     await _storage.write(key: _keySessionCount, value: count.toString());
   }
 
-  /// Kiểm tra có nên hiện prompt không
   static Future<bool> shouldShowPrompt() async {
     final rated = await _storage.read(key: _keyRated);
     if (rated == 'true') return false;
@@ -69,10 +64,9 @@ class _RatingService {
     if (lastPromptStr != null) {
       final lastPrompt = DateTime.parse(lastPromptStr);
       final daysSinceLast = DateTime.now().difference(lastPrompt).inDays;
-      if (daysSinceLast < 3) return false; // Chưa đủ 3 ngày kể từ lần hỏi trước
+      if (daysSinceLast < 3) return false;
     }
 
-    // Điều kiện: 5 buổi học HOẶC 3 ngày dùng
     return count >= 5 || daysSinceFirst >= 3;
   }
 
@@ -108,31 +102,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _ctrl = AnimationController(duration: const Duration(milliseconds: 700), vsync: this);
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _loadUserStats();
-    _checkRating(); // ← Bước 10
+    _checkFeedback();
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  Future<void> _launchFeedbackForm() async {
-  final Uri url = Uri.parse('https://docs.google.com/forms/d/1YKj_ZylAtoMWmzQyn2yfILTAnXp50VmnqRcp9RwDsrc/edit');
-  if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-    throw Exception('Không thể mở được đường dẫn $url');
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
-}
 
-  // ── Rating logic ───────────────────────────────────────────
-  Future<void> _checkRating() async {
-    await _RatingService.trackSession();
-    final should = await _RatingService.shouldShowPrompt();
-    if (should && mounted) {
-      // Delay 2s để UI load xong trước
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) _showRatingDialog();
+  // ── Mở Google Form feedback ────────────────────────────────
+  Future<void> _launchFeedbackForm() async {
+    final Uri url = Uri.parse(
+      'https://docs.google.com/forms/d/1YKj_ZylAtoMWmzQyn2yfILTAnXp50VmnqRcp9RwDsrc/viewform',
+    );
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không mở được form, thử lại nhé!')),
+        );
+      }
     }
   }
 
-  void _showRatingDialog() {
+  // ── Feedback popup logic ───────────────────────────────────
+  Future<void> _checkFeedback() async {
+    await _RatingService.trackSession();
+    final should = await _RatingService.shouldShowPrompt();
+    if (should && mounted) {
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) _showFeedbackDialog();
+    }
+  }
+
+  void _showFeedbackDialog() {
     _RatingService.markPromptShown();
     showDialog(
       context: context,
@@ -146,53 +149,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Container(
               width: 80, height: 80,
               decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFFFB300)]),
+                gradient: LinearGradient(colors: [Color(0xFF2979FF), Color(0xFF00C853)]),
                 shape: BoxShape.circle,
               ),
-              child: const Center(child: Text('⭐', style: TextStyle(fontSize: 40))),
+              child: const Center(child: Text('💬', style: TextStyle(fontSize: 40))),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Bạn thấy app thế nào?',
+              'Góp ý cho TaiwanMate!',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: _DS.textDark),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             const Text(
-              'Đánh giá của bạn giúp TaiwanMate\nphát triển tốt hơn mỗi ngày! 🙏',
+              'Ý kiến của bạn giúp app\nngày càng tốt hơn 🙏',
               textAlign: TextAlign.center,
               style: TextStyle(color: _DS.textGrey, height: 1.5, fontSize: 14),
             ),
             const SizedBox(height: 24),
 
-            // Nút Đánh giá ngay
+            // Nút Góp ý ngay
             GestureDetector(
               onTap: () async {
                 Navigator.pop(dialogCtx);
                 await _RatingService.markRated();
-                // TODO: khi build iOS/Android thật, bỏ comment đoạn dưới:
-                // final inAppReview = InAppReview.instance;
-                // if (await inAppReview.isAvailable()) {
-                //   await inAppReview.requestReview();
-                // } else {
-                //   await inAppReview.openStoreListing(appStoreId: 'YOUR_ID');
-                // }
+                await _launchFeedbackForm();
               },
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFFFB300)]),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2979FF), Color(0xFF00C853)],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [BoxShadow(
-                    color: const Color(0xFFFF6B35).withOpacity(0.35),
+                    color: const Color(0xFF2979FF).withOpacity(0.35),
                     blurRadius: 12, offset: const Offset(0, 4),
                   )],
                 ),
                 child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Text('⭐⭐⭐⭐⭐', style: TextStyle(fontSize: 18)),
+                  Text('📝', style: TextStyle(fontSize: 20)),
                   SizedBox(width: 10),
-                  Text('Đánh giá ngay!',
+                  Text('Góp ý ngay!',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
                 ]),
               ),
@@ -215,9 +214,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       final token = await const FlutterSecureStorage().read(key: 'access_token');
       final dio = Dio(BaseOptions(
-  connectTimeout: const Duration(seconds: 10),
-  receiveTimeout: const Duration(seconds: 10),
-));
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ));
       final res = await dio.get(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
@@ -281,7 +280,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 1. Cột bên trái: Lời chào (Column này đã đóng ngoặc đúng)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -290,34 +288,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Text('TaiwanMate', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: _DS.textDark, letterSpacing: -0.5)),
             ],
           ),
-          
-          // 2. Row bên phải: Feedback + Profile (Row này nằm trong children của Row cha)
           Row(
             children: [
+              // Nút feedback icon — bấm thủ công mở form bất kỳ lúc nào
               IconButton(
                 icon: const Icon(Icons.help_outline_rounded, color: _DS.textGrey),
+                tooltip: 'Góp ý',
                 onPressed: _launchFeedbackForm,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               GestureDetector(
                 onTap: () => context.go('/profile'),
                 child: Container(
                   width: 46, height: 46,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: const Color(0xFF667EEA).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
+                    boxShadow: [BoxShadow(
+                      color: const Color(0xFF667EEA).withOpacity(0.4),
+                      blurRadius: 10, offset: const Offset(0, 4),
+                    )],
                   ),
                   child: const Icon(Icons.person_rounded, color: Colors.white, size: 24),
                 ),
               ),
             ],
           ),
-        ], // Kết thúc children của Row cha
+        ],
       ),
     );
   }
-
 
   Widget _buildStreakBanner() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),

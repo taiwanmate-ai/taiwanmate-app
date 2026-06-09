@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 import 'dart:convert';
+import 'dart:js' as js;
 
 // ─── Design System (nhất quán với home/login) ─────────────────
 class _DS {
@@ -131,19 +132,31 @@ class _TranslateScreenState extends State<TranslateScreen>
     });
     try {
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio();
-      final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
-        data: {'text': text, 'target_lang': _targetLang},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ));
+      Response? response;
+      for (int attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await dio.post(
+            'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
+            data: {'text': text, 'target_lang': _targetLang},
+            options: Options(headers: {'Authorization': 'Bearer $token'}),
+          );
+          break;
+        } catch (e) {
+          if (attempt == 1) rethrow;
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
       setState(() {
-        _result = response.data['translated'] ?? '';
-        _resultSimplified = response.data['translated_simplified'] ?? '';
-        _resultEnglish = response.data['translated_english'] ?? '';
-        _resultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
-        _pinyin = response.data['pinyin'] ?? '';
-        _explanation = response.data['explanation'] ?? '';
+        _result = response!.data['translated'] ?? '';
+        _resultSimplified = response!.data['translated_simplified'] ?? '';
+        _resultEnglish = response!.data['translated_english'] ?? '';
+        _resultVietnamese = response!.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+        _pinyin = response!.data['pinyin'] ?? '';
+        _explanation = response!.data['explanation'] ?? '';
       });
       // Lưu history
       if (_result.isNotEmpty) {
@@ -152,6 +165,17 @@ class _TranslateScreenState extends State<TranslateScreen>
           if (_history.length > 5) _history.removeLast();
         });
       }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 20;
+          setState(() => _result = '');
+          if (mounted) _showQuotaDialog('dịch văn bản', limit);
+          return;
+        }
+      }
+      setState(() => _result = 'Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
       setState(() => _result = 'Lỗi kết nối. Vui lòng thử lại.');
     } finally {
@@ -222,6 +246,17 @@ class _TranslateScreenState extends State<TranslateScreen>
         _imagePinyin = response.data['pinyin'] ?? '';
         _imageExplanation = response.data['explanation'] ?? '';
       });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 5;
+          setState(() => _imageResult = '');
+          if (mounted) _showQuotaDialog('dịch ảnh', limit);
+          return;
+        }
+      }
+      setState(() => _imageResult = 'Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
       setState(() => _imageResult = 'Lỗi: $e');
     } finally {
@@ -281,6 +316,17 @@ class _TranslateScreenState extends State<TranslateScreen>
         _voicePinyin = response.data['pinyin'] ?? '';
         _voiceExplanation = response.data['explanation'] ?? '';
       });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 3;
+          setState(() => _voiceResult = '');
+          if (mounted) _showQuotaDialog('dịch giọng nói', limit);
+          return;
+        }
+      }
+      setState(() => _voiceResult = 'Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
       setState(() => _voiceResult = 'Lỗi: $e');
     } finally {
@@ -318,22 +364,101 @@ class _TranslateScreenState extends State<TranslateScreen>
     }
   }
 
+  void _showQuotaDialog(String featureName, int limit) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🔒', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              Text(
+                'Hết lượt $featureName hôm nay',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _DS.textGrey),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Thanh toán VIP sắp ra mắt!')),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [_DS.orange, Color(0xFFFFB300)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      '⭐ Nâng lên VIP — NT\$149/tháng',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Để sau', style: TextStyle(color: _DS.textGrey)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  bool _isSpeaking = false;
+
   Future<void> _speak(String text, {String lang = 'zh-TW'}) async {
+    if (_isSpeaking) return; // chặn gọi chồng nhau
+    setState(() => _isSpeaking = true);
     try {
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio();
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        responseType: ResponseType.bytes,
+      ));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts',
         data: {'text': text, 'lang': lang},
-        options: Options(headers: {'Authorization': 'Bearer $token'}, responseType: ResponseType.bytes),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      final blob = html.Blob([response.data], 'audio/mpeg');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final audio = html.AudioElement(url);
-      audio.play();
-      audio.onEnded.listen((_) => html.Url.revokeObjectUrl(url));
+      final b64 = base64Encode(response.data as List<int>);
+      // dùng js eval để set playbackRate — giống learn_screen
+      js.context.callMethod('eval', ['''
+        (function() {
+          if (window._translateAudio) {
+            window._translateAudio.pause();
+            window._translateAudio = null;
+          }
+          var a = new Audio("data:audio/mpeg;base64,$b64");
+          a.playbackRate = ${lang == 'zh-TW' || lang == 'zh-CN' ? 0.75 : 0.9};
+          window._translateAudio = a;
+          setTimeout(function() { a.play(); }, 300);
+        })();
+      ''']);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi phát âm: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi phát âm. Thử lại sau.')),
+      );
+    } finally {
+      await Future.delayed(const Duration(milliseconds: 3000));
+      if (mounted) setState(() => _isSpeaking = false);
     }
   }
 

@@ -8,7 +8,7 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:convert';
-import 'package:taiwanmate_ai/features/learn/presentation/widgets/learning_path.dart';
+import 'package:taiwanmate/features/learn/presentation/widgets/learning_path.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -194,7 +194,7 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
                          lang: _lang,
                          onStartLearn: () => _tabController.animateTo(0),
                       ),
-                      VocabularyListTab(storage: _storage),
+                      VocabularyListTab(storage: _storage,  lang: _lang),
                     ],
                   ),
           ),
@@ -582,8 +582,8 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
             onHorizontalDragStart: (_) => setState(() => _dragging = true),
             onHorizontalDragUpdate: (d) => setState(() => _dragOffset += Offset(d.delta.dx, 0)),
             onHorizontalDragEnd: (d) {
-              if (_dragOffset.dx > 80) _goNext(isKnown: true);
-              else if (_dragOffset.dx < -80) _goNext(isKnown: false);
+              if (_dragOffset.dx > 120) _goNext(isKnown: true);
+              else if (_dragOffset.dx < -120) _goNext(isKnown: false);
               else setState(() => _dragOffset = Offset.zero);
               setState(() => _dragging = false);
             },
@@ -637,6 +637,49 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
             ),
           ),
         ),
+      ),
+      // Nút Chưa biết / Đã biết — backup cho vuốt
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        child: Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _goNext(isKnown: false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _DS.redLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _DS.red.withOpacity(0.4)),
+                ),
+                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('❌', style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 6),
+                  Text('Chưa biết', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.red)),
+                ]),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _goNext(isKnown: true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _DS.greenLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _DS.green.withOpacity(0.4)),
+                ),
+                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('✅', style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 6),
+                  Text('Đã biết', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.green)),
+                ]),
+              ),
+            ),
+          ),
+        ]),
       ),
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -709,10 +752,22 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
       
       ),
       const SizedBox(height: 20),
-      FittedBox(fit: BoxFit.scaleDown,
-          child: Text(widget.getWord(word), style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, height: 1))),
-      const SizedBox(height: 12),
-      Text(widget.getPinyin(word), style: const TextStyle(fontSize: 20, color: Colors.white70, fontStyle: FontStyle.italic)),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          widget.getWord(word),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        widget.getPinyin(word),
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 16, color: Colors.white70, fontStyle: FontStyle.italic),
+      ),
       const SizedBox(height: 24),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.touch_app_rounded, size: 14, color: Colors.white.withOpacity(0.5)),
@@ -1389,7 +1444,11 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(color: _DS.purpleLight, borderRadius: BorderRadius.circular(20)),
           child: Text(
-            _hasPlayed ? 'Bạn vừa nghe từ nào? Chọn nghĩa đúng!' : 'Nhấn nút để nghe từ tiếng Trung',
+            _hasPlayed
+                ? 'Bạn vừa nghe từ nào? Chọn nghĩa đúng!'
+                : widget.lang == 'en'
+                    ? 'Nhấn nút để nghe từ tiếng Anh'
+                    : 'Nhấn nút để nghe từ tiếng Trung',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.purple),
           ),
         ),
@@ -1859,7 +1918,8 @@ class _FillBlankTabState extends State<FillBlankTab> {
 // ═══════════════════════════════════════════════════════════════
 class VocabularyListTab extends StatefulWidget {
   final FlutterSecureStorage storage;
-  const VocabularyListTab({super.key, required this.storage});
+  final String lang;
+  const VocabularyListTab({super.key, required this.storage, required this.lang});
   @override
   State<VocabularyListTab> createState() => _VocabularyListTabState();
 }
@@ -1889,7 +1949,7 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
       final token = await widget.storage.read(key: 'access_token');
       final dio = Dio();
       final response = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary',
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary?lang=${widget.lang}',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() {
@@ -1910,8 +1970,10 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
         final matchLevel = _filterLevel == 'Tất cả' || w['tocfl_level'] == _filterLevel;
         final matchSearch = query.isEmpty ||
             (w['chinese'] ?? '').toLowerCase().contains(query) ||
+            (w['english'] ?? '').toLowerCase().contains(query) ||
             (w['vietnamese'] ?? '').toLowerCase().contains(query) ||
-            (w['pinyin'] ?? '').toLowerCase().contains(query);
+            (w['pinyin'] ?? '').toLowerCase().contains(query) ||
+            (w['ipa'] ?? '').toLowerCase().contains(query);
         return matchLevel && matchSearch;
       }).toList();
     });
@@ -2007,6 +2069,7 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
                         child: Row(children: [
                           // Chinese word
+                          // Word box — hiển thị đúng theo lang
                           Container(
                             width: 56, height: 56,
                             decoration: BoxDecoration(
@@ -2014,18 +2077,36 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(child: FittedBox(fit: BoxFit.scaleDown,
-                                child: Text(w['chinese'] ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)))),
+                                child: Text(
+                                  widget.lang == 'en'
+                                      ? (w['english'] ?? w['chinese'] ?? '')
+                                      : (w['chinese'] ?? ''),
+                                  style: TextStyle(
+                                    fontSize: widget.lang == 'en' ? 13 : 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ))),
                           ),
                           const SizedBox(width: 12),
                           // Info
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(w['vietnamese'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark)),
                             const SizedBox(height: 2),
-                            Text(w['pinyin'] ?? '', style: const TextStyle(fontSize: 12, color: _DS.orange, fontStyle: FontStyle.italic)),
-                            if ((w['example_zh'] ?? '').isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(w['example_zh'], style: const TextStyle(fontSize: 11, color: _DS.textGrey), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ],
+                            Text(
+                              widget.lang == 'en' ? (w['ipa'] ?? '') : (w['pinyin'] ?? ''),
+                              style: const TextStyle(fontSize: 12, color: _DS.orange, fontStyle: FontStyle.italic),
+                            ),
+                            Builder(builder: (_) {
+                              final example = widget.lang == 'en'
+                                  ? (w['example_en'] ?? '')
+                                  : (w['example_zh'] ?? '');
+                              if (example.isEmpty) return const SizedBox.shrink();
+                              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                const SizedBox(height: 4),
+                                Text(example, style: const TextStyle(fontSize: 11, color: _DS.textGrey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ]);
+                            }),
                           ])),
                           // Right side: level + SRS
                           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
