@@ -964,7 +964,6 @@ if (_imageLoading)
   ),
 
 // Dòng cũ giữ nguyên bên dưới
-if (_imageResult.isNotEmpty || _imageResultEnglish.isNotEmpty || _imageResultVietnamese.isNotEmpty)
         if (_imageResult.isNotEmpty || _imageResultEnglish.isNotEmpty || _imageResultVietnamese.isNotEmpty)
           _buildResultCard(
             targetLang: _imageTargetLang,
