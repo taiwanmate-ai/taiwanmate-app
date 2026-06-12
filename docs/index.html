@@ -240,6 +240,28 @@
       0% { transform: translateX(-200%); }
       100% { transform: translateX(500%); }
     }
+
+    #legal-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      background: rgba(6,6,15,0.85);
+      z-index: 10001;
+      backdrop-filter: blur(8px);
+    }
+    #legal-footer a {
+      color: rgba(245,166,35,0.7);
+      text-decoration: none;
+      margin: 0 6px;
+    }
+    #legal-footer a:hover {
+      color: #F5A623;
+    }
   </style>
   <!-- Paddle.js - Sandbox -->
   <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
@@ -451,6 +473,12 @@
       if (e.target === document.body) e.preventDefault();
     }, { passive: false });
   </script>
+
+  <div id="legal-footer">
+    <a href="terms.html">Điều khoản</a> ·
+    <a href="privacy.html">Bảo mật</a> ·
+    <a href="refund.html">Hoàn tiền</a>
+  </div>
 
   <script src="flutter_bootstrap.js" async></script>
 </body>
