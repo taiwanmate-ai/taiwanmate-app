@@ -432,6 +432,10 @@
       if (splash) {
         splash.style.opacity = '0';
         setTimeout(function() { splash.style.display = 'none'; }, 700);
+        var legalFooter = document.getElementById('legal-footer');
+      if (legalFooter) {
+        legalFooter.style.display = 'none';
+      }
       }
     });
 
