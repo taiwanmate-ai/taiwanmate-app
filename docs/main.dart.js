@@ -56619,7 +56619,7 @@ r=t.w
 s=A.bf(s,i,r).w
 q=j.c
 q.toString
-e.push(new A.aI(B.fj,A.bJ(new A.dE(new A.ax(0,s.a.a*0.55,0,A.bf(q,i,r).w.a.b*0.18),A.no("assets/images/Translator-amico.png",B.cC),i),i,i),i))}e.push(j.afs())
+e.push(new A.aI(B.fj,A.bJ(new A.dE(new A.ax(0,s.a.a*0.7,0,A.bf(q,i,r).w.a.b*0.22),A.no("assets/images/Translator-amico.png",B.cC),i),i,i),i))}e.push(j.afs())
 e.push(B.bM)
 s=A.F(20)
 r=t.V
