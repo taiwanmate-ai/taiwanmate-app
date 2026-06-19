@@ -9451,7 +9451,8 @@ aFl:function aFl(a){this.a=a},
 aFi:function aFi(a){this.a=a},
 aFj:function aFj(a){this.a=a},
 aFh:function aFh(a){this.a=a},
-aFf:function aFf(a){this.a=a},
+aFf:function aFf(a,b){this.a=a
+this.b=b},
 aFg:function aFg(a){this.a=a},
 aFe:function aFe(a){this.a=a},
 aFm:function aFm(a){this.a=a},
@@ -53777,18 +53778,14 @@ $0(){return this.a.at=!1},
 $S:0}
 A.aFh.prototype={
 $1(a){var s=null,r=A.y(24),q=this.a
-return A.lD(s,s,new A.aB(B.bY,A.a7(A.b([B.Gs,B.az,B.adZ,B.Y,A.x("B\u1ea1n \u0111\xe3 \u0111\xfang "+q.ay+" t\u1eeb trong 60 gi\xe2y!",s,s,s,s,s,B.pG,B.R,s),B.a7,A.am(s,A.w(s,B.adS,B.f,s,s,new A.p(B.r,s,s,A.y(16),s,s,B.k),s,s,s,B.aM,s,s,1/0),B.n,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,new A.aFf(q),s,s,s,s,s,s),B.Y,A.hJ(B.afz,new A.aFg(q),s)],t.p),B.j,B.h,B.I),s),s,s,s,s,B.dw,s,new A.c3(r,B.y),s)},
+return A.lD(s,s,new A.aB(B.bY,A.a7(A.b([B.Gs,B.az,B.adZ,B.Y,A.x("B\u1ea1n \u0111\xe3 \u0111\xfang "+q.ay+" t\u1eeb trong 60 gi\xe2y!",s,s,s,s,s,B.pG,B.R,s),B.a7,A.am(s,A.w(s,B.adS,B.f,s,s,new A.p(B.r,s,s,A.y(16),s,s,B.k),s,s,s,B.aM,s,s,1/0),B.n,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,new A.aFf(q,a),s,s,s,s,s,s),B.Y,A.hJ(B.afz,new A.aFg(a),s)],t.p),B.j,B.h,B.I),s),s,s,s,s,B.dw,s,new A.c3(r,B.y),s)},
 $S:36}
 A.aFf.prototype={
-$0(){var s=this.a,r=s.c
-r.toString
-A.bJ(r,!1).bG(null)
-s.ZP()},
+$0(){A.bJ(this.b,!1).bG(null)
+this.a.ZP()},
 $S:0}
 A.aFg.prototype={
-$0(){var s=this.a.c
-s.toString
-A.bJ(s,!1).bG(null)
+$0(){A.bJ(this.a,!1).bG(null)
 return null},
 $S:0}
 A.aFe.prototype={
