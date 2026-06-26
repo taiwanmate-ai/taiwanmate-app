@@ -251,6 +251,58 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+  // ── Skeleton loading — mô phỏng bố cục home khi đang tải ──
+  Widget _buildSkeleton() {
+    Widget box(double h, {double? w, double r = 12}) => Container(
+          width: w, height: h,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(r),
+          ),
+        );
+
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SizedBox(height: 8),
+          // Hero banner
+          box(160, w: double.infinity, r: 20),
+          const SizedBox(height: 20),
+          // Stat row
+          Row(children: [
+            Expanded(child: box(70, r: 16)),
+            const SizedBox(width: 12),
+            Expanded(child: box(70, r: 16)),
+            const SizedBox(width: 12),
+            Expanded(child: box(70, r: 16)),
+          ]),
+          const SizedBox(height: 24),
+          // Section label
+          box(20, w: 140),
+          const SizedBox(height: 12),
+          // Feature grid
+          Row(children: [
+            Expanded(child: box(120, r: 18)),
+            const SizedBox(width: 12),
+            Expanded(child: box(120, r: 18)),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: box(90, r: 18)),
+            const SizedBox(width: 12),
+            Expanded(child: box(90, r: 18)),
+          ]),
+          const SizedBox(height: 24),
+          // News
+          box(20, w: 120),
+          const SizedBox(height: 12),
+          box(110, w: double.infinity, r: 18),
+        ]),
+      ),
+    );
+  }
 
   // ── HERO BANNER ───────────────────────────────────────────
   Widget _buildHeroBanner() {
