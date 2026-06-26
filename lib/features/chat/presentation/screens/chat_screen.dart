@@ -812,7 +812,7 @@ $memoryNote
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
                 ),
-                child: const Text('NT\$1,099/năm · tiết kiệm 38% 🔥', textAlign: TextAlign.center,
+                child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
               ),
             ),

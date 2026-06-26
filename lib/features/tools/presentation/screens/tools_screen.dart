@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -1090,7 +1090,7 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
                   decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Text('NT\$1,099/nÄƒm Â· tiáº¿t kiá»‡m 38% ðŸ”¥', textAlign: TextAlign.center,
+                  child: const Text('NT\$1,499/nÄƒm Â· tiáº¿t kiá»‡m 37% ðŸ”¥', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 10),
@@ -1433,7 +1433,7 @@ class _AiToolPageState extends State<AiToolPage> {
               onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'); },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(gradient: LinearGradient(colors: widget.tool.gradient), borderRadius: BorderRadius.circular(12)),
-                  child: const Text('NT\$1,099/nÄƒm Â· tiáº¿t kiá»‡m 38% ðŸ”¥', textAlign: TextAlign.center,
+                  child: const Text('NT\$1,499/nÄƒm Â· tiáº¿t kiá»‡m 37% ðŸ”¥', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Äá»ƒ sau', style: TextStyle(color: _DS.textGrey))),
@@ -1805,7 +1805,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]), borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Text('NT\$1,099/nÄƒm Â· tiáº¿t kiá»‡m 38% ðŸ”¥', textAlign: TextAlign.center,
+                  child: const Text('NT\$1,499/nÄƒm Â· tiáº¿t kiá»‡m 37% ðŸ”¥', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 10),

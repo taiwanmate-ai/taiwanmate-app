@@ -869,10 +869,10 @@ class VipScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), borderRadius: BorderRadius.circular(20)),
-                      child: const Text('Tiết kiệm 38%', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800)),
+                      child: const Text('Tiết kiệm 37%', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800)),
                     ),
                     const SizedBox(height: 8),
-                    const Text('NT\$1,099', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+                    const Text('NT\$1,499', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
                     const Text('/năm', style: TextStyle(fontSize: 11, color: Colors.white70)),
                   ]),
                 )),
@@ -913,7 +913,7 @@ GestureDetector(
       borderRadius: BorderRadius.circular(16),
       boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.45), blurRadius: 16, offset: const Offset(0, 6))],
     ),
-    child: const Text('Gói năm — NT\$1,099/năm ⭐ Tiết kiệm 38%',
+    child: const Text('Gói năm — NT\$1,499/năm ⭐ Tiết kiệm 37%',
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
   ),
@@ -921,23 +921,7 @@ GestureDetector(
               const SizedBox(height: 12),
 
               // Voucher 24h
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A1500),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _DS.yellow.withOpacity(0.4)),
-                ),
-                child: Row(children: [
-                  const Text('🎟️', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Voucher ra mắt — chỉ NT\$999/năm', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.yellow)),
-                    Text('Giới hạn thời gian · Nhập code khi thanh toán', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
-                  ])),
-                ]),
-              ),
+              const _VoucherCountdown(),
 
               const SizedBox(height: 20),
 
@@ -972,3 +956,112 @@ class _VipBadge extends StatelessWidget {
     Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.white54, fontWeight: FontWeight.w600)),
   ]);
 }
+
+class _VoucherCountdown extends StatefulWidget {
+  const _VoucherCountdown();
+  @override
+  State<_VoucherCountdown> createState() => _VoucherCountdownState();
+}
+ 
+class _VoucherCountdownState extends State<_VoucherCountdown> {
+  static const _storage = FlutterSecureStorage();
+  static const _installKey = 'install_date';
+  static const _voucherDays = 15; // số ngày voucher có hiệu lực
+ 
+  int? _daysLeft; // null = đang load
+  bool _expired = false;
+ 
+  // Màu vàng đồng bộ với _DS.yellow (0xFFFFD166)
+  static const _yellow = Color(0xFFFFD166);
+ 
+  @override
+  void initState() {
+    super.initState();
+    _initVoucher();
+  }
+ 
+  Future<void> _initVoucher() async {
+    try {
+      String? raw = await _storage.read(key: _installKey);
+      DateTime installDate;
+      if (raw == null) {
+        // Lần đầu mở app → ghi ngày cài là hôm nay
+        installDate = DateTime.now();
+        await _storage.write(key: _installKey, value: installDate.toIso8601String());
+      } else {
+        installDate = DateTime.parse(raw);
+      }
+      final passed = DateTime.now().difference(installDate).inDays;
+      final left = _voucherDays - passed;
+      if (mounted) {
+        setState(() {
+          if (left < 0) {
+            _expired = true;
+          } else {
+            _daysLeft = left;
+          }
+        });
+      }
+    } catch (_) {
+      // Lỗi storage → ẩn voucher cho an toàn
+      if (mounted) setState(() => _expired = true);
+    }
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    if (_expired) return const SizedBox.shrink();        // hết hạn → ẩn
+    if (_daysLeft == null) return const SizedBox.shrink(); // đang load → chưa hiện
+ 
+    final d = _daysLeft!;
+    final subtitle = d == 0
+        ? '⏰ Hôm nay là ngày cuối! · Nhập code khi thanh toán'
+        : '⏰ Chỉ còn $d ngày · Nhập code khi thanh toán';
+ 
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A1500),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _yellow.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        const Text('🎟️', style: TextStyle(fontSize: 20)),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Voucher ra mắt — chỉ NT\$999/năm',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _yellow)),
+          Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
+        ])),
+      ]),
+    );
+  }
+}
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
