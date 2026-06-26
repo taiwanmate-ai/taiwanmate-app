@@ -51,7 +51,9 @@ class LearnScreen extends StatefulWidget {
   State<LearnScreen> createState() => _LearnScreenState();
 }
 
-class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin {
+class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   late TabController _tabController;
   final _storage = const FlutterSecureStorage();
   List<Map<String, dynamic>> _vocabulary = [];
@@ -108,7 +110,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   void dispose() {
     _tabController.dispose();
     _survivalTimer?.cancel();
-    _healthTimer?.cancel();
+    
     super.dispose();
   }
 
@@ -249,6 +251,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: SafeArea(

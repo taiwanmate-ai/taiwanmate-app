@@ -41,7 +41,9 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
+class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _storage = const FlutterSecureStorage();
@@ -131,12 +133,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         langFormat = 'English only. No other language allowed.';
         break;
       case 'en_vi':
-        langRule = 'LANGUAGE: English sentences ONLY. Put Vietnamese meaning in parentheses () right after the English.\nFORMAT: English sentence (nghĩa tiếng Việt)\nTTS reads English ONLY, NOT Vietnamese in parentheses.';
-        langFormat = 'CORRECT: Hello! (Xin chào!) How are you? (Bạn có khỏe không?)\nWRONG: Xin chào! How are you?';
+        langRule = 'LANGUAGE: English sentences ONLY. Put EVERY Vietnamese translation/explanation strictly inside parentheses ().';
+        langFormat = 'CORRECT: Hello! (Xin chào!) How are you? (Bạn có khỏe không?)\\nWRONG: Xin chào! How are you?';
         break;
-      default:
-        langRule = 'LANGUAGE: Traditional Chinese sentences ONLY. Put Vietnamese meaning in parentheses () right after.\nFORMAT: 繁體中文 (nghĩa tiếng Việt)\nTTS reads Chinese ONLY, NOT Vietnamese in parentheses.';
-        langFormat = 'CORRECT: 你好！(Xin chào!) 你今天好嗎？(Hôm nay bạn có khỏe không?)\nWRONG: Xin chào! 你好！';
+      default: // zh_vi
+        langRule = 'LANGUAGE: Traditional Chinese sentences ONLY. Put EVERY Vietnamese translation/explanation strictly inside parentheses ().';
+        langFormat = 'CORRECT: 你好! (Xin chào!) 你今天好嗎? (Hôm nay bạn có khỏe không?)\\nWRONG: Xin chào! 你好!';
     }
 
     final String trendingZh = '''
@@ -151,10 +153,10 @@ Khen khi ĐÚNG:
 - "你終於對了，我要哭了感動"
 - "完美！你真的可以！"
 Kể chuyện cá nhân tự nhiên (1/5 lần):
-- "Hôm qua tao đi ăn ở Shilin, đông kinh khủng 😂"
-- "Sáng nay MRT delay, tao trễ làm suýt bị mắng"
-- "Tao vừa uống trà sữa Tiger Sugar, ngon vãi 🧋"
-- "Hôm nay Đài Bắc mưa to, mày có dù chưa?"''';
+  - "我昨天去士林夜市買東西，人潮真的多到爆 😂（Hôm qua tao đi chợ đêm Sĩ Lâm mua đồ, đông kinh khủng luôn 😂）"
+  - "今天早上捷運延誤了，害我差點被老闆罵（Sáng nay tàu điện ngầm bị trễ, làm tao suýt bị mắng）"
+  - "我剛剛去買了一杯老虎堂的黑糖珍珠鮮奶，真的超好喝 🧋（Tao vừa mua một ly sữa tươi trân châu đường đen Tiger Sugar, ngon vãi 🧋）"
+  - "今天台北下大雨，你出門有帶傘嗎？（Hôm nay Đài Bắc mưa to, mày có mang dù chưa?）"''';
 
     final String trendingEn = '''
 TRENDING Gen Z English slang (use naturally when fitting):
@@ -956,6 +958,7 @@ $memoryNote
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final gradient = _aiGradient;
     return Scaffold(
       backgroundColor: _DS.chatBg,

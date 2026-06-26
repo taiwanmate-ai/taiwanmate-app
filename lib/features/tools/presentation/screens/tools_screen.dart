@@ -192,7 +192,9 @@ class ToolsScreen extends StatefulWidget {
   State<ToolsScreen> createState() => _ToolsScreenState();
 }
 
-class _ToolsScreenState extends State<ToolsScreen> {
+class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   bool _reminderExpanded = false;
   bool _rightsExpanded = false;
   bool _calcExpanded = false;
@@ -246,6 +248,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: _DS.bg,
       body: SafeArea(

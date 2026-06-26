@@ -35,7 +35,9 @@ class TranslateScreen extends StatefulWidget {
 }
 
 class _TranslateScreenState extends State<TranslateScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+      @override
+  bool get wantKeepAlive => true;
   late TabController _tabController;
   final _inputController = TextEditingController();
   final _storage = const FlutterSecureStorage();

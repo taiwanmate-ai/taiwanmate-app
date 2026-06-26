@@ -83,7 +83,9 @@ class LiveChatScreen extends StatefulWidget {
   State<LiveChatScreen> createState() => _LiveChatScreenState();
 }
 
-class _LiveChatScreenState extends State<LiveChatScreen> {
+class _LiveChatScreenState extends State<LiveChatScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final _storage = const FlutterSecureStorage();
   List<Boss> _bosses = [];
   int? _dailyBossId;
@@ -122,6 +124,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: _DS.bg,
       body: SafeArea(
