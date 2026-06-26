@@ -5,6 +5,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamily: 'NotoSansTC',
       scaffoldBackgroundColor: const Color(0xFF0B0F1A),
       colorScheme: ColorScheme.dark(
         primary: primary,
@@ -69,6 +70,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: 'NotoSansTC',
       scaffoldBackgroundColor: const Color(0xFFF0F4F8),
       colorScheme: ColorScheme.light(
         primary: primary,

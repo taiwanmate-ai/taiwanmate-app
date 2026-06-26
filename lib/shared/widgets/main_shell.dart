@@ -4,8 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 
 class MainShell extends StatefulWidget {
-  final Widget child;
-  const MainShell({super.key, required this.child});
+  final StatefulNavigationShell navigationShell;
+  const MainShell({super.key, required this.navigationShell});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -18,7 +18,6 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // Hiện popup feedback sau 3 phút dùng app
     _feedbackTimer = Timer(const Duration(minutes: 3), () {
       if (!mounted || _feedbackShown) return;
       _feedbackShown = true;
@@ -62,7 +61,7 @@ class _MainShellState extends State<MainShell> {
               onTap: () {
                 Navigator.of(context, rootNavigator: true).pop();
                 launchUrl(
-                  Uri.parse('https://forms.gle/YOUR_FORM_ID'),
+                  Uri.parse('https://forms.gle/iY8axmRrCZRJZZJR6'),
                   mode: LaunchMode.externalApplication,
                 );
               },
@@ -90,90 +89,21 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  int _currentIndex(BuildContext context) {
-    final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/home')) return 0;
-    if (loc.startsWith('/translate')) return 1;
-    if (loc.startsWith('/learn')) return 2;
-    if (loc.startsWith('/chat')) return 3;
-    if (loc.startsWith('/tools')) return 5;
-    if (loc.startsWith('/profile')) return 6;
-    return 0;
+  void _onTap(int index) {
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
-
-  void _onTap(BuildContext context, int i) {
-    if (i == 4) {
-      showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 80, height: 80,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFF6B35), Color(0xFFFFB300)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(child: Text('🎙️', style: TextStyle(fontSize: 36))),
-              ),
-              const SizedBox(height: 20),
-              const Text('Live AI đang phát triển',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1D2E))),
-              const SizedBox(height: 10),
-              const Text(
-                'Tính năng trò chuyện trực tiếp với AI đang được xây dựng.\nSẽ ra mắt sớm nhất có thể! 🚀',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF8A8FA3), height: 1.6),
-              ),
-              const SizedBox(height: 24),
-              GestureDetector(
-                onTap: () => Navigator.of(context, rootNavigator: true).pop(),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFFFF6B35), Color(0xFFFFB300)]),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Text('OK, tôi chờ!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-                ),
-              ),
-            ]),
-          ),
-        ),
-      );
-      return;
-    }
-
-    const routes = {
-      0: '/home',
-      1: '/translate',
-      2: '/learn',
-      3: '/chat',
-      5: '/tools',
-      6: '/profile',
-    };
-
-    final route = routes[i];
-    if (route != null) context.go(route);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: widget.child,
+      body: widget.navigationShell,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex(context),
-        onTap: (i) => _onTap(context, i),
+        currentIndex: widget.navigationShell.currentIndex,
+        onTap: _onTap,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFFFF6B35),
+        selectedItemColor: const Color(0xFF5B5FEF),
         unselectedItemColor: const Color(0xFF8A8FA3),
         backgroundColor: Colors.white,
         elevation: 12,
@@ -187,6 +117,7 @@ class _MainShellState extends State<MainShell> {
           BottomNavigationBarItem(icon: Icon(Icons.mic_outlined), activeIcon: Icon(Icons.mic), label: 'Live'),
           BottomNavigationBarItem(icon: Icon(Icons.build_outlined), activeIcon: Icon(Icons.build), label: 'Công cụ'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Cá nhân'),
+          BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), activeIcon: Icon(Icons.people_rounded), label: 'Cộng đồng'),
         ],
       ),
     );

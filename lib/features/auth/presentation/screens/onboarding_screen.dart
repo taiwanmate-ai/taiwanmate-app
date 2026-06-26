@@ -199,6 +199,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 16),
+Center(
+  child: ConstrainedBox(
+    constraints: BoxConstraints(
+      maxWidth: MediaQuery.of(context).size.width * 0.60,
+      maxHeight: MediaQuery.of(context).size.height * 0.22,
+    ),
+    child: Image.asset('assets/images/Learning-bro.png', fit: BoxFit.contain),
+  ),
+),
+const SizedBox(height: 16),
+const Text('Xin chào! 👋', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
           const Text('Xin chào! 👋', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text('Trình độ tiếng Trung của bạn hiện tại?',
@@ -252,6 +264,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           const SizedBox(height: 16),
           const Text('Bạn học tiếng Trung để làm gì?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+Center(
+  child: ConstrainedBox(
+    constraints: BoxConstraints(
+      maxWidth: MediaQuery.of(context).size.width * 0.60,
+      maxHeight: MediaQuery.of(context).size.height * 0.22,
+    ),
+    child: Image.asset('assets/images/Personal_goals-bro.png', fit: BoxFit.contain),
+  ),
+),
+const SizedBox(height: 16),
+const Text('Bạn học tiếng Trung để làm gì?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text('Giúp AI cá nhân hóa nội dung cho bạn',
               style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
@@ -278,6 +302,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           const SizedBox(height: 16),
           const Text('Bạn là ai?', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+Center(
+  child: ConstrainedBox(
+    constraints: BoxConstraints(
+      maxWidth: MediaQuery.of(context).size.width * 0.60,
+      maxHeight: MediaQuery.of(context).size.height * 0.22,
+    ),
+    child: Image.asset('assets/images/Community-rafiki.png', fit: BoxFit.contain),
+  ),
+),
+const SizedBox(height: 16),
+const Text('Bạn là ai?', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text('AI sẽ điều chỉnh phong cách trò chuyện phù hợp',
               style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),

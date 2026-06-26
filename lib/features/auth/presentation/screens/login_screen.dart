@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -109,109 +109,117 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildTopSection(Size size) {
-    return Container(
-      height: size.height * 0.40,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFF6B35), Color(0xFFFF8E53), Color(0xFFFFB300)],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(36),
-          bottomRight: Radius.circular(36),
-        ),
+  // ── TOP SECTION ──────────────────────────
+Widget _buildTopSection(Size size) {
+  return Container(
+    height: size.height * 0.42,
+    width: double.infinity,
+    decoration: const BoxDecoration(
+      color: Color(0xFF1A1A4E),
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(36),
+        bottomRight: Radius.circular(36),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Flags + social proof
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Flag duo
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text('🇻🇳', style: TextStyle(fontSize: 18)),
-                      SizedBox(width: 6),
-                      Text('×', style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w700)),
-                      SizedBox(width: 6),
-                      Text('🇹🇼', style: TextStyle(fontSize: 18)),
-                    ]),
+    ),
+    child: SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Social proof
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  // Social proof
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('✨', style: TextStyle(fontSize: 14)),
+                    SizedBox(width: 6),
+                    Text('TaiwanMate AI',
+                        style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('👥', style: TextStyle(fontSize: 14)),
+                    SizedBox(width: 6),
+                    Text('12,400+ người dùng',
+                        style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ],
+            ),
+
+            // Illustration
+            Expanded(
+              child: Center(
+                child: Image.asset(
+                  'assets/images/Sign_up-amico.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+
+            // Micro-copy
+            FadeTransition(
+              opacity: _copyFade,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _microcopy[_copyIndex]['main']!,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.25,
+                      letterSpacing: -0.5,
                     ),
-                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text('👥', style: TextStyle(fontSize: 14)),
-                      SizedBox(width: 6),
-                      Text('12,400+ người dùng',
-                          style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
-                    ]),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _microcopy[_copyIndex]['sub']!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.75),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
+            ),
 
-              const SizedBox(height: 24),
+            const SizedBox(height: 6),
 
-              // Micro-copy rotating
-              FadeTransition(
-                opacity: _copyFade,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _microcopy[_copyIndex]['main']!,
-                      style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.w900,
-                        color: Colors.white, height: 1.25, letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _microcopy[_copyIndex]['sub']!,
-                      style: TextStyle(
-                        fontSize: 14, color: Colors.white.withOpacity(0.85),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+            // Dot indicators
+            Row(children: List.generate(3, (i) => Container(
+              margin: const EdgeInsets.only(right: 6),
+              width: i == _copyIndex ? 20 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: i == _copyIndex
+                    ? const Color(0xFFFFD166)
+                    : Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(3),
               ),
-
-              const SizedBox(height: 20),
-
-              // Dot indicators
-              Row(children: List.generate(3, (i) => Container(
-                margin: const EdgeInsets.only(right: 6),
-                width: i == _copyIndex ? 20 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: i == _copyIndex ? Colors.white : Colors.white.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ))),
-            ],
-          ),
+            ))),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildBottomSection() {
     return SlideTransition(
@@ -284,10 +292,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () => context.go('/forgot-password'),
                   style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8)),
                   child: const Text('Quên mật khẩu?',
-                      style: TextStyle(color: Color(0xFFFF6B35), fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: TextStyle(color: Color(0xFF5B5FEF), fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
               ),
 
@@ -302,13 +310,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6B35), Color(0xFFFFB300)],
+                        colors: [Color(0xFF5B5FEF), Color(0xFF3B3FA8)],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(
-                        color: const Color(0xFFFF6B35).withOpacity(0.4),
+                        color: const Color(0xFF5B5FEF).withOpacity(0.35),
                         blurRadius: 16, offset: const Offset(0, 6),
                       )],
                     ),
@@ -347,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   GestureDetector(
                     onTap: () => context.go('/register'),
                     child: const Text('Đăng ký ngay',
-                        style: TextStyle(color: Color(0xFFFF6B35), fontWeight: FontWeight.w800, fontSize: 14)),
+                        style: TextStyle(color: Color(0xFF5B5FEF), fontWeight: FontWeight.w800, fontSize: 14)),
                   ),
                 ]),
               ),
@@ -394,7 +402,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFFF6B35), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF5B5FEF), width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),

@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math' as math;
 import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:js' as js;
+import 'package:chinesemate/core/utils/web_utils.dart';
 import 'dart:convert';
-import 'package:taiwanmate/features/learn/presentation/widgets/learning_path.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/learning_path.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/journey.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
-  static const bg = Color(0xFFF5F6FA);
+  static const bg = Color(0xFFF0F4FF);
   static const white = Colors.white;
   static const textDark = Color(0xFF1A1D2E);
   static const textGrey = Color(0xFF8A8FA3);
@@ -51,33 +51,62 @@ class LearnScreen extends StatefulWidget {
   State<LearnScreen> createState() => _LearnScreenState();
 }
 
-class _LearnScreenState extends State<LearnScreen> with SingleTickerProviderStateMixin {
+class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   final _storage = const FlutterSecureStorage();
   List<Map<String, dynamic>> _vocabulary = [];
   bool _isLoading = true;
-  String _lang = 'zh'; // 'zh' hoặc 'en'
+  String _lang = 'zh';
   int _dailyGoal = 20;
   int _dailyDone = 0;
   int _totalWords = 0;
   int _reviewDue = 0;
 
+  // Mood selector
+  int _selectedMood = -1;
+  static const _moods = [
+    {'emoji': '😴', 'label': 'Mệt', 'desc': '5 từ nhẹ', 'tab': 0},
+    {'emoji': '⚡', 'label': 'Năng lượng', 'desc': 'Quiz nhanh', 'tab': 1},
+    {'emoji': '🎯', 'label': 'Tập trung', 'desc': 'Điền từ', 'tab': 3},
+    {'emoji': '🎮', 'label': 'Vui', 'desc': 'Mini game', 'tab': 2},
+  ];
+
+  // Survival mode
+  bool _survivalMode = false;
+  int _survivalTimeLeft = 60;
+  int _survivalCorrect = 0;
+  Timer? _survivalTimer;
+
+  // Calendar data — 30 ngày
+  final List<double> _calendarData = List.generate(30, (i) => 0.0);
+
+  // Yuki message
+  String get _meiMessage {
+    final h = DateTime.now().hour;
+    if (_dailyDone >= _dailyGoal) return 'Tao tự hào mày lắm! Hoàn thành rồi đó 🎉';
+    if (h < 10) return 'Dậy rồi à? Học sớm não nhớ lâu hơn đó mày 🧠';
+    if (h < 14) return 'Giờ này chưa học à? Tao hỏi thật đó 😤';
+    if (h < 20) return 'Còn $_reviewDue từ cần ôn, đừng bỏ qua nha mày!';
+    return 'Khuya rồi, học ít thôi rồi ngủ nha! 😴';
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _loadDailyVocabulary();
-    // Thêm vào initState() của LearnScreen
-Timer.periodic(const Duration(minutes: 4), (_) async {
-  try {
-    await Dio().get('https://taiwanmate-backend-production.up.railway.app/health');
-  } catch (_) {}
-});
+    _loadCalendarData();
+    Timer.periodic(const Duration(minutes: 4), (_) async {
+      try {
+        await Dio().get('https://taiwanmate-backend-production.up.railway.app/health');
+      } catch (_) {}
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _survivalTimer?.cancel();
     super.dispose();
   }
 
@@ -116,8 +145,76 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
     } catch (e) {}
   }
 
+  void _loadCalendarData() {
+    // Simulate data — trong thực tế load từ storage
+    final today = DateTime.now().day;
+    for (int i = 0; i < today && i < 30; i++) {
+      _calendarData[i] = (i % 3 == 0) ? 1.0 : (i % 3 == 1) ? 0.6 : 0.3;
+    }
+  }
+
+  void _startSurvivalMode() {
+    setState(() {
+      _survivalMode = true;
+      _survivalTimeLeft = 60;
+      _survivalCorrect = 0;
+    });
+    _survivalTimer?.cancel();
+    _survivalTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _survivalTimeLeft--);
+      if (_survivalTimeLeft <= 0) {
+        _survivalTimer?.cancel();
+        setState(() => _survivalMode = false);
+        _showSurvivalResult();
+      }
+    });
+    _tabController.animateTo(1); // Quiz tab
+  }
+
+  void _showSurvivalResult() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('⚡', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 12),
+            const Text('Survival Mode kết thúc!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1D2E))),
+            const SizedBox(height: 8),
+            Text('Bạn đã đúng $_survivalCorrect từ trong 60 giây!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF8A8FA3), fontSize: 14)),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () { Navigator.pop(dialogCtx); _startSurvivalMode(); },
+              child: Container(
+                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B5FEF),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Text('Thử lại', textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Đóng', style: TextStyle(color: Color(0xFF8A8FA3))),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   final List<Map<String, dynamic>> _sampleWords = [
-    {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'vietnamese': 'Xin chào', 'example_zh': '你好，我叫小明。', 'srs_level': 0, 'is_review': false},
+    {'chinese': '你好', 'pinyin': 'nǐ hǎo', 'vietnamese': 'Xin chào', 'example_zh': '你好，我叫Kai。', 'srs_level': 0, 'is_review': false},
     {'chinese': '謝謝', 'pinyin': 'xiè xiè', 'vietnamese': 'Cảm ơn', 'example_zh': '謝謝你的幫助。', 'srs_level': 0, 'is_review': false},
     {'chinese': '朋友', 'pinyin': 'péng yǒu', 'vietnamese': 'Bạn bè', 'example_zh': '他是我的好朋友。', 'srs_level': 0, 'is_review': false},
     {'chinese': '工作', 'pinyin': 'gōng zuò', 'vietnamese': 'Công việc', 'example_zh': '我的工作很忙。', 'srs_level': 0, 'is_review': false},
@@ -128,43 +225,45 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
   ];
 
   String _getWord(Map<String, dynamic> w) {
-  if (_lang == 'en') return w['english'] ?? w['word'] ?? w['chinese'] ?? '';
-  return w['chinese'] ?? w['word'] ?? '';
- }
- String _getPinyin(Map<String, dynamic> w) {
-  if (_lang == 'en') return w['ipa'] ?? w['pinyin'] ?? '';
-  return w['pinyin'] ?? '';
- }
- String _getExample(Map<String, dynamic> w) {
-  if (_lang == 'en') return w['example_en'] ?? w['example_zh'] ?? w['example'] ?? '';
-  return w['example_zh'] ?? w['example'] ?? '';
- }
+    if (_lang == 'en') return w['english'] ?? w['word'] ?? w['chinese'] ?? '';
+    return w['chinese'] ?? w['word'] ?? '';
+  }
+
+  String _getPinyin(Map<String, dynamic> w) {
+    if (_lang == 'en') return w['ipa'] ?? w['pinyin'] ?? '';
+    return w['pinyin'] ?? '';
+  }
+
+  String _getExample(Map<String, dynamic> w) {
+    if (_lang == 'en') return w['example_en'] ?? w['example_zh'] ?? w['example'] ?? '';
+    return w['example_zh'] ?? w['example'] ?? '';
+  }
+
   String _getMeaning(Map<String, dynamic> w) => w['vietnamese'] ?? w['meaning'] ?? '';
   String _getVocabId(Map<String, dynamic> w) => w['vocabulary_id']?.toString() ?? w['id']?.toString() ?? '';
   bool _isReview(Map<String, dynamic> w) => w['is_review'] == true;
   int _getSrsLevel(Map<String, dynamic> w) => (w['srs_level'] as num?)?.toInt() ?? 0;
-
   void _onStudied() => setState(() => _dailyDone = math.min(_dailyDone + 1, _dailyGoal));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _DS.bg,
+      backgroundColor: const Color(0xFFF0F4FF),
       body: SafeArea(
         child: Column(children: [
           _buildHeader(),
-          _buildStats(),
-          _buildDailyGoal(),
-          _buildTabBar(),
+if (MediaQuery.of(context).size.height > 700) _buildMeiMessage(),
+if (MediaQuery.of(context).size.height > 700) _buildMoodSelector(),
+_buildDailyRing(),
+_buildTabBar(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: _DS.orange))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B5FEF)))
                 : TabBarView(
                     controller: _tabController,
                     children: [
                       _vocabulary.isEmpty ? _buildEmpty() : FlashcardTab(
-                        vocabulary: _vocabulary,
-                        lang: _lang,
+                        vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin,
                         getMeaning: _getMeaning, getExample: _getExample,
                         getVocabId: _getVocabId, isReview: _isReview,
@@ -172,29 +271,24 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
                         onStudied: _onStudied, onUpdateSRS: _updateSRS,
                       ),
                       _vocabulary.isEmpty ? _buildEmpty() : QuizTab(
-                        vocabulary: _vocabulary,
-                        lang: _lang,
+                        vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin, getMeaning: _getMeaning,
                         onXpEarned: (xp) => _onStudied(),
                       ),
                       _vocabulary.isEmpty ? _buildEmpty() : ListenChooseTab(
-                        vocabulary: _vocabulary,
-                        lang: _lang,
+                        vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin, getMeaning: _getMeaning,
                         onXpEarned: (xp) => _onStudied(),
                       ),
                       _vocabulary.isEmpty ? _buildEmpty() : FillBlankTab(
-                        vocabulary: _vocabulary,
-                        lang: _lang,
+                        vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin,
                         getMeaning: _getMeaning, getExample: _getExample,
                         onXpEarned: (xp) => _onStudied(),
                       ),
-                       LearningPathTab(
-                         lang: _lang,
-                         onStartLearn: () => _tabController.animateTo(0),
-                      ),
-                      VocabularyListTab(storage: _storage,  lang: _lang),
+                      LearningPathTab(lang: _lang, onStartLearn: () => _tabController.animateTo(0)),
+                      JourneyTab(lang: _lang),
+                      VocabularyListTab(storage: _storage, lang: _lang),
                     ],
                   ),
           ),
@@ -203,115 +297,283 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
     );
   }
 
-  Widget _buildHeader() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-    child: Row(children: [
-      const Text('Học tập', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _DS.textDark, letterSpacing: -0.5)),
-      const Spacer(),
-      // Toggle ngôn ngữ
-      Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))]),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
+  // ── HEADER ────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A4E),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      child: Column(children: [
+        Row(children: [
+          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Hành trình học tập',
+                style: TextStyle(fontSize: 11, color: Color(0xFFA78BFA), fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            SizedBox(height: 2),
+            Text('Học tập', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+          ]),
+          const Spacer(),
+
+          // Survival Mode button
           GestureDetector(
-            onTap: () { if (_lang != 'zh') { setState(() => _lang = 'zh'); _loadDailyVocabulary(); } },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+            onTap: _startSurvivalMode,
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _lang == 'zh' ? _DS.orange : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0xFFFF3D57).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFF3D57).withOpacity(0.5)),
               ),
-              child: Text('🇹🇼 中文', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                  color: _lang == 'zh' ? Colors.white : _DS.textGrey)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                _survivalMode
+                    ? Text('⏱ $_survivalTimeLeft',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFFF3D57)))
+                    : const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('⚡', style: TextStyle(fontSize: 13)),
+                        SizedBox(width: 4),
+                        Text('60s', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFFF3D57))),
+                      ]),
+              ]),
             ),
           ),
+          const SizedBox(width: 8),
+
+          // Language toggle
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              GestureDetector(
+                onTap: () { if (_lang != 'zh') { setState(() => _lang = 'zh'); _loadDailyVocabulary(); } },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _lang == 'zh' ? const Color(0xFF5B5FEF) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text('🇹🇼 中文',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                          color: _lang == 'zh' ? Colors.white : Colors.white54)),
+                ),
+              ),
+              GestureDetector(
+                onTap: () { if (_lang != 'en') { setState(() => _lang = 'en'); _loadDailyVocabulary(); } },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _lang == 'en' ? const Color(0xFF2979FF) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Text('🇺🇸 EN',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                          color: _lang == 'en' ? Colors.white : Colors.white54)),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(width: 8),
           GestureDetector(
-            onTap: () { if (_lang != 'en') { setState(() => _lang = 'en'); _loadDailyVocabulary(); } },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            onTap: _loadDailyVocabulary,
+            child: Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _lang == 'en' ? _DS.blue : Colors.transparent,
+                color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text('🇺🇸 English', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                  color: _lang == 'en' ? Colors.white : _DS.textGrey)),
+              child: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white70),
             ),
           ),
         ]),
-      ),
-      const SizedBox(width: 8),
-      GestureDetector(
-        onTap: _loadDailyVocabulary,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))]),
-          child: const Icon(Icons.refresh_rounded, size: 18, color: _DS.textGrey),
-        ),
-      ),
-    ]),
-  );
+      ]),
+    );
+  }
 
-  Widget _buildStats() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-    child: Row(children: [
-      _buildStatChip('📚 $_totalWords từ hôm nay', _DS.blue, _DS.blueLight),
-      const SizedBox(width: 8),
-      if (_reviewDue > 0) _buildStatChip('🔄 $_reviewDue cần ôn', _DS.orange, _DS.orangeLight),
-    ]),
-  );
-
-  Widget _buildStatChip(String label, Color color, Color bg) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-    child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-  );
-
-  Widget _buildDailyGoal() {
-    final progress = _dailyDone / _dailyGoal;
-    final isDone = _dailyDone >= _dailyGoal;
+  // ── Yuki MESSAGE ──────────────────────────────────────────
+  Widget _buildMeiMessage() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDone ? _DS.greenLight : _DS.orangeLight,
-          borderRadius: BorderRadius.circular(_DS.radiusSm),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEEEDFE)),
+          boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Row(children: [
-          Text(isDone ? '🎉' : '🔥', style: const TextStyle(fontSize: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(isDone ? 'Hoàn thành hôm nay!' : 'Mục tiêu hôm nay',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDone ? _DS.green : _DS.orange)),
-              Text('$_dailyDone/$_dailyGoal từ',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDone ? _DS.green : _DS.orange)),
-            ]),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress, minHeight: 6,
-                backgroundColor: (isDone ? _DS.green : _DS.orange).withOpacity(0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(isDone ? _DS.green : _DS.orange),
-              ),
+          Container(
+            width: 38, height: 38,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Color(0xFF5B5FEF), Color(0xFF3B3FA8)]),
+              shape: BoxShape.circle,
             ),
+            child: const Center(
+              child: Text('美', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Yuki', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF5B5FEF))),
+            const SizedBox(height: 2),
+            Text(_meiMessage, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E))),
+          ])),
+          Container(
+            width: 6, height: 6,
+            decoration: const BoxDecoration(color: Color(0xFF00C853), shape: BoxShape.circle),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // ── MOOD SELECTOR ─────────────────────────────────────────
+  Widget _buildMoodSelector() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 0, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text('Mood hôm nay?',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF8A8FA3))),
+        ),
+        SizedBox(
+          height: 48,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _moods.length,
+            itemBuilder: (_, i) {
+              final m = _moods[i];
+              final isSelected = _selectedMood == i;
+              return GestureDetector(
+                onTap: () {
+                  setState(() => _selectedMood = isSelected ? -1 : i);
+                  if (!isSelected) _tabController.animateTo(m['tab'] as int);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFF5B5FEF) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isSelected ? const Color(0xFF5B5FEF) : const Color(0xFFEEEDFE)),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(m['emoji'] as String, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(width: 6),
+                    Text(
+  '${m['label']} · ${m['desc']}',
+  style: TextStyle(
+    fontSize: 11, fontWeight: FontWeight.w700,
+    color: isSelected ? Colors.white : const Color(0xFF1A1D2E),
+  ),
+),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── DAILY RING + CALENDAR ─────────────────────────────────
+  Widget _buildDailyRing() {
+    final progress = _dailyDone / _dailyGoal;
+    final isDone = _dailyDone >= _dailyGoal;
+    final ringColor = isDone
+        ? const Color(0xFF00C853)
+        : progress > 0.6
+            ? const Color(0xFFFFD166)
+            : const Color(0xFF5B5FEF);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).size.height > 700 ? 10 : 4, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Row(children: [
+          // Circular ring
+          SizedBox(
+            width: 60, height: 60,
+            child: Stack(alignment: Alignment.center, children: [
+              SizedBox(
+                width: 60, height: 60,
+                child: CircularProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  strokeWidth: 6,
+                  backgroundColor: ringColor.withOpacity(0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                ),
+              ),
+              Text(isDone ? '🎉' : '$_dailyDone',
+                  style: TextStyle(fontSize: isDone ? 20 : 16, fontWeight: FontWeight.w900, color: ringColor)),
+            ]),
+          ),
+          const SizedBox(width: 14),
+
+          // Stats
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(isDone ? 'Hoàn thành hôm nay! 🎊' : 'Mục tiêu hôm nay',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800,
+                    color: isDone ? const Color(0xFF00C853) : const Color(0xFF1A1D2E))),
+            const SizedBox(height: 4),
+            Text('$_dailyDone / $_dailyGoal từ · $_reviewDue cần ôn',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF8A8FA3))),
+            const SizedBox(height: 6),
+
+            // 30-day calendar mini
+            Row(children: List.generate(30, (i) {
+              final val = _calendarData[i];
+              Color dotColor;
+              if (val >= 0.8) dotColor = const Color(0xFF00C853);
+              else if (val >= 0.4) dotColor = const Color(0xFFFFD166);
+              else if (val > 0) dotColor = const Color(0xFF5B5FEF).withOpacity(0.4);
+              else dotColor = Colors.grey.shade200;
+
+              final isToday = i == DateTime.now().day - 1;
+              return Container(
+                width: isToday ? 7 : 5,
+                height: isToday ? 7 : 5,
+                margin: const EdgeInsets.only(right: 2),
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                  border: isToday ? Border.all(color: const Color(0xFF5B5FEF), width: 1.5) : null,
+                ),
+              );
+            }),
+            ),
+            const SizedBox(height: 2),
+            const Text('30 ngày qua', style: TextStyle(fontSize: 9, color: Color(0xFF8A8FA3))),
           ])),
         ]),
       ),
     );
   }
 
+  // ── TAB BAR ───────────────────────────────────────────────
   Widget _buildTabBar() => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
     child: Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: _DS.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
@@ -320,13 +582,13 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         indicator: BoxDecoration(
-          gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
+          color: const Color(0xFF5B5FEF),
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
-        unselectedLabelColor: _DS.textGrey,
+        unselectedLabelColor: const Color(0xFF8A8FA3),
         labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
         tabs: const [
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🃏', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Flashcard')])),
@@ -334,86 +596,70 @@ Timer.periodic(const Duration(minutes: 4), (_) async {
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎧', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Nghe')])),
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('✍️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Điền từ')])),
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🗺️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Lộ trình')])),
+          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎯', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Hành trình')])),
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📝', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Từ đã học')])),
         ],
       ),
     ),
   );
 
-  Widget _buildTopicsTab() => Padding(
-    padding: const EdgeInsets.all(20),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Học theo chủ đề', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _DS.textDark)),
-      const SizedBox(height: 6),
-      Text('Từ vựng thực tế cho cuộc sống ở Đài Loan', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
-      const SizedBox(height: 16),
-      Expanded(
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 1.3,
+  // ── EMPTY STATE ───────────────────────────────────────────
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        SizedBox(
+          width: 200, height: 200,
+          child: Image.asset('assets/images/Studying-rafiki.png', fit: BoxFit.contain),
+        ),
+        const SizedBox(height: 16),
+
+        // Thư từ tương lai
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFEEEDFE)),
+              boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Column(children: [
+              const Text('📬', style: TextStyle(fontSize: 28)),
+              const SizedBox(height: 8),
+              const Text('Thư từ bạn 6 tháng sau',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF5B5FEF))),
+              const SizedBox(height: 6),
+              Text(
+                '"Này, tao của 6 tháng trước. Hôm nay tao đã nói chuyện được với sếp Đài Loan mà không cần phiên dịch. Bắt đầu từ hôm nay đi!"',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.5, fontStyle: FontStyle.italic),
+              ),
+            ]),
           ),
-          itemCount: _topics.length,
-          itemBuilder: (_, i) {
-            final t = _topics[i];
-            final color = Color(t['color'] as int);
-            return GestureDetector(
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Chủ đề "${t['label']}" sắp ra mắt! 🚀'),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [color, color.withOpacity(0.75)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(_DS.radius),
-                  boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-                ),
-                child: Stack(children: [
-                  Positioned(right: -8, bottom: -8,
-                      child: Text(t['icon'] as String, style: TextStyle(fontSize: 56, color: Colors.white.withOpacity(0.15)))),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text(t['icon'] as String, style: const TextStyle(fontSize: 28)),
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(t['label'] as String, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-                        const SizedBox(height: 2),
-                        Text('Sắp ra mắt', style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.7))),
-                      ]),
-                    ]),
-                  ),
-                ]),
-              ),
-            );
-          },
         ),
-      ),
-    ]),
-  );
 
-  Widget _buildEmpty() => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(width: 100, height: 100,
-          decoration: const BoxDecoration(color: _DS.orangeLight, shape: BoxShape.circle),
-          child: const Center(child: Text('📚', style: TextStyle(fontSize: 48)))),
-      const SizedBox(height: 20),
-      const Text('Chưa có từ vựng nào', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _DS.textDark)),
-      const SizedBox(height: 8),
-      const Text('Dịch văn bản và bấm 🔖 để lưu từ vựng',
-          textAlign: TextAlign.center, style: TextStyle(color: _DS.textGrey, fontSize: 14)),
-      const SizedBox(height: 24),
-      GestureDetector(
-        onTap: _loadDailyVocabulary,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]), borderRadius: BorderRadius.circular(20)),
-          child: const Text('Tải lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 20),
+        GestureDetector(
+          onTap: _loadDailyVocabulary,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF5B5FEF), Color(0xFF3B3FA8)]),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('Bắt đầu hành trình', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+              SizedBox(width: 8),
+              Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+            ]),
+          ),
         ),
-      ),
-    ]),
-  );
+      ]),
+    );
+  }
 }
-
 // ═══════════════════════════════════════════════════════════════
 // FLASHCARD TAB
 // ═══════════════════════════════════════════════════════════════
@@ -574,7 +820,7 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
         ]),
       ),
       SizedBox(
-        height: 260,
+        height: MediaQuery.of(context).size.height * 0.22,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
           child: GestureDetector(
@@ -751,7 +997,7 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
         ),
       
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 12),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Text(
@@ -759,16 +1005,17 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.white,
+height: 1.2, fontFamily: 'NotoSansTC',),
         ),
       ),
-      const SizedBox(height: 10),
+      const SizedBox(height: 6),
       Text(
         widget.getPinyin(word),
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 16, color: Colors.white70, fontStyle: FontStyle.italic),
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 12),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.touch_app_rounded, size: 14, color: Colors.white.withOpacity(0.5)),
         const SizedBox(width: 6),
@@ -787,7 +1034,8 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
       ),
       const SizedBox(height: 20),
       Text(widget.getMeaning(word),
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2),
+          style:  TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.white,
+height: 1.2, fontFamily: 'NotoSansTC',),
           textAlign: TextAlign.center),
       if (widget.getExample(word).isNotEmpty) ...[
         const SizedBox(height: 16),
@@ -795,7 +1043,7 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
           child: Text(widget.getExample(word), textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.white70, height: 1.5)),
+              style: TextStyle(fontSize: 14, color: Colors.white70, height: 1.5, fontFamily: 'NotoSansTC',)),
         ),
       ],
     ]),
@@ -1001,7 +1249,7 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
                 const Spacer(),
                 Text('${_currentIndex + 1}/${_shuffled.length}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _DS.textGrey)),
               ]),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               Stack(children: [
                 ClipRRect(borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(value: _timeLeft / _currentMaxTime, minHeight: 8,
@@ -1009,7 +1257,7 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
                 Positioned.fill(child: Center(child: Text('$_timeLeft',
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: timerColor)))),
               ]),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               if (_isBossRound) Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1033,11 +1281,12 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
                   child: Column(children: [
                     Text(_isBossRound ? '⚡ Từ khó nhất — Nghĩa là gì?' : 'Nghĩa của từ này là gì?',
                         style: const TextStyle(fontSize: 13, color: Colors.white70)),
-                    const SizedBox(height: 12),
-                    FittedBox(fit: BoxFit.scaleDown,
-                        child: Text(widget.getWord(word), style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, height: 1))),
                     const SizedBox(height: 6),
-                    Text(widget.getPinyin(word), style: const TextStyle(fontSize: 18, color: Colors.white60, fontStyle: FontStyle.italic)),
+                    FittedBox(fit: BoxFit.scaleDown,
+                        child: Text(widget.getWord(word), style: const TextStyle(fontSize: 28,
+fontWeight: FontWeight.w500, color: Colors.white, height: 1))),
+                    const SizedBox(height: 2),
+                    Text(widget.getPinyin(word), style: const TextStyle(fontSize: 14, color: Colors.white60, fontStyle: FontStyle.italic)),
                   ]),
                 ),
                 if (_showScorePop) Positioned(top: 10, right: 16,
@@ -1045,7 +1294,7 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
                         child: Text(_scorePopText, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.yellow,
                             shadows: [Shadow(color: Colors.black26, blurRadius: 4)])))),
               ]),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 _buildLifeline(icon: '50/50', count: _lifeline5050, onTap: _use5050, enabled: _lifeline5050 > 0 && !_answered),
                 const SizedBox(width: 12),
@@ -1309,15 +1558,15 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       final b64 = base64Encode(response.data as List<int>);
-      js.context.callMethod('eval', ['''
-        (function() {
-          if (window._listenAudio) { window._listenAudio.pause(); }
-          var a = new Audio("data:audio/mpeg;base64,$b64");
-          a.playbackRate = ${widget.lang == 'en' ? 0.9 : 1.0};
-          window._listenAudio = a;
-          setTimeout(function() { a.play(); }, 500);
-        })();
-      ''']);
+      webEval('''
+  (function() {
+    if (window._listenAudio) { window._listenAudio.pause(); }
+    var a = new Audio("data:audio/mpeg;base64,$b64");
+    a.playbackRate = ${widget.lang == 'en' ? 0.9 : 1.0};
+    window._listenAudio = a;
+    setTimeout(function() { a.play(); }, 500);
+  })();
+''');
       if (mounted) setState(() => _hasPlayed = true);
     } catch (e) {
       await Future.delayed(const Duration(seconds: 2));
@@ -1402,7 +1651,7 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
         ClipRRect(borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(value: (_currentIndex + 1) / _shuffled.length, minHeight: 6,
                 backgroundColor: _DS.purple.withOpacity(0.15), valueColor: const AlwaysStoppedAnimation<Color>(_DS.purple))),
-        const SizedBox(height: 32),
+        const SizedBox(height: 6),
 
         // Big play button
         GestureDetector(
@@ -1412,7 +1661,7 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
             builder: (_, __) => Transform.scale(
               scale: _isPlaying ? _pulseAnim.value : 1.0,
               child: Container(
-                width: 140, height: 140,
+                width: 80, height: 80,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: _isPlaying
@@ -1428,8 +1677,8 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
                 ),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(_isPlaying ? Icons.volume_up_rounded : Icons.play_arrow_rounded,
-                      size: 56, color: Colors.white),
-                  const SizedBox(height: 4),
+                      size: 40, color: Colors.white),
+                  const SizedBox(height: 2),
                   Text(_isPlaying ? 'Đang phát...' : 'Nhấn để nghe',
                       style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8), fontWeight: FontWeight.w600)),
                 ]),
@@ -1437,7 +1686,7 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
 
         // Instruction
         Container(
@@ -1452,7 +1701,7 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.purple),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 6),
 
         // Answer options
         ...List.generate(options.length, (i) {
@@ -1602,94 +1851,170 @@ class FillBlankTab extends StatefulWidget {
 }
 
 class _FillBlankTabState extends State<FillBlankTab> {
-  late List<Map<String, dynamic>> _shuffled;
-  int _currentIndex = 0;
+  int _currentRound = 0;
   int _score = 0;
   int _combo = 0;
   int _maxCombo = 0;
   bool _answered = false;
-  bool _isCorrect = false;
   bool _finished = false;
-  final _controller = TextEditingController();
-  final _focusNode = FocusNode();
-  bool _showHint = false;
+  bool _isLoadingParagraph = false;
+
+  // Dữ liệu đoạn văn hiện tại
+  String _paragraph = '';
+  List<Map<String, dynamic>> _blanks = []; // [{index, word, meaning}]
+  List<TextEditingController> _controllers = [];
+  List<FocusNode> _focusNodes = [];
+  List<bool?> _results = []; // null=chưa, true=đúng, false=sai
+  List<bool> _showHints = [];
   int _hintsUsed = 0;
-  final List<Map<String, dynamic>> _wrongAnswers = [];
+
+  // Tổng số rounds = vocabulary.length / 3 (làm tròn lên)
+  int get _totalRounds => (widget.vocabulary.length / 3).ceil().clamp(1, 10);
 
   @override
   void initState() {
     super.initState();
-      _shuffled = List.from(widget.vocabulary)
-        .where((w) => widget.getExample(w).isNotEmpty)
-        .cast<Map<String, dynamic>>()
-        .toList()..shuffle();
-    // fallback nếu không đủ từ có ví dụ
-    if (_shuffled.length < 3) _shuffled = List.from(widget.vocabulary)..shuffle();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadNextParagraph());
   }
 
   @override
-  void dispose() { _controller.dispose(); _focusNode.dispose(); super.dispose(); }
-
-  // Tạo câu có blank — thay từ cần học bằng ___
-  String _buildBlankSentence(Map<String, dynamic> word) {
-    final example = widget.getExample(word);
-    final chinese = widget.getWord(word);
-    if (example.contains(chinese)) {
-      return example.replaceFirst(chinese, '___');
-    }
-    // Nếu câu ví dụ không chứa từ → tạo câu đơn giản
-    return widget.lang == 'en'
-    ? 'The word is "___, meaning ${widget.getMeaning(word)}."'
-    : '這個詞是「___」，意思是 ${widget.getMeaning(word)}。';
+  void dispose() {
+    for (final c in _controllers) c.dispose();
+    for (final f in _focusNodes) f.dispose();
+    super.dispose();
   }
 
-  // Gợi ý: hiện pinyin
-  String _getHint(Map<String, dynamic> word) => widget.getPinyin(word);
+  Future<void> _loadNextParagraph() async {
+    setState(() { _isLoadingParagraph = true; _paragraph = ''; _blanks = []; });
+
+    // Chọn ngẫu nhiên 3 từ từ vocabulary
+    final shuffled = List.from(widget.vocabulary)..shuffle();
+    final selected = shuffled.take(3).toList();
+    final wordList = selected.map((w) => {
+      'word': widget.getWord(w),
+      'meaning': widget.getMeaning(w),
+    }).toList();
+
+    try {
+      final storage = const FlutterSecureStorage();
+      final token = await storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      ));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary/fill-blank-paragraph',
+        data: {'word_list': wordList, 'lang': widget.lang},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      final paragraph = response.data['paragraph'] as String? ?? '';
+      final blanksRaw = response.data['blanks'] as List? ?? [];
+      final blanks = blanksRaw.map((b) => Map<String, dynamic>.from(b)).toList();
+
+      // Khởi tạo controllers + focusNodes + results
+      for (final c in _controllers) c.dispose();
+      for (final f in _focusNodes) f.dispose();
+      _controllers = List.generate(blanks.length, (_) => TextEditingController());
+      _focusNodes = List.generate(blanks.length, (_) => FocusNode());
+      _results = List.filled(blanks.length, null);
+      _showHints = List.filled(blanks.length, false);
+      _hintsUsed = 0;
+
+      setState(() {
+        _paragraph = paragraph;
+        _blanks = blanks;
+        _answered = false;
+      });
+    } catch (e) {
+      // Fallback đơn giản nếu lỗi
+      setState(() { _paragraph = '載入失敗，請重試。'; _blanks = []; });
+    } finally {
+      setState(() => _isLoadingParagraph = false);
+    }
+  }
 
   void _checkAnswer() {
-    if (_answered) return;
-    final input = _controller.text.trim();
-    if (input.isEmpty) return;
-    final correct = widget.getWord(_shuffled[_currentIndex]);
-    final isCorrect = input == correct;
-    final earned = isCorrect ? (100 + (_combo * 15) - (_hintsUsed * 20)).clamp(10, 200) : 0;
+    if (_answered || _blanks.isEmpty) return;
+    int correctCount = 0;
+    final newResults = <bool?>[];
+    for (int i = 0; i < _blanks.length; i++) {
+      final input = _controllers[i].text.trim();
+      final correct = _blanks[i]['word'] as String;
+      final isCorrect = input == correct;
+      newResults.add(isCorrect);
+      if (isCorrect) correctCount++;
+    }
+    final earned = (correctCount * 50 - _hintsUsed * 10).clamp(0, 200);
     setState(() {
-      _answered = true; _isCorrect = isCorrect;
-      if (isCorrect) {
-        _score += earned; _combo++;
+      _results = newResults;
+      _answered = true;
+      _score += earned;
+      if (correctCount == _blanks.length) {
+        _combo++;
         if (_combo > _maxCombo) _maxCombo = _combo;
-      } else { _combo = 0; _wrongAnswers.add(_shuffled[_currentIndex]); }
+      } else {
+        _combo = 0;
+      }
     });
-    if (isCorrect) { HapticFeedback.lightImpact(); widget.onXpEarned(earned); }
-    else HapticFeedback.heavyImpact();
+    if (correctCount == _blanks.length) {
+      HapticFeedback.lightImpact();
+    } else {
+      HapticFeedback.heavyImpact();
+    }
   }
 
   void _next() {
-    if (_currentIndex + 1 >= _shuffled.length) { setState(() => _finished = true); return; }
-    setState(() {
-      _currentIndex++; _answered = false; _isCorrect = false;
-      _showHint = false; _hintsUsed = 0;
-    });
-    _controller.clear();
-    _focusNode.requestFocus();
+    if (_currentRound + 1 >= _totalRounds) {
+      setState(() => _finished = true);
+      return;
+    }
+    setState(() { _currentRound++; _answered = false; });
+    _loadNextParagraph();
   }
 
   void _restart() {
     setState(() {
-      _currentIndex = 0; _score = 0; _combo = 0; _maxCombo = 0;
-      _answered = false; _isCorrect = false; _finished = false;
-      _showHint = false; _hintsUsed = 0; _wrongAnswers.clear();
-      _shuffled.shuffle();
+      _currentRound = 0; _score = 0; _combo = 0;
+      _maxCombo = 0; _answered = false; _finished = false;
     });
-    _controller.clear();
+    _loadNextParagraph();
+  }
+
+  // Build đoạn văn với [1],[2],[3] highlight màu
+  Widget _buildParagraph() {
+    if (_paragraph.isEmpty) return const SizedBox.shrink();
+    final spans = <InlineSpan>[];
+    final regex = RegExp(r'\[(\d+)\]');
+    int last = 0;
+    for (final match in regex.allMatches(_paragraph)) {
+      if (match.start > last) {
+        spans.add(TextSpan(
+          text: _paragraph.substring(last, match.start),
+          style:  TextStyle(fontSize: 16, color: _DS.textDark, height: 1.8, fontFamily: 'NotoSansTC'),
+        ));
+      }
+      final idx = int.tryParse(match.group(1) ?? '1')! - 1;
+      final result = idx < _results.length ? _results[idx] : null;
+      final color = result == null ? _DS.orange : result == true ? _DS.green : _DS.red;
+      spans.add(TextSpan(
+        text: ' [${match.group(1)}] ',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: color, height: 1.8),
+      ));
+      last = match.end;
+    }
+    if (last < _paragraph.length) {
+      spans.add(TextSpan(
+        text: _paragraph.substring(last),
+        style: TextStyle(fontSize: 16, color: _DS.textDark, height: 1.8, fontFamily: 'NotoSansTC'),
+      ));
+    }
+    return RichText(text: TextSpan(children: spans));
   }
 
   @override
   Widget build(BuildContext context) {
     if (_finished) return _buildResult();
-    final word = _shuffled[_currentIndex];
-    final blankSentence = _buildBlankSentence(word);
-    final correct = widget.getWord(word);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1699,8 +2024,11 @@ class _FillBlankTabState extends State<FillBlankTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(color: _DS.greenLight, borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [const Text('✍️', style: TextStyle(fontSize: 16)), const SizedBox(width: 4),
-              Text('$_score', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.green))]),
+            child: Row(children: [
+              const Text('✍️', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 4),
+              Text('$_score', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.green)),
+            ]),
           ),
           const SizedBox(width: 8),
           if (_combo >= 2) Container(
@@ -1709,207 +2037,235 @@ class _FillBlankTabState extends State<FillBlankTab> {
             child: Text('🔥 x$_combo', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
           ),
           const Spacer(),
-          Text('${_currentIndex + 1}/${_shuffled.length}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _DS.textGrey)),
+          Text('${_currentRound + 1}/$_totalRounds', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _DS.textGrey)),
         ]),
         const SizedBox(height: 8),
-        ClipRRect(borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(value: (_currentIndex + 1) / _shuffled.length, minHeight: 6,
-                backgroundColor: _DS.green.withOpacity(0.15), valueColor: const AlwaysStoppedAnimation<Color>(_DS.green))),
-        const SizedBox(height: 24),
-
-        // Instruction
-        Container(
-          width: double.infinity, padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3))]),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: _DS.greenLight, borderRadius: BorderRadius.circular(10)),
-                  child: const Text('✍️ Điền từ còn thiếu', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.green))),
-            ]),
-            const SizedBox(height: 12),
-            // Nghĩa tiếng Việt — gợi ý
-            Row(children: [
-              const Text('Nghĩa: ', style: TextStyle(fontSize: 13, color: _DS.textGrey, fontWeight: FontWeight.w600)),
-              Text(widget.getMeaning(word), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
-            ]),
-            const SizedBox(height: 12),
-            // Câu có blank
-            Container(
-              width: double.infinity, padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(12)),
-              child: Text(blankSentence,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _DS.textDark, height: 1.5)),
-            ),
-          ]),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: (_currentRound + 1) / _totalRounds, minHeight: 6,
+            backgroundColor: _DS.green.withOpacity(0.15),
+            valueColor: const AlwaysStoppedAnimation<Color>(_DS.green),
+          ),
         ),
         const SizedBox(height: 16),
 
-        // Hint button
-        if (!_answered)
-          GestureDetector(
-            onTap: () {
-              setState(() { _showHint = true; _hintsUsed++; });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: _DS.yellowLight, borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _DS.yellow.withOpacity(0.4))),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.lightbulb_rounded, size: 16, color: _DS.yellow),
-                const SizedBox(width: 6),
-                Text(_showHint ? 'Gợi ý: ${_getHint(word)}' : 'Hiện gợi ý (-20đ)',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _DS.yellow)),
-              ]),
-            ),
+        // Đoạn văn
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _DS.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3))],
           ),
+          child: _isLoadingParagraph
+              ? const Center(child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Column(children: [
+                    CircularProgressIndicator(color: _DS.green, strokeWidth: 2),
+                    SizedBox(height: 8),
+                    Text('AI đang tạo bài tập...', style: TextStyle(fontSize: 12, color: _DS.textGrey)),
+                  ]),
+                ))
+              : _buildParagraph(),
+        ),
         const SizedBox(height: 16),
 
-        // Input field
-        if (!_answered)
-          Container(
-  decoration: BoxDecoration(
-    color: Colors.white, borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: _DS.green.withOpacity(0.4), width: 2),
-    boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 3))],
-  ),
-  child: TextField(
-    controller: _controller,
-    focusNode: _focusNode,
-    autofocus: true,
-    cursorColor: _DS.green,
-    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black),
-    textAlign: TextAlign.center,
-    decoration: InputDecoration(
-      hintText: '輸入答案...',
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 18),
-      border: InputBorder.none,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      filled: true,
-      fillColor: Colors.white,
-    ),
-    onSubmitted: (_) => _checkAnswer(),
-  ),
-),
+        // Input cho từng blank
+        if (!_isLoadingParagraph && _blanks.isNotEmpty) ...[
+          const Text('Điền từ còn thiếu:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+          const SizedBox(height: 10),
+          ..._blanks.asMap().entries.map((entry) {
+            final i = entry.key;
+            final blank = entry.value;
+            final result = i < _results.length ? _results[i] : null;
+            final borderColor = result == null
+                ? _DS.green.withOpacity(0.4)
+                : result == true ? _DS.green : _DS.red;
+            final bgColor = result == null
+                ? Colors.white
+                : result == true ? _DS.greenLight : _DS.redLight;
 
-        // Answer feedback
-        if (_answered) ...[
-          Container(
-            width: double.infinity, padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _isCorrect ? _DS.greenLight : _DS.redLight,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _isCorrect ? _DS.green : _DS.red, width: 2),
-            ),
-            child: Column(children: [
-              Text(_isCorrect ? '🎉 Chính xác!' : '❌ Sai rồi!',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _isCorrect ? _DS.green : _DS.red)),
-              const SizedBox(height: 8),
-              if (!_isCorrect) ...[
-                const Text('Đáp án đúng:', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
-                const SizedBox(height: 4),
-                Text(correct, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: _DS.red)),
-                Text(widget.getPinyin(word), style: const TextStyle(fontSize: 14, color: _DS.textGrey, fontStyle: FontStyle.italic)),
-              ],
-            ]),
-          ),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    width: 24, height: 24,
+                    decoration: BoxDecoration(
+                      color: result == true ? _DS.green : result == false ? _DS.red : _DS.orange,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(child: Text('${i + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white))),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(blank['meaning'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
+                  const Spacer(),
+                  // Nút gợi ý pinyin
+                  if (!_answered) GestureDetector(
+                    onTap: () {
+                      setState(() { _showHints[i] = true; _hintsUsed++; });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: _DS.yellowLight, borderRadius: BorderRadius.circular(10)),
+                      child: Text(
+                        _showHints[i] ? (widget.getPinyin(_blanks[i]['word'] != null
+                            ? widget.vocabulary.firstWhere((w) => widget.getWord(w) == _blanks[i]['word'], orElse: () => {})
+                            : {})) : '💡 -10đ',
+                        style: const TextStyle(fontSize: 11, color: _DS.yellow, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  if (_answered && result == false) ...[
+                    const SizedBox(width: 8),
+                    Text('→ ${blank['word']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: _DS.red, fontFamily: 'NotoSansTC')),
+                  ],
+                ]),
+                const SizedBox(height: 6),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor, width: 2),
+                  ),
+                  child: TextField(
+                    controller: _controllers[i],
+                    focusNode: _focusNodes[i],
+                    enabled: !_answered,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800,
+                      color: result == true ? _DS.green : result == false ? _DS.red : Colors.black,
+                      fontFamily: 'NotoSansTC',
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '輸入[${i + 1}]...',
+                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      filled: true,
+                      fillColor: bgColor,
+                    ),
+                    onSubmitted: (_) {
+                      if (i < _focusNodes.length - 1) {
+                        _focusNodes[i + 1].requestFocus();
+                      } else {
+                        _checkAnswer();
+                      }
+                    },
+                  ),
+                ),
+              ]),
+            );
+          }).toList(),
         ],
-
         const SizedBox(height: 16),
 
-        // Buttons
-        if (!_answered)
-          GestureDetector(
-            onTap: _checkAnswer,
-            child: Container(
-              width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)]),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
-              ),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.check_rounded, color: Colors.white, size: 22), SizedBox(width: 8),
-                Text('Kiểm tra', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
-              ]),
-            ),
-          )
-        else
-          GestureDetector(
-            onTap: _next,
-            child: Container(
-              width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
-              ),
-              child: Text(_currentIndex + 1 >= _shuffled.length ? '🎉 Xem kết quả' : 'Câu tiếp theo →',
-                  textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
-            ),
-          ),
+        // Nút kiểm tra / tiếp theo
+        if (!_isLoadingParagraph && _blanks.isNotEmpty)
+          !_answered
+              ? GestureDetector(
+                  onTap: _checkAnswer,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)]),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                    ),
+                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.check_rounded, color: Colors.white, size: 22),
+                      SizedBox(width: 8),
+                      Text('Kiểm tra', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+                    ]),
+                  ),
+                )
+              : GestureDetector(
+                  onTap: _next,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                    ),
+                    child: Text(
+                      _currentRound + 1 >= _totalRounds ? '🎉 Xem kết quả' : 'Bài tiếp theo →',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+                    ),
+                  ),
+                ),
         const SizedBox(height: 20),
       ]),
     );
   }
 
   Widget _buildResult() {
-    final total = _shuffled.length;
-    final correct = total - _wrongAnswers.length;
-    final percent = (correct / total * 100).round();
-    final emoji = percent >= 80 ? '🏆' : percent >= 50 ? '💪' : '📚';
+    final emoji = _score >= 400 ? '🏆' : _score >= 200 ? '💪' : '📚';
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         const SizedBox(height: 16),
-        Container(width: 120, height: 120,
-            decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                shape: BoxShape.circle, boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.4), blurRadius: 24, offset: const Offset(0, 8))]),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 56)))),
+        Container(
+          width: 120, height: 120,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.4), blurRadius: 24, offset: const Offset(0, 8))],
+          ),
+          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 56))),
+        ),
         const SizedBox(height: 20),
-        Text(percent >= 80 ? 'Viết quá đỉnh!' : percent >= 50 ? 'Tập viết thêm nhé!' : 'Cần luyện viết nhiều hơn!',
+        Text(_score >= 400 ? 'Xuất sắc!' : _score >= 200 ? 'Khá tốt!' : 'Cần luyện thêm!',
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: _DS.textDark)),
         const SizedBox(height: 6),
-        Text('$percent% chính xác', style: const TextStyle(fontSize: 16, color: _DS.textGrey)),
+        Text('Tổng $_totalRounds bài tập', style: const TextStyle(fontSize: 16, color: _DS.textGrey)),
         const SizedBox(height: 20),
         Row(children: [
           Expanded(child: _buildStatBox('✍️ Điểm', '$_score', _DS.green, _DS.greenLight)),
           const SizedBox(width: 12),
-          Expanded(child: _buildStatBox('✅ Đúng', '$correct/$total', _DS.blue, _DS.blueLight)),
-          const SizedBox(width: 12),
           Expanded(child: _buildStatBox('🔥 Combo', '$_maxCombo', _DS.orange, _DS.orangeLight)),
+          const SizedBox(width: 12),
+          Expanded(child: _buildStatBox('💡 Gợi ý', '$_hintsUsed', _DS.yellow, _DS.yellowLight)),
         ]),
         const SizedBox(height: 24),
         GestureDetector(
           onTap: _restart,
-          child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)]),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.refresh_rounded, color: Colors.white, size: 20), SizedBox(width: 8),
-                Text('Làm lại', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
-              ])),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)]),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: _DS.green.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Làm lại', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+            ]),
+          ),
         ),
         const SizedBox(height: 20),
       ]),
     );
   }
+
   Widget _buildStatBox(String label, String value, Color color, Color lightColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: lightColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
-        ],
-      ),
+      decoration: BoxDecoration(color: lightColor, borderRadius: BorderRadius.circular(12)),
+      child: Column(children: [
+        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
+      ]),
     );
   }
 }
@@ -2083,8 +2439,9 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                                       : (w['chinese'] ?? ''),
                                   style: TextStyle(
                                     fontSize: widget.lang == 'en' ? 13 : 22,
-                                    fontWeight: FontWeight.w900,
+                                     fontWeight: FontWeight.w500,
                                     color: Colors.white,
+                                     fontFamily: 'NotoSansTC',
                                   ),
                                 ))),
                           ),
@@ -2134,7 +2491,6 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
 // SHARE HELPER — thêm vào cuối learn_screen.dart
 // ═══════════════════════════════════════════════════════════════
 
-// ignore: avoid_web_libraries_in_flutter
 
 class ShareHelper {
   /// Share kết quả Quiz
@@ -2148,7 +2504,7 @@ class ShareHelper {
     final percent = (correct / total * 100).round();
     final emoji = percent >= 80 ? '🏆' : percent >= 50 ? '💪' : '📚';
     final langLabel = lang == 'en' ? 'tiếng Anh' : 'tiếng Trung';
-    return '''$emoji Tôi vừa hoàn thành Quiz $langLabel trên TaiwanMate AI!
+    return '''$emoji Tôi vừa hoàn thành Quiz $langLabel trên ChineseMate AI!
 ⭐ Điểm: $score
 ✅ Đúng: $correct/$total ($percent%)
 🔥 Combo cao nhất: $maxCombo
@@ -2167,7 +2523,7 @@ class ShareHelper {
 ${lang == 'en' ? '🔤' : '🀄'} $word
 ${lang == 'en' ? '🔊' : '🎵'} $pinyin
 🇻🇳 $meaning
-📱 Học $langLabel cùng tôi tại TaiwanMate AI: https://taiwanmate-ai.github.io''';
+📱 Học $langLabel cùng tôi tại ChineseMate AI: https://taiwanmate-ai.github.io''';
   }
 
   /// Hiện bottom sheet share
@@ -2192,7 +2548,7 @@ class _ShareSheetState extends State<_ShareSheet> {
   bool _copied = false;
 
   void _copy() {
-    html.window.navigator.clipboard?.writeText(widget.text);
+    webCopyText(widget.text);
     setState(() => _copied = true);
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);
@@ -2201,27 +2557,15 @@ class _ShareSheetState extends State<_ShareSheet> {
 
   void _shareFacebook() {
     final encoded = Uri.encodeComponent(widget.text);
-    html.window.open(
-      'https://www.facebook.com/sharer/sharer.php?u=https://taiwanmate-ai.github.io&quote=$encoded',
-      '_blank',
-    );
-  }
+    webOpenUrl('https://www.facebook.com/sharer/sharer.php?u=https://taiwanmate-ai.github.io&quote=$encoded');}
 
   void _shareTwitter() {
     final encoded = Uri.encodeComponent(widget.text);
-    html.window.open(
-      'https://twitter.com/intent/tweet?text=$encoded',
-      '_blank',
-    );
-  }
+    webOpenUrl('https://twitter.com/intent/tweet?text=$encoded');}
 
   void _shareLine() {
     final encoded = Uri.encodeComponent(widget.text);
-    html.window.open(
-      'https://social-plugins.line.me/lineit/share?url=https://taiwanmate-ai.github.io&text=$encoded',
-      '_blank',
-    );
-  }
+    webOpenUrl('https://social-plugins.line.me/lineit/share?url=https://taiwanmate-ai.github.io&text=$encoded');}
 
   @override
   Widget build(BuildContext context) {
@@ -2377,4 +2721,5 @@ class _ShareSheetState extends State<_ShareSheet> {
       ]),
     );
   }
-}
+  }
+

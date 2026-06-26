@@ -13,7 +13,10 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../shared/widgets/main_shell.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
+import '../../features/community/presentation/screens/community_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -26,16 +29,37 @@ final appRouter = GoRouter(
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
     GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
-    ShellRoute(
-      builder: (context, state, child) => MainShell(child: child),
-      routes: [
-        GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
-        GoRoute(path: '/translate', builder: (c, s) => const TranslateScreen()),
-        GoRoute(path: '/learn', builder: (c, s) => const LearnScreen()),
-        GoRoute(path: '/chat', builder: (c, s) => const ChatScreen()),
-        GoRoute(path: '/live', builder: (c, s) => const LiveChatScreen()),
-        GoRoute(path: '/tools', builder: (c, s) => const ToolsScreen()),
-        GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
+    GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
+
+    // ── StatefulShellRoute: giữ state từng tab, không rebuild khi chuyển tab ──
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          MainShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/translate', builder: (c, s) => const TranslateScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/learn', builder: (c, s) => const LearnScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/chat', builder: (c, s) => const ChatScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/live', builder: (c, s) => const LiveChatScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/tools', builder: (c, s) => const ToolsScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(path: '/community', builder: (c, s) => const CommunityScreen()),
+        ]),
       ],
     ),
   ],
@@ -44,72 +68,91 @@ final appRouter = GoRouter(
 // ═══════════════════════════════════════════════════════════════
 // SPLASH SCREEN — VN → TW Journey Animation
 // ═══════════════════════════════════════════════════════════════
-// Thay toàn bộ class SplashScreen và các class liên quan trong app_router.dart
-// Giữ nguyên phần router, chỉ thay từ "class SplashScreen" trở xuống
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _bgCtrl;
   late AnimationController _particleCtrl;
-  late AnimationController _logoCtrl;
   late AnimationController _planeCtrl;
-  late AnimationController _textCtrl;
+  late AnimationController _logoCtrl;
   late AnimationController _progressCtrl;
 
   late Animation<double> _logoScale;
   late Animation<double> _logoFade;
-  late Animation<double> _textFade;
-  late Animation<Offset> _textSlide;
   late Animation<double> _progressVal;
   late Animation<double> _planeFade;
+  late Animation<double> _textFade;
+  late Animation<Offset> _textSlide;
 
   final List<_Particle> _particles = [];
   final math.Random _rng = math.Random(42);
+
+  bool _authDone = false;
+  bool _animDone = false;
+  String? _authRoute;
 
   @override
   void initState() {
     super.initState();
 
-    _bgCtrl = AnimationController(duration: const Duration(seconds: 5), vsync: this)..repeat(reverse: true);
-    _particleCtrl = AnimationController(duration: const Duration(seconds: 6), vsync: this)..repeat();
+    _bgCtrl = AnimationController(
+        duration: const Duration(seconds: 6), vsync: this)
+      ..repeat(reverse: true);
 
-    // Plane flies across screen
-    _planeCtrl = AnimationController(duration: const Duration(milliseconds: 2800), vsync: this);
+    _particleCtrl = AnimationController(
+        duration: const Duration(seconds: 6), vsync: this)
+      ..repeat();
+
+    _planeCtrl = AnimationController(
+        duration: const Duration(milliseconds: 600), vsync: this);
     _planeFade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _planeCtrl, curve: const Interval(0.0, 0.1, curve: Curves.easeIn)),
+      CurvedAnimation(
+          parent: _planeCtrl,
+          curve: const Interval(0.0, 0.15, curve: Curves.easeIn)),
     );
 
-    _logoCtrl = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut));
-    _logoFade = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _logoCtrl, curve: const Interval(0, 0.5)));
+    _logoCtrl = AnimationController(
+        duration: const Duration(milliseconds: 700), vsync: this);
+    _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
+        CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut));
+    _logoFade = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(
+            parent: _logoCtrl, curve: const Interval(0, 0.5)));
 
-    _textCtrl = AnimationController(duration: const Duration(milliseconds: 600), vsync: this);
-    _textFade = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut));
-    _textSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut));
+    _progressCtrl = AnimationController(
+        duration: const Duration(milliseconds: 800), vsync: this);
+    _progressVal = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(
+            parent: _progressCtrl, curve: Curves.easeInOut));
 
-    _progressCtrl = AnimationController(duration: const Duration(milliseconds: 2000), vsync: this);
-    _progressVal = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeInOut));
+    _textFade = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _logoCtrl, curve: const Interval(0.3, 1.0)));
+    _textSlide =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+            .animate(CurvedAnimation(
+                parent: _logoCtrl, curve: Curves.easeOut));
 
-    // Generate particles
-    for (int i = 0; i < 35; i++) {
+    for (int i = 0; i < 40; i++) {
       _particles.add(_Particle(
-        x: _rng.nextDouble(), y: _rng.nextDouble(),
+        x: _rng.nextDouble(),
+        y: _rng.nextDouble(),
         size: _rng.nextDouble() * 2.5 + 0.5,
-        phase: _rng.nextDouble(), speed: _rng.nextDouble() * 0.4 + 0.1,
+        phase: _rng.nextDouble(),
+        speed: _rng.nextDouble() * 0.4 + 0.1,
       ));
     }
 
-    // Sequence: plane flies → logo → text + progress
+    // Sequence: plane flies → illustration fades in → progress
     _planeCtrl.forward().then((_) {
-      _logoCtrl.forward().then((_) {
-        _textCtrl.forward();
-        _progressCtrl.forward();
+      _logoCtrl.forward();
+      _progressCtrl.forward().then((_) {
+        _animDone = true;
+        _tryNavigate();
       });
     });
 
@@ -122,19 +165,44 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _particleCtrl.dispose();
     _planeCtrl.dispose();
     _logoCtrl.dispose();
-    _textCtrl.dispose();
     _progressCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(milliseconds: 4000));
+  void _tryNavigate() {
+    if (!_authDone || !_animDone) return;
     if (!mounted) return;
+    if (_authRoute != null) context.go(_authRoute!);
+  }
+
+  Future<void> _checkAuth() async {
     final hasToken = await SecureStorage.hasToken();
-    if (!hasToken) { context.go('/login'); return; }
-    final storage = const FlutterSecureStorage();
-    final onboardingDone = await storage.read(key: 'onboarding_done');
-    context.go(onboardingDone == 'true' ? '/home' : '/onboarding');
+    if (!hasToken) {
+      _authRoute = '/login';
+      _authDone = true;
+      _tryNavigate();
+      return;
+    }
+    try {
+      final storage = const FlutterSecureStorage();
+      final token = await storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
+      ));
+      await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final onboardingDone = await storage.read(key: 'onboarding_done');
+      _authRoute =
+          onboardingDone == 'true' ? '/home' : '/onboarding';
+    } catch (e) {
+      await SecureStorage.deleteToken();
+      _authRoute = '/login';
+    }
+    _authDone = true;
+    _tryNavigate();
   }
 
   @override
@@ -142,56 +210,57 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     final size = MediaQuery.of(context).size;
     return Scaffold(
       body: AnimatedBuilder(
-        animation: Listenable.merge([_bgCtrl, _particleCtrl, _planeCtrl]),
+        animation:
+            Listenable.merge([_bgCtrl, _particleCtrl, _planeCtrl]),
         builder: (_, __) => Container(
-          width: double.infinity, height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-              colors: [
-                Color.lerp(const Color(0xFF0D1B2A), const Color(0xFF1A0A2E), _bgCtrl.value)!,
-                Color.lerp(const Color(0xFF1A0A2E), const Color(0xFF0A1628), _bgCtrl.value)!,
-                Color.lerp(const Color(0xFF0A2440), const Color(0xFF1A1040), _bgCtrl.value)!,
-              ],
-              stops: const [0.0, 0.5, 1.0],
-            ),
-          ),
+          width: double.infinity,
+          height: double.infinity,
+          color: const Color(0xFF1A1A4E), // Indigo đậm cố định
           child: Stack(children: [
             // Starfield
             ..._buildStarfield(size),
 
-            // Radial glow
-            Center(child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [
-                  const Color(0xFFFFB300).withOpacity(0.07 + _bgCtrl.value * 0.05),
-                  Colors.transparent,
-                ]),
-              ),
-            )),
-
-            // ── Airplane animation ──
-            _buildPlane(size),
-
-            // ── VN → TW flag trail ──
-            if (_planeCtrl.value > 0.1 && _planeCtrl.value < 0.95)
-              _buildFlagTrail(size),
-
-            // ── Main content ──
+            // Glow center nhẹ
             Center(
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                // Logo
-                ScaleTransition(
-                  scale: _logoScale,
-                  child: FadeTransition(
-                    opacity: _logoFade,
-                    child: _buildLogo(),
+              child: AnimatedBuilder(
+                animation: _bgCtrl,
+                builder: (_, __) => Container(
+                  width: 320,
+                  height: 320,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(colors: [
+                      const Color(0xFF5B5FEF)
+                          .withOpacity(0.15 + _bgCtrl.value * 0.08),
+                      Colors.transparent,
+                    ]),
                   ),
                 ),
-                const SizedBox(height: 36),
-                // Text
+              ),
+            ),
+
+            // Plane arc
+            _buildPlane(size),
+
+            // Main content
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Illustration
+               Center(
+  child: SizedBox(
+    width: 280,
+    height: 280,
+    child: Image.asset(
+      'assets/images/Digital_tools-rafiki.png',
+      fit: BoxFit.contain,
+    ),
+  ),
+),
+                const SizedBox(height: 24),
+
+                // App name
                 SlideTransition(
                   position: _textSlide,
                   child: FadeTransition(
@@ -199,13 +268,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     child: _buildText(),
                   ),
                 ),
-                const SizedBox(height: 56),
-                // Progress
+
+                const SizedBox(height: 48),
+
+                // Progress bar
                 FadeTransition(
                   opacity: _textFade,
                   child: _buildProgress(),
                 ),
-              ]),
+              ],
             ),
           ]),
         ),
@@ -214,184 +285,128 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   Widget _buildPlane(Size size) {
-    // Plane flies from left-bottom to right-top in an arc
     final t = _planeCtrl.value;
-    final startX = -60.0;
-    final endX = size.width + 60.0;
-    final midY = size.height * 0.28;
-
-    // Bezier arc
+    final startX = -50.0;
+    final endX = size.width + 50.0;
+    final midY = size.height * 0.15;
     final x = startX + (endX - startX) * t;
-    final y = midY + math.sin(t * math.pi) * (-80); // arc upward
-
-    // Slight rotation based on movement direction
-    final angle = -0.15 + math.sin(t * math.pi) * 0.1;
+    final y = midY + math.sin(t * math.pi) * (-60);
+    final angle = -0.12 + math.sin(t * math.pi) * 0.08;
 
     return Positioned(
-      left: x - 24,
-      top: y - 24,
+      left: x - 22,
+      top: y - 22,
       child: Opacity(
-        opacity: _planeFade.value * (t > 0.9 ? (1 - t) * 10 : 1),
+        opacity: _planeFade.value * (t > 0.88 ? (1 - t) * 8 : 1),
         child: Transform.rotate(
           angle: angle,
           child: Container(
-            width: 48, height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFFFB300).withOpacity(0.2),
-              boxShadow: [BoxShadow(color: const Color(0xFFFFB300).withOpacity(0.4), blurRadius: 16, spreadRadius: 2)],
+              color: const Color(0xFF5B5FEF).withOpacity(0.25),
             ),
-            child: const Center(child: Text('✈️', style: TextStyle(fontSize: 24))),
+            child: const Center(
+              child: Text('✈️', style: TextStyle(fontSize: 22)),
+            ),
           ),
         ),
       ),
     );
   }
-
-  Widget _buildFlagTrail(Size size) {
-    final t = _planeCtrl.value;
-    // Show flags at start and end positions
-    return Stack(children: [
-      // VN flag at left
-      Positioned(
-        left: 30, top: size.height * 0.25,
-        child: Opacity(
-          opacity: (t * 5).clamp(0.0, 1.0),
-          child: Column(children: [
-            const Text('🇻🇳', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF5252).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFF5252).withOpacity(0.4)),
-              ),
-              child: const Text('Việt Nam', style: TextStyle(fontSize: 10, color: Color(0xFFFF5252), fontWeight: FontWeight.w700)),
-            ),
-          ]),
-        ),
-      ),
-      // Dotted trail line
-      Positioned(
-        left: 80, top: size.height * 0.28,
-        child: Opacity(
-          opacity: (t * 3).clamp(0.0, 0.4),
-          child: CustomPaint(
-            size: Size(size.width - 160, 2),
-            painter: _DottedLinePainter(progress: t, color: const Color(0xFFFFB300)),
-          ),
-        ),
-      ),
-      // TW flag at right
-      Positioned(
-        right: 30, top: size.height * 0.22,
-        child: Opacity(
-          opacity: ((t - 0.6) * 5).clamp(0.0, 1.0),
-          child: Column(children: [
-            const Text('🇹🇼', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF40C4FF).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF40C4FF).withOpacity(0.4)),
-              ),
-              child: const Text('Đài Loan', style: TextStyle(fontSize: 10, color: Color(0xFF40C4FF), fontWeight: FontWeight.w700)),
-            ),
-          ]),
-        ),
-      ),
-    ]);
-  }
-
-  Widget _buildLogo() => Container(
-    width: 110, height: 110,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      gradient: const RadialGradient(colors: [Color(0xFF1E3A5F), Color(0xFF0D1B2A)]),
-      border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.7), width: 2),
-      boxShadow: [
-        BoxShadow(color: const Color(0xFFFFB300).withOpacity(0.25), blurRadius: 24, spreadRadius: 4),
-      ],
-    ),
-    child: Stack(alignment: Alignment.center, children: [
-      // Rotating dashed ring
-      AnimatedBuilder(
-        animation: _bgCtrl,
-        builder: (_, __) => Transform.rotate(
-          angle: _bgCtrl.value * 2 * math.pi * 0.3,
-          child: CustomPaint(
-            size: const Size(100, 100),
-            painter: _DashedRingPainter(color: const Color(0xFFFFB300).withOpacity(0.4), strokeWidth: 1.5, dashCount: 16),
-          ),
-        ),
-      ),
-      // Flags
-      const Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('🇻🇳', style: TextStyle(fontSize: 14)),
-          SizedBox(width: 4),
-          Text('🇹🇼', style: TextStyle(fontSize: 14)),
-        ]),
-      ]),
-    ]),
-  );
 
   Widget _buildText() => Column(children: [
-    RichText(text: const TextSpan(children: [
-      TextSpan(text: 'Taiwan', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
-      TextSpan(text: 'Mate', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFFFFB300), letterSpacing: -0.5)),
-      TextSpan(text: ' AI', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w300, color: Colors.white54, letterSpacing: -0.5)),
-    ])),
-    const SizedBox(height: 8),
-    Row(mainAxisSize: MainAxisSize.min, children: [
-      const Text('🇻🇳', style: TextStyle(fontSize: 18)),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text('✈', style: TextStyle(fontSize: 16, color: const Color(0xFFFFB300).withOpacity(0.9))),
-      ),
-      const Text('🇹🇼', style: TextStyle(fontSize: 18)),
-    ]),
-    const SizedBox(height: 8),
-    Text('Người bạn AI cho người Việt tại Đài Loan',
-        style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.45), letterSpacing: 0.3)),
-  ]);
+        RichText(
+          text: const TextSpan(children: [
+            TextSpan(
+              text: 'Taiwan',
+              style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5),
+            ),
+            TextSpan(
+              text: 'Mate',
+              style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFFFD166),
+                  letterSpacing: -0.5),
+            ),
+            TextSpan(
+              text: ' AI',
+              style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w300,
+                  color: Colors.white38,
+                  letterSpacing: -0.5),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Trợ lý AI thông minh của bạn',
+          style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withOpacity(0.4),
+              letterSpacing: 0.3),
+        ),
+      ]);
 
   Widget _buildProgress() => AnimatedBuilder(
-    animation: _progressVal,
-    builder: (_, __) => Column(children: [
-      Container(
-        width: 160, height: 2,
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(2)),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: 160 * _progressVal.value, height: 2,
+        animation: _progressVal,
+        builder: (_, __) => Column(children: [
+          Container(
+            width: 140,
+            height: 3,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(2),
-              gradient: const LinearGradient(colors: [Color(0xFFFFB300), Color(0xFFFF6B35)]),
-              boxShadow: [BoxShadow(color: const Color(0xFFFFB300).withOpacity(0.6), blurRadius: 6)],
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 140 * _progressVal.value,
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  color: const Color(0xFF5B5FEF),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
-      const SizedBox(height: 10),
-      Text('ĐANG TẢI...', style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.3), letterSpacing: 3)),
-    ]),
-  );
+          const SizedBox(height: 10),
+          Text(
+            'ĐANG TẢI...',
+            style: TextStyle(
+                fontSize: 10,
+                color: Colors.white.withOpacity(0.25),
+                letterSpacing: 3),
+          ),
+        ]),
+      );
 
   List<Widget> _buildStarfield(Size size) => _particles.map((p) {
-    final twinkle = (math.sin((_particleCtrl.value * p.speed * 2 * math.pi) + p.phase * 2 * math.pi) + 1) / 2;
-    return Positioned(
-      left: p.x * size.width, top: p.y * size.height,
-      child: Container(
-        width: p.size, height: p.size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(twinkle * 0.7)),
-      ),
-    );
-  }).toList();
+        final twinkle =
+            (math.sin((_particleCtrl.value * p.speed * 2 * math.pi) +
+                        p.phase * 2 * math.pi) +
+                    1) /
+                2;
+        return Positioned(
+          left: p.x * size.width,
+          top: p.y * size.height,
+          child: Container(
+            width: p.size,
+            height: p.size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(twinkle * 0.6),
+            ),
+          ),
+        );
+      }).toList();
 }
 
 // ─── Dotted Line Painter ──────────────────────────────────────

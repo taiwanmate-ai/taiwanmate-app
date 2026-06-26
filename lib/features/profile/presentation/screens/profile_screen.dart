@@ -1,19 +1,20 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:chinesemate/core/services/payment_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/providers/theme_provider.dart';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
-  static const bg = Color(0xFFF5F6FA);
+ static const bg = Color(0xFFF0F4FF);
   static const white = Colors.white;
   static const textDark = Color(0xFF1A1D2E);
   static const textGrey = Color(0xFF8A8FA3);
@@ -252,45 +253,17 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
     );
   }
 
-  void _pickImageFromFile() {
-    final input = html.FileUploadInputElement()
-      ..accept = 'image/*'
-      ..setAttribute('capture', 'environment'); // mở camera trên mobile
-    input.click();
-    input.onChange.listen((e) {
-      final file = input.files?.first;
-      if (file == null) return;
-      final reader = html.FileReader();
-      reader.readAsDataUrl(file);
-      reader.onLoadEnd.listen((_) async {
-        final raw = reader.result as String;
-        // Nén ảnh trước khi lưu — tránh quá lớn trên mobile
-        final img = html.ImageElement();
-        img.src = raw;
-        img.onLoad.listen((_) async {
-          double ratio = 1.0;
-          final w = img.width ?? 800;
-          final h = img.height ?? 800;
-          if (w > 400 || h > 400) {
-            ratio = w > h ? 400 / w : 400 / h;
-          }
-          final canvas = html.CanvasElement(
-            width: (w * ratio).toInt(),
-            height: (h * ratio).toInt(),
-          );
-          canvas.context2D.drawImageScaled(img, 0, 0,
-              canvas.width!.toDouble(), canvas.height!.toDouble());
-          final compressed = canvas.toDataUrl('image/jpeg', 0.7);
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('avatar_url', compressed);
-          if (mounted) {
-            setState(() => _avatarUrl = compressed);
-            Navigator.pop(context);
-          }
-        });
-      });
-    });
+  Future<void> _pickImageFromFile() async {
+  final base64 = await webPickImage();
+  if (base64 == null) return;
+  final dataUrl = 'data:image/jpeg;base64,$base64';
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('avatar_url', dataUrl);
+  if (mounted) {
+    setState(() => _avatarUrl = dataUrl);
+    Navigator.pop(context);
   }
+}
 
   void _showAvatarOptions() {
     showModalBottomSheet(
@@ -386,6 +359,19 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
           const SizedBox(height: 20),
 
           // Avatar + info
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.40,
+                maxHeight: MediaQuery.of(context).size.height * 0.15,
+              ),
+              child: Image.asset(
+                'assets/images/Profile_pic-amico.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(children: [
             GestureDetector(
               onTap: _showAvatarOptions,
@@ -576,17 +562,10 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
         // VIP card
         if (!_isVip) ...[
           GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Tính năng VIP sắp ra mắt! Bạn sẽ được thông báo sớm 🎉'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: _DS.orange,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            },
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const VipScreen()),
+            ),
             child: Container(
               width: double.infinity, padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -764,5 +743,232 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
     const SizedBox(width: 12),
     Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: _DS.textDark))),
     Text(value, style: const TextStyle(fontSize: 13, color: _DS.textGrey, fontWeight: FontWeight.w600)),
+  ]);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIP SCREEN
+// ═══════════════════════════════════════════════════════════════
+class VipScreen extends StatelessWidget {
+  const VipScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A0A00),
+      body: SingleChildScrollView(
+        child: Column(children: [
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF7A2E00), Color(0xFFFF6B35), Color(0xFFFFB300)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(children: [
+              const Text('⭐', style: TextStyle(fontSize: 64)),
+              const SizedBox(height: 12),
+              const Text('ChineseMate VIP', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
+              const SizedBox(height: 8),
+              Text('Mở khóa toàn bộ tính năng · Hỗ trợ không giới hạn',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.85))),
+            ]),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(children: [
+
+              // So sánh Free vs VIP
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A1500),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _DS.orange.withOpacity(0.3)),
+                ),
+                child: Column(children: [
+                  // Header bảng
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _DS.orange.withOpacity(0.15),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(children: [
+                      const Expanded(flex: 3, child: Padding(
+                        padding: EdgeInsets.only(left: 16),
+                        child: Text('Tính năng', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white70)),
+                      )),
+                      Expanded(child: Center(child: Text('Free', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white54)))),
+                      Expanded(child: Center(child: Text('VIP ⭐', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.yellow)))),
+                    ]),
+                  ),
+                  // Rows
+                  ...[
+                    ['Chat AI 小美', '10 lần/ngày', 'Không giới hạn'],
+                    ['Dịch văn bản', '20 lần/ngày', 'Không giới hạn'],
+                    ['Dịch ảnh & hợp đồng', '5 lần/ngày', 'Không giới hạn'],
+                    ['Dịch giọng nói', '3 lần/ngày', 'Không giới hạn'],
+                    ['AI Tools (15 công cụ)', '3 lần/ngày', 'Không giới hạn'],
+                    ['Phân tích hợp đồng AI', '❌', '✅ Chi tiết'],
+                    ['Tư vấn du học A-Z', '❌', '✅ Đầy đủ'],
+                    ['Lộ trình học tập VIP', '❌', '✅'],
+                    ['Học từ vựng/Quiz', '✅', '✅'],
+                  ].asMap().entries.map((e) {
+                    final i = e.key;
+                    final row = e.value;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: i.isOdd ? Colors.white.withOpacity(0.03) : Colors.transparent,
+                        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.06))),
+                      ),
+                      child: Row(children: [
+                        Expanded(flex: 3, child: Text(row[0], style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500))),
+                        Expanded(child: Center(child: Text(row[1], textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.w500)))),
+                        Expanded(child: Center(child: Text(row[2], textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: _DS.yellow, fontWeight: FontWeight.w700)))),
+                      ]),
+                    );
+                  }),
+                ]),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Giá
+              Row(children: [
+                // Gói tháng
+                Expanded(child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A1500),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Column(children: [
+                    const Text('Tháng', style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    const Text('NT\$149', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+                    const Text('/tháng', style: TextStyle(fontSize: 11, color: Colors.white54)),
+                  ]),
+                )),
+                const SizedBox(width: 12),
+                // Gói năm — nổi bật hơn
+                Expanded(child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                  child: Column(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), borderRadius: BorderRadius.circular(20)),
+                      child: const Text('Tiết kiệm 38%', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800)),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('NT\$1,099', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+                    const Text('/năm', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                  ]),
+                )),
+              ]),
+
+              const SizedBox(height: 20),
+
+              // Nút mua — kết nối Lemon Squeezy
+              // Nút gói tháng
+GestureDetector(
+  onTap: () async {
+    PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1');
+  },
+  child: Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    decoration: BoxDecoration(
+      color: const Color(0xFF2A1500),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _DS.orange.withOpacity(0.6)),
+    ),
+    child: const Text('Gói tháng — NT\$149/tháng',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+  ),
+),
+const SizedBox(height: 12),
+// Nút gói năm — nổi bật hơn
+GestureDetector(
+  onTap: () async {
+    PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac');
+  },
+  child: Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.45), blurRadius: 16, offset: const Offset(0, 6))],
+    ),
+    child: const Text('Gói năm — NT\$1,099/năm ⭐ Tiết kiệm 38%',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+  ),
+),
+              const SizedBox(height: 12),
+
+              // Voucher 24h
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A1500),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _DS.yellow.withOpacity(0.4)),
+                ),
+                child: Row(children: [
+                  const Text('🎟️', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Voucher ra mắt — chỉ NT\$999/năm', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.yellow)),
+                    Text('Giới hạn thời gian · Nhập code khi thanh toán', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
+                  ])),
+                ]),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Cam kết
+              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                _VipBadge(icon: '🔒', label: 'Thanh toán\nan toàn'),
+                _VipBadge(icon: '↩️', label: 'Hoàn tiền\n7 ngày'),
+                _VipBadge(icon: '⚡', label: 'Kích hoạt\ntức thì'),
+                _VipBadge(icon: '🇻🇳', label: 'Hỗ trợ\ntiếng Việt'),
+              ]),
+
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Để sau', style: TextStyle(color: Colors.white54)),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _VipBadge extends StatelessWidget {
+  final String icon, label;
+  const _VipBadge({required this.icon, required this.label});
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    Text(icon, style: const TextStyle(fontSize: 24)),
+    const SizedBox(height: 4),
+    Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.white54, fontWeight: FontWeight.w600)),
   ]);
 }

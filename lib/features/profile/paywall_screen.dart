@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'payment_service.dart';
 
@@ -69,7 +69,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           color: Colors.white, size: 48),
                     ),
                     const SizedBox(height: 16),
-                    const Text('TaiwanMate Pro',
+                    const Text('ChineseMate Pro',
                         style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
@@ -117,14 +117,14 @@ Container(
   ),
 ),
 Text(
-  _isYearly ? 'NT\$1,199 / năm' : 'NT\$149 / tháng',
+  _isYearly ? 'NT\$1,499 / năm' : 'NT\$199 / tháng',
   style: const TextStyle(
       fontSize: 16,
       color: Colors.white,
       fontWeight: FontWeight.w600),
 ),
 if (_isYearly)
-  const Text('Tiết kiệm 33%',
+  const Text('Tiết kiệm 37%',
       style: TextStyle(color: Colors.amberAccent, fontSize: 12)
                     ),
                   ],
@@ -144,7 +144,7 @@ if (_isYearly)
               ),
               const SizedBox(height: 16),
               _feature(Icons.chat_bubble_outline, 'Chat AI không giới hạn',
-                  'Trò chuyện với 小美 & 小明 bao nhiêu cũng được'),
+                  'Trò chuyện với Yuki & Kai bao nhiêu cũng được'),
               _feature(Icons.record_voice_over_outlined, 'TTS giọng đọc cao cấp',
                   'Nghe phát âm chuẩn từ giọng AI tự nhiên'),
               _feature(Icons.style_outlined, 'Flashcard nâng cao',

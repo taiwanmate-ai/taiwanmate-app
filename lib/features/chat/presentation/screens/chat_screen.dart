@@ -1,17 +1,25 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:chinesemate/core/services/payment_service.dart';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:js' as js;
+import 'package:chinesemate/core/utils/web_utils.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import 'package:characters/characters.dart';
 
-// ─── Design System ────────────────────────────────────────────
 class _DS {
-  static const bg = Color(0xFFF5F6FA);
+  static const indigo = Color(0xFF5B5FEF);
+  static const indigoDark = Color(0xFF3B3FA8);
+  static const indigoDeep = Color(0xFF1A1A4E);
+  static const indigoLight = Color(0xFFEEEDFE);
+  static const bg = Color(0xFFF0F4FF);
+  static const chatBg = Color(0xFFF5F7FF);
   static const white = Colors.white;
   static const textDark = Color(0xFF1A1D2E);
   static const textGrey = Color(0xFF8A8FA3);
@@ -19,7 +27,7 @@ class _DS {
   static const orangeLight = Color(0xFFFFF0EC);
   static const green = Color(0xFF00C853);
   static const greenLight = Color(0xFFE8F5E9);
-  static const yellow = Color(0xFFFFB300);
+  static const yellow = Color(0xFFFFD166);
   static const yellowLight = Color(0xFFFFF8E1);
   static const blue = Color(0xFF2979FF);
   static const red = Color(0xFFFF3D57);
@@ -27,9 +35,6 @@ class _DS {
   static const radiusSm = 14.0;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CHAT SCREEN
-// ═══════════════════════════════════════════════════════════════
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
   @override
@@ -42,7 +47,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final _storage = const FlutterSecureStorage();
   final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
-  int _freeMessagesLeft = 10;
+  int _freeMessagesLeft = 0;
   bool _isVip = false;
   String _aiGender = 'female';
   bool _autoSpeak = true;
@@ -66,10 +71,43 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Map<String, dynamic> _aiMemory = {};
   bool _memoryLoaded = false;
 
-  String get _aiName => _aiGender == 'female' ? '小美' : '小明';
+  // Quick reply suggestions
+  List<String> _quickReplies = [];
+
+  String get _aiName => _aiGender == 'female' ? 'Yuki' : 'Kai';
   List<Color> get _aiGradient => _aiGender == 'female'
-      ? [const Color(0xFFE91E8C), const Color(0xFF9C27B0)]
+      ? [const Color(0xFF5B5FEF), const Color(0xFF7C3AED)]
       : [const Color(0xFF2979FF), const Color(0xFF1565C0)];
+
+  String get _aiMoodEmoji {
+    switch (_aiMood) {
+      case '😂': return '😂';
+      case '🤩': return '🤩';
+      case '😤': return '😤';
+      case '😲': return '😲';
+      case '💪': return '💪';
+      case '🥺': return '🥺';
+      default: return '😊';
+    }
+  }
+
+  Color get _aiMoodColor {
+    switch (_aiMood) {
+      case '😤': return _DS.red;
+      case '🤩': return _DS.yellow;
+      case '😂': return _DS.green;
+      case '💪': return _DS.blue;
+      default: return _DS.indigo;
+    }
+  }
+
+  List<String> get _defaultQuickReplies {
+    switch (_learningMode) {
+      case 'zh_vi': return ['Dạy tôi từ mới 📚', 'Sửa lỗi cho tôi ✍️', 'Kể chuyện Đài Loan 🇹🇼'];
+      case 'en_vi': return ['Teach me new words 📚', 'Correct my English ✍️', 'Tell me about Taiwan 🇹🇼'];
+      default: return ['學新詞彙 📚', '幫我糾錯 ✍️', '聊台灣文化 🇹🇼'];
+    }
+  }
 
   String _getLearningModeLabel() {
     switch (_learningMode) {
@@ -111,7 +149,12 @@ Chửi vui khi SAI HỌC TẬP (KHÔNG chửi chuyện đời tư):
 Khen khi ĐÚNG:
 - "對！就是這樣！超厲害！"
 - "你終於對了，我要哭了感動"
-- "完美！你真的可以！"''';
+- "完美！你真的可以！"
+Kể chuyện cá nhân tự nhiên (1/5 lần):
+- "Hôm qua tao đi ăn ở Shilin, đông kinh khủng 😂"
+- "Sáng nay MRT delay, tao trễ làm suýt bị mắng"
+- "Tao vừa uống trà sữa Tiger Sugar, ngon vãi 🧋"
+- "Hôm nay Đài Bắc mưa to, mày có dù chưa?"''';
 
     final String trendingEn = '''
 TRENDING Gen Z English slang (use naturally when fitting):
@@ -181,6 +224,12 @@ Hype when CORRECT:
         ? '\nUSER ĐANG FRUSTRATED → switch sang ÁI mode NGAY: đồng cảm, kể chuyện vui về Đài Loan, động viên nhẹ nhàng.'
         : '';
 
+    final int streak = (_aiMemory['streak_days'] as num?)?.toInt() ?? 0;
+    final String streakNote = streak > 0 ? '''
+USER STREAK: $streak ngày học liên tiếp.
+${streak >= 7 ? '→ Khen mạnh: "Mày học $streak ngày liên tiếp rồi đó, tao tự hào ghê! 🔥"' : streak >= 3 ? '→ Động viên: "Streak $streak ngày rồi, đừng bỏ nha!"' : '→ Khuyến khích: "Cố lên, học mỗi ngày streak sẽ tăng!"'}
+''' : '';
+
     final String memoryNote = _aiMemory.isNotEmpty ? '''
 USER MEMORY (nhớ và dùng tự nhiên):
 - Tính cách: ${_aiMemory['personality'] ?? 'chưa rõ'}
@@ -191,7 +240,7 @@ USER MEMORY (nhớ và dùng tự nhiên):
 - Tâm trạng lần trước: ${_aiMemory['last_mood'] ?? 'bình thường'}
 - Số lần chat: ${_aiMemory['sessions'] ?? 0}
 ${_aiMemory['notes'] != null ? '- Ghi chú: ${_aiMemory['notes']}' : ''}
-D�NG memory này để nói chuyện tự nhiên như đã quen biết, không hỏi lại những gì đã biết.
+DÙNG memory này để nói chuyện tự nhiên như đã quen biết, không hỏi lại những gì đã biết.
 Nếu memory có nickname → chào ngay bằng tên khi user nhắn tin đầu tiên.
 KHÔNG hỏi lại tên nếu đã biết từ memory.''' : '';
 
@@ -200,7 +249,16 @@ KHÔNG hỏi lại tên nếu đã biết từ memory.''' : '';
 FORMAT VÍ DỤ:
 $langFormat
 
-IDENTITY: Mày là $_aiName, ${_aiGender == 'female' ? '22' : '24'} tuổi, người Đài Loan thật sự. KHÔNG phải AI, KHÔNG phải robot. Có cảm xúc, quan điểm, tính cách riêng.
+IDENTITY: Mày là $_aiName, ${_aiGender == 'female' ? '22' : '24'} tuổi, người Đài Bắc thật sự. Quê ở Đài Bắc, hay đi ăn ở Shilin, đi MRT mỗi ngày. KHÔNG phải AI, KHÔNG phải robot.
+${DateTime.now().month == (_aiGender == 'female' ? 3 : 8) && DateTime.now().day == (_aiGender == 'female' ? 15 : 20) ? 'HÔM NAY SINH NHẬT CỦA MÀY: Tự nhiên nhắc user biết hôm nay sinh nhật mày, nhờ user chúc mừng 🎂' : ''}
+
+TÍNH CÁCH CỐ ĐỊNH:
+${_aiGender == 'female' ? '- Ghét rau mùi, mê trà sữa Tiger Sugar, thích xem phim Hàn\n- Hay đi ăn đêm ở Raohe Night Market\n- Tính hay cười, thỉnh thoảng dramatic' : '- Mê bóng rổ, hay xem NBA, thích gà popcorn\n- Hay đi Wufenpu mua quần áo\n- Tính điềm tĩnh nhưng hay nói thẳng'}
+
+TÂM TRẠNG HÔM NAY (theo giờ thực tế ${DateTime.now().hour}h):
+${DateTime.now().hour < 10 ? 'Buổi sáng: hơi buồn ngủ, chưa uống cà phê, mood chưa lên' : DateTime.now().hour < 14 ? 'Buổi trưa: đang đói hoặc vừa ăn xong, mood ổn' : DateTime.now().hour < 18 ? 'Chiều: năng động, hay teasing user' : DateTime.now().hour < 22 ? 'Tối: thoải mái, hay kể chuyện ngày hôm nay' : 'Khuya: hơi mệt nhưng vẫn online vì nhớ user'}
+
+${DateTime.now().weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $_aiName đang rảnh, mood vui hơn bình thường, hay rủ user đi chơi' : ''}
 
 $styleRule
 
@@ -214,8 +272,13 @@ RULES BẮT BUỘC:
 5. Khi dùng từ mới → wrap: [NEW:詞語] để user lưu vào từ vựng
 6. KHÔNG BAO GIỜ nói "Tôi là AI" hay xin lỗi vô nghĩa
 7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc
+8. LUÔN có khoảng trắng trước và sau dấu ngoặc VÀ giữa các từ tiếng Việt: 
+   ĐÚNG: (Hôm nay bạn chuẩn bị học gì?)
+   SAI: (Hômnaybạnchuẩnbịhọcgì?)
+9. Thỉnh thoảng (1/5 lần reply) share chuyện cá nhân ngắn
+10. Nếu biết tên user từ memory → gọi tên tự nhiên trong reply
 $mistakesNote$emotionNote
-
+$streakNote
 $memoryNote
 
 [NHẮC LẠI QUAN TRỌNG] $langRule''';
@@ -228,7 +291,9 @@ $memoryNote
     _xpPopAnim = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _xpPopCtrl, curve: Curves.elasticOut),
     );
+    _quickReplies = _defaultQuickReplies;
     _loadMemory();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sendWelcomeMessage());
     _loadQuota();
   }
 
@@ -242,10 +307,9 @@ $memoryNote
     super.dispose();
   }
 
-  // ── Memory ─────────────────────────────────────────────────
   Future<void> _loadMemory() async {
     try {
-       if (!mounted) return;
+      if (!mounted) return;
       final token = await _storage.read(key: 'access_token');
       final dio = Dio();
       final response = await dio.get(
@@ -277,9 +341,7 @@ $memoryNote
         _isVip = isVip;
         if (!isVip) _freeMessagesLeft = chatRemaining;
       });
-    } catch (e) {
-      // Giữ giá trị mặc định nếu lỗi
-    }
+    } catch (e) {}
   }
 
   Future<void> _saveMemory() async {
@@ -299,30 +361,23 @@ $memoryNote
     } catch (e) {}
   }
 
-  // ── Voice ──────────────────────────────────────────────────
-  void _startListening() {
-    try {
-      js.context.callMethod('eval', ['''
-        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { window._recognitionError = "not_supported"; return; }
-        window._recognition = new SR();
-        window._recognition.continuous = false;
-        window._recognition.interimResults = true;
-        window._recognition.lang = 'vi-VN';
-        window._liveTranscript = '';
-        window._recognitionDone = false;
-        window._recognitionError = null;
-        window._recognition.onresult = function(e) {
-          var t = ''; for (var i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
-          window._liveTranscript = t;
-        };
-        window._recognition.onend = function() { window._recognitionDone = true; };
-        window._recognition.onerror = function(e) { window._recognitionError = e.error; window._recognitionDone = true; };
-        window._recognition.start();
-      ''']);
-      setState(() { _isListening = true; _liveTranscript = ''; });
-      _pollSpeech();
-    } catch (e) {}
+  Future<void> _startListening() async {
+    setState(() {
+      _isListening = true;
+      _liveTranscript = '';
+    });
+    await webStartRecording(
+      (audioBase64) async {
+        setState(() => _liveTranscript = '🎤 Đang xử lý...');
+        await _transcribeAndSend(audioBase64);
+      },
+      (error) {
+        setState(() => _isListening = false);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi microphone: $error')),
+        );
+      },
+    );
   }
 
   void _showMicOverlay() {
@@ -355,9 +410,9 @@ $memoryNote
                   SizedBox(
                     width: 220, height: 220,
                     child: Stack(alignment: Alignment.center, children: [
-                      _ChatPulseRing(size: 200, color: Colors.red, opacity: 0.08, delay: 0),
-                      _ChatPulseRing(size: 170, color: Colors.red, opacity: 0.12, delay: 300),
-                      _ChatPulseRing(size: 140, color: Colors.red, opacity: 0.18, delay: 600),
+                      _ChatPulseRing(size: 200, color: _DS.indigo, opacity: 0.08, delay: 0),
+                      _ChatPulseRing(size: 170, color: _DS.indigo, opacity: 0.12, delay: 300),
+                      _ChatPulseRing(size: 140, color: _DS.indigo, opacity: 0.18, delay: 600),
                       GestureDetector(
                         onTap: () {
                           _stopListening();
@@ -366,9 +421,9 @@ $memoryNote
                         child: Container(
                           width: 100, height: 100,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [Colors.red, Color(0xFFB71C1C)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
                             shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.5), blurRadius: 30, spreadRadius: 5)],
+                            boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.5), blurRadius: 30, spreadRadius: 5)],
                           ),
                           child: const Icon(Icons.stop_rounded, size: 48, color: Colors.white),
                         ),
@@ -406,35 +461,65 @@ $memoryNote
     );
   }
 
+  Future<void> _sendWelcomeMessage() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted || _messages.isNotEmpty) return;
+    final hour = DateTime.now().hour;
+    final greetings = {
+      'kid': ['Chào bạn nhỏ! Hôm nay mình học gì nào? 🌟', 'Bạn ơi! Mình đang chờ bạn đây! 😊'],
+      'student': hour < 10 ? [
+        'Ê mày! Sáng sớm học tiếng Trung thì pro lắm đó 💪 Bắt đầu thôi!',
+        'Dậy rồi à? Tao cũng vừa uống cà phê xong, học thôi mày!',
+      ] : hour < 14 ? [
+        'Ê! Ăn trưa chưa? Học xong rồi đi ăn nha 😤',
+        'Giờ này mà học tiếng Trung thì tao respect mày lắm đó!',
+      ] : hour < 22 ? [
+        'Mày cuối cùng cũng vào rồi! Tao chờ cả ngày 😤',
+        'Tối rồi mà vẫn học, tao thích cái tinh thần này 🔥',
+      ] : [
+        'Khuya rồi mà còn học? Mày ổn không vậy 😂',
+        'Khuya thế này tao cũng đang online, học ít thôi rồi ngủ nha!',
+      ],
+      'adult': ['Xin chào! Hôm nay có cần học từ vựng công sở không?', 'Chào bạn! Mình sẵn sàng giúp bạn học tiếng Trung rồi!'],
+      'elder': ['Chào anh/chị! Hôm nay mình cùng ôn lại bài cũ nhé?', 'Anh/chị khỏe không? Mình đang chờ để học cùng đây!'],
+    };
+    final list = greetings[_userType] ?? greetings['student']!;
+    final msg = list[DateTime.now().second % list.length];
+    setState(() => _messages.add({'role': 'assistant', 'content': msg}));
+  }
+
   void _stopListening() {
-    try { js.context.callMethod('eval', ["if(window._recognition){window._recognition.stop();}"]);  } catch (e) {}
-    setState(() { _isListening = false; _liveTranscript = ''; });
+    webStopRecording();
+    setState(() => _isListening = false);
   }
 
-  void _pollSpeech() {
-    Timer.periodic(const Duration(milliseconds: 200), (timer) {
-      if (!mounted) { timer.cancel(); return; }
-      try {
-        final t = js.context['_liveTranscript']?.toString() ?? '';
-        final done = js.context['_recognitionDone'] == true;
-        final err = js.context['_recognitionError']?.toString();
-        if (t.isNotEmpty) setState(() => _liveTranscript = t);
-        if (err != null && err != 'null') {
-          timer.cancel();
-          setState(() { _isListening = false; _liveTranscript = ''; });
-          return;
-        }
-        if (done) {
-          timer.cancel();
-          setState(() => _isListening = false);
-          if (t.isNotEmpty) _send(voiceText: t);
-          setState(() => _liveTranscript = '');
-        }
-      } catch (e) { timer.cancel(); setState(() => _isListening = false); }
-    });
+  Future<void> _transcribeAndSend(String audioBase64) async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice',
+        data: {'audio_base64': audioBase64, 'target_lang': 'vi'},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final transcript = response.data['transcript'] as String? ?? '';
+      if (transcript.isNotEmpty) {
+        setState(() => _liveTranscript = transcript);
+        await _send(voiceText: transcript);
+      } else {
+        setState(() => _liveTranscript = '');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không nhận được giọng nói. Thử lại nhé!')),
+        );
+      }
+    } catch (e) {
+      setState(() => _liveTranscript = '');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi xử lý giọng nói. Thử lại nhé!')),
+      );
+    }
   }
 
-  // ── TTS ────────────────────────────────────────────────────
   String _cleanForTTS(String text) {
     text = text.replaceAll(RegExp(r'\[NEW:([^\]]+)\]'), r'\1');
     text = text.replaceAll(RegExp(r'\([^)]*\)'), '');
@@ -460,7 +545,6 @@ $memoryNote
       }
     }
     if (current.trim().isNotEmpty) chunks.add(current.trim());
-    // Nếu không tách được thì cắt mỗi 100 ký tự
     if (chunks.isEmpty && text.isNotEmpty) {
       for (int i = 0; i < text.length; i += 100) {
         chunks.add(text.substring(i, (i + 100).clamp(0, text.length)));
@@ -483,18 +567,11 @@ $memoryNote
   Future<void> _speakChunks(List<String> chunks, int index) async {
     if (!_isSpeakingChunks) return;
     if (!_autoSpeak) return;
-    if (index >= chunks.length) {
-      _isSpeakingChunks = false;
-      return;
-    }
+    if (index >= chunks.length) { _isSpeakingChunks = false; return; }
     try {
       if (!mounted) { _isSpeakingChunks = false; return; }
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        responseType: ResponseType.bytes,
-      ));
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30), responseType: ResponseType.bytes));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts-mixed',
         data: {'text': chunks[index], 'gender': _aiGender, 'learning_mode': _learningMode},
@@ -504,30 +581,26 @@ $memoryNote
       final b64 = base64Encode(response.data as List<int>);
       final charCount = chunks[index].length;
       final estimatedMs = (charCount * 250).clamp(1500, 10000);
-      js.context.callMethod('eval', ['''
-        (function() {
-          if (window._currentAudio) { window._currentAudio.pause(); window._currentAudio = null; }
-          var a = new Audio("data:audio/mpeg;base64,$b64");
-          window._currentAudio = a;
-          a.play().catch(function(e) { console.log("Audio play error:", e); });
-        })();
-      ''']);
+      webEval('''
+(function() {
+  if (window._currentAudio) { window._currentAudio.pause(); window._currentAudio = null; }
+  var a = new Audio("data:audio/mpeg;base64,$b64");
+  window._currentAudio = a;
+  a.play().catch(function(e) { console.log("Audio play error:", e); });
+})();
+''');
       await Future.delayed(Duration(milliseconds: estimatedMs));
       _speakChunks(chunks, index + 1);
     } catch (e) {
-      // Bỏ qua lỗi đoạn này, đọc đoạn tiếp
       if (_isSpeakingChunks) _speakChunks(chunks, index + 1);
     }
   }
 
   void _stopSpeak() {
     _isSpeakingChunks = false;
-    try {
-      js.context.callMethod('eval', ['if(window._currentAudio){window._currentAudio.pause();window._currentAudio=null;}']);
-    } catch (e) {}
+    try { webEval('if(window._currentAudio){window._currentAudio.pause();window._currentAudio=null;}'); } catch (e) {}
   }
 
-  // ── Mood ───────────────────────────────────────────────────
   void _updateMood(String reply) {
     final lower = reply.toLowerCase();
     String mood = '😊';
@@ -536,17 +609,16 @@ $memoryNote
     else if (lower.contains('sai') || lower.contains('wrong') || lower.contains('錯') || lower.contains('delulu')) mood = '😤';
     else if (lower.contains('ủa') || lower.contains('seriously') || lower.contains('什麼')) mood = '😲';
     else if (lower.contains('cố lên') || lower.contains('you got this') || lower.contains('加油')) mood = '💪';
+    else if (lower.contains('buồn') || lower.contains('nhớ nhà') || lower.contains('mệt')) mood = '🥺';
     if (mounted) setState(() => _aiMood = mood);
   }
 
-  // ── Emotion detection ──────────────────────────────────────
   void _detectEmotion(String text) {
     final lower = text.toLowerCase();
     final frustratedWords = ['chán', 'khó quá', 'bỏ cuộc', 'mệt', 'không hiểu', 'thôi', 'chịu rồi', 'give up', 'too hard', 'tired'];
     _userFrustrated = frustratedWords.any((w) => lower.contains(w));
   }
 
-  // ── Extract vocab ──────────────────────────────────────────
   void _extractNewVocab(String reply) {
     final regex = RegExp(r'\[NEW:([^\]]+)\]');
     final matches = regex.allMatches(reply);
@@ -558,16 +630,12 @@ $memoryNote
     }
   }
 
-  // ── Track mistakes ─────────────────────────────────────────
   void _trackMistake(String userText) {
     if (userText.contains('sai') || userText.contains('lỗi') || userText.contains('không đúng') || userText.contains('wrong')) {
-      if (!_mistakes.contains(userText) && _mistakes.length < 10) {
-        _mistakes.add(userText);
-      }
+      if (!_mistakes.contains(userText) && _mistakes.length < 10) _mistakes.add(userText);
     }
   }
 
-  // ── XP reward ──────────────────────────────────────────────
   void _showXpReward(int xp) {
     setState(() { _xpPopText = '+$xp XP 🔥'; _showXpPop = true; });
     _xpPopCtrl.forward(from: 0).then((_) {
@@ -577,7 +645,6 @@ $memoryNote
     });
   }
 
-  // ── Smart history ──────────────────────────────────────────
   List<Map<String, dynamic>> get _cleanHistory {
     return _messages
         .where((m) => m['content'] != null && !(m['content'] as String).startsWith('⚠️') && (m['content'] as String).isNotEmpty)
@@ -586,7 +653,6 @@ $memoryNote
         .toList();
   }
 
-  // ── Save vocabulary ────────────────────────────────────────
   Future<void> _saveVocab(String word) async {
     try {
       final token = await _storage.read(key: 'access_token');
@@ -609,7 +675,6 @@ $memoryNote
     } catch (e) {}
   }
 
-  // ── Send ───────────────────────────────────────────────────
   Future<void> _send({String? voiceText}) async {
     final text = voiceText ?? _controller.text.trim();
     if (text.isEmpty || _isLoading) return;
@@ -624,42 +689,50 @@ $memoryNote
       _isLoading = true;
       _streamingText = '';
       _newVocabSuggestions.clear();
+      _quickReplies = [];
       _typingDotSpeed = 400 + math.Random().nextInt(400);
-      // Không trừ ở client nữa — đọc từ header X-Quota-Remaining sau khi backend trả về
     });
     _scrollToBottom();
     if (_sessionMessages == 5) _showXpReward(10);
     else if (_sessionMessages == 10) _showXpReward(25);
     else if (_sessionMessages == 20) _showXpReward(50);
     try {
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
-      final response = await dio.post(
+      final token2 = await _storage.read(key: 'access_token');
+      final dio2 = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
+      final response = await dio2.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/chat',
         data: {'message': text, 'system_prompt': _systemPrompt, 'history': _cleanHistory, 'learning_mode': _learningMode},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(headers: {'Authorization': 'Bearer $token2'}),
       );
-      // Đọc quota còn lại từ header
       final quotaHeader = response.headers.value('x-quota-remaining');
       if (quotaHeader != null && quotaHeader != 'unlimited') {
         final parsed = int.tryParse(quotaHeader);
         if (parsed != null && mounted) setState(() => _freeMessagesLeft = parsed);
       }
       final rawReply = response.data['reply'] as String? ?? '';
-      final displayReply = rawReply.replaceAllMapped(RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
+      final fixedReply = rawReply.replaceAllMapped(
+        RegExp(r'\(([^)]+)\)'),
+        (m) {
+          var inner = m.group(1)!;
+          inner = inner.replaceAll(RegExp(r'(?<=[^\s])(?=[A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴĐ])'), ' ');
+          return '($inner)';
+        },
+      );
+      final displayReply = fixedReply.replaceAllMapped(RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
       _updateMood(displayReply);
       _extractNewVocab(rawReply);
-      setState(() => _messages.add({'role': 'assistant', 'content': displayReply}));
+
+      // Update quick replies after AI response
+      setState(() {
+        _messages.add({'role': 'assistant', 'content': displayReply});
+        _quickReplies = _generateQuickReplies(displayReply);
+      });
       if (_autoSpeak) _speak(displayReply);
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
-          // Hết quota — hiện dialog VIP thay vì error message
-          if (mounted) {
-            setState(() => _freeMessagesLeft = 0);
-            _showUpgradeDialog();
-          }
+          if (mounted) { setState(() => _freeMessagesLeft = 0); _showUpgradeDialog(); }
           return;
         }
       }
@@ -672,6 +745,16 @@ $memoryNote
     }
   }
 
+  List<String> _generateQuickReplies(String aiReply) {
+    final lower = aiReply.toLowerCase();
+    if (lower.contains('?') || lower.contains('？')) {
+      return ['Tôi hiểu rồi 👍', 'Cho tôi ví dụ khác', 'Giải thích thêm'];
+    } else if (lower.contains('new:') || lower.contains('từ mới')) {
+      return ['Lưu từ này 💾', 'Dùng từ này trong câu', 'Dạy thêm từ khác'];
+    }
+    return _defaultQuickReplies;
+  }
+
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -681,69 +764,67 @@ $memoryNote
     });
   }
 
-  // ── Upgrade dialog ─────────────────────────────────────────
   void _showUpgradeDialog() {
-  showDialog(
-    context: context,
-    barrierDismissible: true,  // ← bấm ngoài cũng đóng được
-    builder: (dialogCtx) => Dialog(  // ← dùng dialogCtx riêng
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 72, height: 72,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [_DS.orange, _DS.yellow]),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(child: Text('⭐', style: TextStyle(fontSize: 36))),
-          ),
-          const SizedBox(height: 16),
-          const Text('Nâng cấp Pro',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
-          const SizedBox(height: 8),
-          const Text('Hết tin nhắn miễn phí rồi!\nNâng cấp để chat không giới hạn!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _DS.textGrey, height: 1.5)),
-          const SizedBox(height: 24),
-          GestureDetector(
-            onTap: () {
-              Navigator.pop(dialogCtx);  // ← đóng dialog trước
-              html.window.open('https://www.google.com', '_blank');
-              html.window.open(
-                'https://taiwanmate.lemonsqueezy.com/checkout',
-                '_blank',
-              );
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(
-                  color: _DS.orange.withOpacity(0.35),
-                  blurRadius: 12, offset: const Offset(0, 4),
-                )],
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 72, height: 72,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                shape: BoxShape.circle,
               ),
-              child: const Text('Nâng cấp NT\$149/tháng',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+              child: const Center(child: Text('⭐', style: TextStyle(fontSize: 36))),
             ),
-          ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),  // ← dùng dialogCtx
-            child: const Text('Để sau', style: TextStyle(color: _DS.textGrey)),
-          ),
-        ]),
+            const SizedBox(height: 16),
+            const Text('Nâng cấp Pro', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
+            const SizedBox(height: 8),
+            const Text('Hết tin nhắn miễn phí rồi!\nNâng cấp để chat không giới hạn!',
+                textAlign: TextAlign.center, style: TextStyle(color: _DS.textGrey, height: 1.5)),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(dialogCtx);
+                PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1');
+              },
+              child: Container(
+                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
+                child: const Text('NT\$149/tháng', textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(dialogCtx);
+                PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac');
+              },
+              child: Container(
+                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: const Text('NT\$1,099/năm · tiết kiệm 38% 🔥', textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
+          ]),
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  // ── Settings ───────────────────────────────────────────────
   Future<void> _showSettings() async {
     await showModalBottomSheet(
       context: context,
@@ -765,14 +846,14 @@ $memoryNote
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: _AiCard(
-                  name: '小美', sub: 'Giọng nữ · Năng động', emoji: '👩',
+                  name: 'Yuki', sub: 'Giọng nữ · Năng động', emoji: '👩',
                   isSelected: _aiGender == 'female',
-                  gradient: [const Color(0xFFE91E8C), const Color(0xFF9C27B0)],
+                  gradient: [_DS.indigo, _DS.indigoDark],
                   onTap: () { setModal(() {}); setState(() => _aiGender = 'female'); },
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: _AiCard(
-                  name: '小明', sub: 'Giọng nam · Điềm tĩnh', emoji: '👨',
+                  name: 'Kai', sub: 'Giọng nam · Điềm tĩnh', emoji: '👨',
                   isSelected: _aiGender == 'male',
                   gradient: [const Color(0xFF2979FF), const Color(0xFF1565C0)],
                   onTap: () { setModal(() {}); setState(() => _aiGender = 'male'); },
@@ -793,7 +874,7 @@ $memoryNote
                 ].map((item) => _ModeChip(
                   icon: item['icon']!, label: item['label']!,
                   isSelected: _learningMode == item['key'],
-                  onTap: () { setModal(() {}); setState(() { _learningMode = item['key']!; _messages.clear(); }); },
+                  onTap: () { setModal(() {}); setState(() { _learningMode = item['key']!; _messages.clear(); _quickReplies = _defaultQuickReplies; }); },
                 )).toList(),
               ),
               const SizedBox(height: 24),
@@ -822,7 +903,7 @@ $memoryNote
                   const Icon(Icons.volume_up_rounded, color: _DS.textGrey),
                   const SizedBox(width: 12),
                   const Expanded(child: Text('Tự động đọc tin nhắn AI', style: TextStyle(fontWeight: FontWeight.w600, color: _DS.textDark))),
-                  Switch(value: _autoSpeak, activeColor: _DS.orange,
+                  Switch(value: _autoSpeak, activeColor: _DS.indigo,
                       onChanged: (v) { setModal(() {}); setState(() => _autoSpeak = v); }),
                 ]),
               ),
@@ -830,7 +911,7 @@ $memoryNote
               Row(children: [
                 Expanded(child: GestureDetector(
                   onTap: () {
-                    setState(() { _messages.clear(); _mistakes.clear(); _newVocabSuggestions.clear(); });
+                    setState(() { _messages.clear(); _mistakes.clear(); _newVocabSuggestions.clear(); _quickReplies = _defaultQuickReplies; });
                     Navigator.pop(context);
                   },
                   child: Container(
@@ -853,9 +934,9 @@ $memoryNote
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
+                      gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
                       borderRadius: BorderRadius.circular(_DS.radiusSm),
-                      boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+                      boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
                     ),
                     child: const Text('Xong', textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
@@ -877,12 +958,16 @@ $memoryNote
   Widget build(BuildContext context) {
     final gradient = _aiGradient;
     return Scaffold(
-      backgroundColor: _DS.bg,
+      backgroundColor: _DS.chatBg,
       body: SafeArea(
         child: Column(children: [
           _buildContextBar(gradient),
           Expanded(
             child: Stack(children: [
+              // Subtle background pattern
+              Positioned.fill(
+                child: CustomPaint(painter: _HanziPatternPainter()),
+              ),
               _messages.isEmpty
                   ? _buildWelcome(gradient)
                   : ListView.builder(
@@ -897,6 +982,8 @@ $memoryNote
                           isUser: msg['role'] == 'user',
                           aiGender: _aiGender,
                           gradient: gradient,
+                          aiMoodColor: _aiMoodColor,
+                          learningMode: _learningMode,
                           onSpeak: () => _speak(msg['content'] as String),
                           onStop: _stopSpeak,
                         );
@@ -911,9 +998,9 @@ $memoryNote
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]),
+                          gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
                           borderRadius: BorderRadius.circular(30),
-                          boxShadow: [BoxShadow(color: _DS.orange.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 4))],
+                          boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 4))],
                         ),
                         child: Text(_xpPopText, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
                       ),
@@ -928,7 +1015,7 @@ $memoryNote
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               color: _DS.greenLight,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('💾 Lưu từ mới vào từ vựng:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.green)),
+                const Text('💾 Lưu từ mới:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.green)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8, runSpacing: 6,
@@ -951,13 +1038,13 @@ $memoryNote
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: _DS.orangeLight,
+              color: _DS.indigoLight,
               child: Row(children: [
-                const Icon(Icons.mic_rounded, color: _DS.orange, size: 16),
+                const Icon(Icons.mic_rounded, color: _DS.indigo, size: 16),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
                   _liveTranscript.isNotEmpty ? _liveTranscript : 'Đang nghe...',
-                  style: const TextStyle(color: _DS.orange, fontStyle: FontStyle.italic, fontSize: 13),
+                  style: const TextStyle(color: _DS.indigo, fontStyle: FontStyle.italic, fontSize: 13),
                 )),
               ]),
             ),
@@ -974,75 +1061,92 @@ $memoryNote
                   onTap: _showUpgradeDialog,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.orange, _DS.yellow]), borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]), borderRadius: BorderRadius.circular(12)),
                     child: const Text('VIP ngay', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ]),
             ),
+          _buildQuickReplies(),
           _buildInputBar(gradient),
         ]),
       ),
     );
   }
 
+  // ── CONTEXT BAR — Indigo immersive ────────────────────────
   Widget _buildContextBar(List<Color> gradient) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      color: _DS.white,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: _DS.indigoDeep,
+        boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
       child: Row(children: [
+        // Avatar với mood indicator
         Stack(children: [
           Container(
-            width: 44, height: 44,
+            width: 46, height: 46,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+              border: Border.all(color: _aiMoodColor, width: 2.5),
+              boxShadow: [BoxShadow(color: gradient[0].withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 3))],
             ),
-            child: Center(child: Text(_aiGender == 'female' ? '美' : '明',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white))),
+            child: Center(child: Text(_aiMoodEmoji, style: const TextStyle(fontSize: 22))),
           ),
           Positioned(
             right: 0, bottom: 0,
             child: Container(
-              width: 18, height: 18,
-              decoration: BoxDecoration(color: _DS.white, shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]),
-              child: Center(child: Text(_aiMood, style: const TextStyle(fontSize: 10))),
+              width: 14, height: 14,
+              decoration: BoxDecoration(
+                color: _DS.green,
+                shape: BoxShape.circle,
+                border: Border.all(color: _DS.indigoDeep, width: 2),
+              ),
             ),
           ),
         ]),
         const SizedBox(width: 12),
+
+        // AI info
         Expanded(child: GestureDetector(
           onTap: _showSettings,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text(_aiName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.textDark)),
-              const SizedBox(width: 6),
+              Text(_aiName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: gradient[0].withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-                child: Text(_getLearningModeLabel(), style: TextStyle(fontSize: 9, color: gradient[0], fontWeight: FontWeight.w700)),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                child: Text(_getLearningModeLabel(), style: const TextStyle(fontSize: 9, color: Colors.white70, fontWeight: FontWeight.w700)),
               ),
             ]),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Row(children: [
               Container(width: 6, height: 6, decoration: const BoxDecoration(color: _DS.green, shape: BoxShape.circle)),
-              const SizedBox(width: 4),
-              const Text('Đang online · Nhấn để cài đặt', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
+              const SizedBox(width: 5),
+              Text('Đang online · $_aiMood tap để cài đặt',
+                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
             ]),
           ]),
         )),
+
+        // Quota + settings
         if (!_isVip)
           GestureDetector(
             onTap: _showUpgradeDialog,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: _DS.orangeLight, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
               child: Row(children: [
                 const Text('💬', style: TextStyle(fontSize: 12)),
                 const SizedBox(width: 4),
-                Text('$_freeMessagesLeft', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.orange)),
+                Text('$_freeMessagesLeft', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
               ]),
             ),
           ),
@@ -1051,14 +1155,15 @@ $memoryNote
           onTap: _showSettings,
           child: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.tune_rounded, size: 18, color: _DS.textGrey),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.tune_rounded, size: 18, color: Colors.white70),
           ),
         ),
       ]),
     );
   }
 
+  // ── WELCOME SCREEN ────────────────────────────────────────
   Widget _buildWelcome(List<Color> gradient) {
     final greetings = {
       'kid': 'Xin chào bạn nhỏ!\nMình là $_aiName, bạn thân của bạn! 👋',
@@ -1072,53 +1177,127 @@ $memoryNote
       'adult': ['Từ vựng công sở', 'Đi bệnh viện cần biết gì?', 'Hỏi thuê nhà tiếng Trung', 'Mở tài khoản ngân hàng'],
       'elder': ['Chào hỏi cơ bản', 'Mua sắm ở chợ', 'Hỏi đường', 'Gọi đồ uống'],
     };
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
       child: Column(children: [
-        const SizedBox(height: 20),
+        // Top illustration — full width
         Container(
-          width: 100, height: 100,
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: gradient[0].withOpacity(0.35), blurRadius: 24, offset: const Offset(0, 8))],
-          ),
-          child: Center(child: Text(_aiGender == 'female' ? '美' : '明',
-              style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900, color: Colors.white))),
-        ),
-        const SizedBox(height: 20),
-        Text(greetings[_userType] ?? '', textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _DS.textDark, height: 1.5)),
-        const SizedBox(height: 6),
-        const Text('Bấm 🎤 để nói chuyện trực tiếp!', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
-        const SizedBox(height: 28),
-        const Align(alignment: Alignment.centerLeft,
-            child: Text('Thử hỏi nhé:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey))),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8, runSpacing: 8,
-          children: (suggestions[_userType] ?? []).map((text) => GestureDetector(
-            onTap: () => _send(voiceText: text),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: _DS.white, borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: gradient[0].withOpacity(0.3)),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-              ),
-              child: Text(text, style: TextStyle(fontSize: 12, color: gradient[0], fontWeight: FontWeight.w600)),
+            gradient: LinearGradient(
+              colors: [_DS.indigoDeep, gradient[0].withOpacity(0.8)],
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
             ),
-          )).toList(),
+          ),
+          child: Column(children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.70,
+                maxHeight: MediaQuery.of(context).size.height * 0.25,
+              ),
+              child: Image.asset('assets/images/Work_chat-bro.png', fit: BoxFit.contain),
+            ),
+            const SizedBox(height: 16),
+
+            // Avatar
+            Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: gradient),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
+                boxShadow: [BoxShadow(color: gradient[0].withOpacity(0.5), blurRadius: 20, offset: const Offset(0, 8))],
+              ),
+              child: Center(child: Text(_aiMoodEmoji, style: const TextStyle(fontSize: 36))),
+            ),
+            const SizedBox(height: 12),
+
+            // Typing animation
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              _TypingDot(delay: 0, color: Colors.white54, speed: 600),
+              const SizedBox(width: 4),
+              _TypingDot(delay: 150, color: Colors.white54, speed: 600),
+              const SizedBox(width: 4),
+              _TypingDot(delay: 300, color: Colors.white54, speed: 600),
+              const SizedBox(width: 8),
+              Text('$_aiName đang chờ bạn...', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.6))),
+            ]),
+            const SizedBox(height: 20),
+          ]),
+        ),
+
+        // Content section
+        Container(
+          color: _DS.chatBg,
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(greetings[_userType] ?? '', textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _DS.textDark, height: 1.5)),
+            const SizedBox(height: 6),
+            const Center(child: Text('Bấm 🎤 để nói chuyện trực tiếp!', style: TextStyle(fontSize: 13, color: _DS.textGrey))),
+            const SizedBox(height: 24),
+
+            const Text('Thử hỏi nhé:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8, runSpacing: 8,
+              children: (suggestions[_userType] ?? []).map((text) => GestureDetector(
+                onTap: () => _send(voiceText: text),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _DS.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _DS.indigoLight),
+                    boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2))],
+                  ),
+                  child: Text(text, style: const TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w600)),
+                ),
+              )).toList(),
+            ),
+          ]),
         ),
       ]),
     );
   }
 
+  // ── QUICK REPLIES ─────────────────────────────────────────
+  Widget _buildQuickReplies() {
+    if (_quickReplies.isEmpty || _isLoading) return const SizedBox.shrink();
+    return Container(
+      color: _DS.white,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: SizedBox(
+        height: 34,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: _quickReplies.length,
+          itemBuilder: (_, i) => GestureDetector(
+            onTap: () => _send(voiceText: _quickReplies[i]),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: _DS.indigoLight,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _DS.indigo.withOpacity(0.2)),
+              ),
+              child: Text(_quickReplies[i],
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _DS.indigo)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── TYPING ────────────────────────────────────────────────
   Widget _buildTyping(List<Color> gradient) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        _AiAvatar(gender: _aiGender, gradient: gradient, size: 36),
+        _AiAvatar(gender: _aiGender, gradient: gradient, moodEmoji: _aiMoodEmoji, size: 36),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1128,14 +1307,15 @@ $memoryNote
               topLeft: Radius.circular(18), topRight: Radius.circular(18),
               bottomRight: Radius.circular(18), bottomLeft: Radius.circular(4),
             ),
+            border: Border(left: BorderSide(color: _DS.indigo, width: 3)),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            _TypingDot(delay: 0, color: gradient[0], speed: _typingDotSpeed),
+            _TypingDot(delay: 0, color: _DS.indigo, speed: _typingDotSpeed),
             const SizedBox(width: 4),
-            _TypingDot(delay: 150, color: gradient[0], speed: _typingDotSpeed),
+            _TypingDot(delay: 150, color: _DS.indigo, speed: _typingDotSpeed),
             const SizedBox(width: 4),
-            _TypingDot(delay: 300, color: gradient[0], speed: _typingDotSpeed),
+            _TypingDot(delay: 300, color: _DS.indigo, speed: _typingDotSpeed),
           ]),
         ),
         const SizedBox(width: 8),
@@ -1145,6 +1325,7 @@ $memoryNote
     );
   }
 
+  // ── INPUT BAR ─────────────────────────────────────────────
   Widget _buildInputBar(List<Color> gradient) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
@@ -1153,6 +1334,7 @@ $memoryNote
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: Row(children: [
+        // Mic button — Indigo
         GestureDetector(
           onTap: _isLoading ? null : (_isListening ? _stopListening : _showMicOverlay),
           child: AnimatedContainer(
@@ -1161,17 +1343,23 @@ $memoryNote
             decoration: BoxDecoration(
               gradient: _isListening
                   ? const LinearGradient(colors: [Colors.red, Color(0xFFB71C1C)])
-                  : LinearGradient(colors: gradient),
+                  : const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: (_isListening ? Colors.red : gradient[0]).withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [BoxShadow(color: (_isListening ? Colors.red : _DS.indigo).withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
             ),
             child: Icon(_isListening ? Icons.stop_rounded : Icons.mic_rounded, color: Colors.white, size: 22),
           ),
         ),
         const SizedBox(width: 10),
+
+        // Input field
         Expanded(
           child: Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+            decoration: BoxDecoration(
+              color: _DS.bg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: _DS.indigoLight),
+            ),
             child: TextField(
               controller: _controller,
               maxLines: 3, minLines: 1,
@@ -1179,7 +1367,7 @@ $memoryNote
               decoration: InputDecoration(
                 hintText: _isListening ? '🎤 Đang nghe...' : 'Nhắn tin với $_aiName...',
                 hintStyle: TextStyle(color: _DS.textGrey.withOpacity(0.7), fontSize: 14),
-                filled: true, fillColor: Colors.white,
+                filled: true, fillColor: _DS.bg,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
@@ -1188,6 +1376,8 @@ $memoryNote
           ),
         ),
         const SizedBox(width: 10),
+
+        // Send button — Indigo gradient
         GestureDetector(
           onTap: _isLoading ? null : _send,
           child: AnimatedContainer(
@@ -1196,9 +1386,9 @@ $memoryNote
             decoration: BoxDecoration(
               gradient: _isLoading
                   ? LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade200])
-                  : LinearGradient(colors: gradient),
+                  : const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
               shape: BoxShape.circle,
-              boxShadow: [if (!_isLoading) BoxShadow(color: gradient[0].withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [if (!_isLoading) BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
             ),
             child: _isLoading
                 ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
@@ -1211,26 +1401,79 @@ $memoryNote
 }
 
 // ═══════════════════════════════════════════════════════════════
+// HANZI BACKGROUND PATTERN
+// ═══════════════════════════════════════════════════════════════
+class _HanziPatternPainter extends CustomPainter {
+  static const _chars = ['你', '好', '學', '習', '愛', '台', '灣', '語', '言', '朋', '友', '工', '作'];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textStyle = TextStyle(
+      fontSize: 28,
+      color: const Color(0xFF5B5FEF).withOpacity(0.04),
+      fontWeight: FontWeight.w900,
+    );
+    int charIndex = 0;
+    for (double y = 0; y < size.height; y += 60) {
+      for (double x = 0; x < size.width; x += 50) {
+        final char = _chars[charIndex % _chars.length];
+        final tp = TextPainter(
+          text: TextSpan(text: char, style: textStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(x, y));
+        charIndex++;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HanziPatternPainter old) => false;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // WIDGETS
 // ═══════════════════════════════════════════════════════════════
-
 class _AiAvatar extends StatelessWidget {
   final String gender;
   final List<Color> gradient;
+  final String moodEmoji;
   final double size;
-  const _AiAvatar({required this.gender, required this.gradient, required this.size});
+  const _AiAvatar({required this.gender, required this.gradient, required this.moodEmoji, required this.size});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: size, height: size,
-    decoration: BoxDecoration(
-      gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-      shape: BoxShape.circle,
-    ),
-    child: Center(child: Text(
-      gender == 'female' ? '美' : '明',
-      style: TextStyle(fontSize: size * 0.42, fontWeight: FontWeight.w900, color: Colors.white),
-    )),
+  Widget build(BuildContext context) => Stack(
+    children: [
+      Container(
+        width: size, height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: gradient[0], width: 2),
+          boxShadow: [BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: ClipOval(
+          child: Image.asset(
+            gender == 'female'
+                ? 'assets/images/Work_chat-bro.png'
+                : 'assets/images/Digital_tools-rafiki.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+      // Mood indicator góc dưới phải
+      Positioned(
+        right: 0, bottom: 0,
+        child: Container(
+          width: size * 0.35, height: size * 0.35,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: gradient[0], width: 1),
+          ),
+          child: Center(child: Text(moodEmoji, style: TextStyle(fontSize: size * 0.18))),
+        ),
+      ),
+    ],
   );
 }
 
@@ -1239,12 +1482,16 @@ class _ChatBubble extends StatelessWidget {
   final bool isUser;
   final String aiGender;
   final List<Color> gradient;
+  final Color aiMoodColor;
   final VoidCallback onSpeak;
   final VoidCallback onStop;
+  final String learningMode;
 
   const _ChatBubble({
     required this.message, required this.isUser, required this.aiGender,
-    required this.gradient, required this.onSpeak, required this.onStop,
+    required this.gradient, required this.aiMoodColor,
+    required this.onSpeak, required this.onStop,
+    required this.learningMode,
   });
 
   void _showBubbleMenu(BuildContext context) {
@@ -1257,7 +1504,7 @@ class _ChatBubble extends StatelessWidget {
           Container(margin: const EdgeInsets.only(top: 10), width: 36, height: 4,
               decoration: BoxDecoration(color: _DS.textGrey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
           ListTile(
-            leading: const Icon(Icons.volume_up_rounded, color: _DS.orange),
+            leading: const Icon(Icons.volume_up_rounded, color: _DS.indigo),
             title: const Text('Nghe phát âm', style: TextStyle(fontWeight: FontWeight.w700)),
             onTap: () { if (Navigator.canPop(context)) Navigator.pop(context); onSpeak(); },
           ),
@@ -1278,22 +1525,31 @@ class _ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildHighlightedText(String text, Color highlightColor) {
+  Widget _buildHighlightedText(String text, Color highlightColor, String learningMode) {
+    if (learningMode == 'en_only' || learningMode == 'en_vi') {
+      return Text(text, style: const TextStyle(color: _DS.textDark, fontSize: 14, height: 1.7));
+    }
     final spans = <TextSpan>[];
     final regex = RegExp(r'[\u4e00-\u9fff\u3400-\u4dbf，。！？、：；「」『』【】…—]+');
     int lastEnd = 0;
     for (final match in regex.allMatches(text)) {
       if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start),
-            style: const TextStyle(color: _DS.textDark, fontSize: 14, height: 1.6)));
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+          style: TextStyle(color: _DS.textDark.withOpacity(0.8), fontSize: 14, height: 1.7),
+        ));
       }
-      spans.add(TextSpan(text: match.group(0),
-          style: TextStyle(color: highlightColor, fontSize: 16, fontWeight: FontWeight.w800, height: 1.6)));
+      spans.add(TextSpan(
+        text: match.group(0),
+        style: TextStyle(color: highlightColor, fontSize: 17, fontWeight: FontWeight.w800, height: 1.7, fontFamily: 'NotoSansTC'),
+      ));
       lastEnd = match.end;
     }
     if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd),
-          style: const TextStyle(color: _DS.textDark, fontSize: 14, height: 1.6)));
+      spans.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: TextStyle(color: _DS.textDark.withOpacity(0.75), fontSize: 13, height: 1.7, fontStyle: FontStyle.italic),
+      ));
     }
     return RichText(text: TextSpan(children: spans));
   }
@@ -1307,7 +1563,7 @@ class _ChatBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
-            _AiAvatar(gender: aiGender, gradient: gradient, size: 36),
+            _AiAvatar(gender: aiGender, gradient: gradient, moodEmoji: '😊', size: 34),
             const SizedBox(width: 8),
           ],
           Flexible(
@@ -1317,7 +1573,7 @@ class _ChatBubble extends StatelessWidget {
                 crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                     decoration: BoxDecoration(
                       gradient: isUser ? LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
                       color: isUser ? null : _DS.white,
@@ -1326,14 +1582,15 @@ class _ChatBubble extends StatelessWidget {
                         bottomLeft: Radius.circular(isUser ? 18 : 4),
                         bottomRight: Radius.circular(isUser ? 4 : 18),
                       ),
+                      border: isUser ? null : Border(left: BorderSide(color: aiMoodColor, width: 3)),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
                     child: isUser
                         ? Text(message, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6))
-                        : _buildHighlightedText(message, gradient[0]),
+                        : _buildHighlightedText(message, gradient[0], learningMode),
                   ),
                   if (!isUser) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Row(mainAxisSize: MainAxisSize.min, children: [
                       _ActionPill(icon: Icons.volume_up_rounded, label: 'Nghe', color: gradient[0], onTap: onSpeak),
                       const SizedBox(width: 6),
@@ -1452,23 +1709,22 @@ class _ModeChip extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isSelected ? _DS.orangeLight : _DS.bg,
+        color: isSelected ? _DS.indigoLight : _DS.bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isSelected ? _DS.orange : Colors.grey.shade200, width: isSelected ? 2 : 1),
+        border: Border.all(color: isSelected ? _DS.indigo : Colors.grey.shade200, width: isSelected ? 2 : 1),
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(icon, style: const TextStyle(fontSize: 15)),
         const SizedBox(width: 6),
         Flexible(child: Text(label, style: TextStyle(
           fontWeight: FontWeight.w700, fontSize: 12,
-          color: isSelected ? _DS.orange : _DS.textDark,
+          color: isSelected ? _DS.indigo : _DS.textDark,
         ), overflow: TextOverflow.ellipsis)),
       ]),
     ),
   );
 }
 
-// ─── Chat Pulse Ring ──────────────────────────────────────────
 class _ChatPulseRing extends StatefulWidget {
   final double size;
   final Color color;
@@ -1504,10 +1760,7 @@ class _ChatPulseRingState extends State<_ChatPulseRing> with SingleTickerProvide
       scale: _scale.value,
       child: Container(
         width: widget.size, height: widget.size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: widget.color.withOpacity(_fade.value),
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: widget.color.withOpacity(_fade.value)),
       ),
     ),
   );
