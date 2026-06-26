@@ -795,7 +795,7 @@ $memoryNote
               child: Container(
                 width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
-                child: const Text('NT\$149/tháng', textAlign: TextAlign.center,
+                child: const Text('NT\$199/tháng', textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo)),
               ),
             ),

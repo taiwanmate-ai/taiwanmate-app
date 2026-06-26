@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -411,7 +411,7 @@ class _TranslateScreenState extends State<TranslateScreen>
                   gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('⭐ Nâng lên VIP — NT\$149/tháng · NT\$1,099/năm · tiết kiệm 38%',
+                child: const Text('⭐ Nâng lên VIP — NT\$199/tháng · NT\$1,499/· tiết kiệm 37%',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),

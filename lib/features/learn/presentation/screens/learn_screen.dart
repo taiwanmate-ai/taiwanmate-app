@@ -1301,37 +1301,22 @@ fontWeight: FontWeight.w500, color: Colors.white, height: 1))),
                 _buildLifeline(icon: '⏭️ Bỏ qua', count: _lifelineSkip, onTap: _useSkip, enabled: _lifelineSkip > 0 && !_answered),
               ]),
               const SizedBox(height: 14),
-              ...List.generate(options.length, (i) {
-                if (_hiddenOptions.contains(i)) return const SizedBox.shrink();
-                final isCorrect = options[i] == correct;
-                final isSelected = _selectedAnswer == i;
-                final isTimeout = _answered && _selectedAnswer == -1;
-                Color bgColor = _DS.white; Color borderColor = Colors.grey.shade200; Color textColor = _DS.textDark;
-                Widget? trailingIcon;
-                if (_answered) {
-                  if (isCorrect) { bgColor = _DS.greenLight; borderColor = _DS.green; textColor = _DS.green; trailingIcon = const Icon(Icons.check_circle_rounded, color: _DS.green, size: 22); }
-                  else if (isSelected || (isTimeout && isCorrect)) { bgColor = _DS.redLight; borderColor = _DS.red; textColor = _DS.red; trailingIcon = const Icon(Icons.cancel_rounded, color: _DS.red, size: 22); }
-                }
+               ...List.generate((options.length / 2).ceil(), (rowIndex) {
+                final leftIndex = rowIndex * 2;
+                final rightIndex = leftIndex + 1;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
-                    onTap: () => _selectAnswer(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: borderColor, width: _answered && (isCorrect || isSelected) ? 2 : 1),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
-                      child: Row(children: [
-                        Container(width: 28, height: 28,
-                            decoration: BoxDecoration(color: (_answered && isCorrect) ? _DS.green : (_answered && isSelected) ? _DS.red : _DS.bg, borderRadius: BorderRadius.circular(8)),
-                            child: Center(child: Text(['A', 'B', 'C', 'D'][i],
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
-                                    color: (_answered && (isCorrect || isSelected)) ? Colors.white : _DS.textGrey)))),
-                        const SizedBox(width: 12),
-                        Expanded(child: Text(options[i], style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor))),
-                        if (trailingIcon != null) trailingIcon,
-                      ]),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: _buildAnswerOption(leftIndex, options, correct)),
+                        const SizedBox(width: 10),
+                        if (rightIndex < options.length)
+                          Expanded(child: _buildAnswerOption(rightIndex, options, correct))
+                        else
+                          const Expanded(child: SizedBox()),
+                      ],
                     ),
                   ),
                 );
@@ -1354,6 +1339,62 @@ fontWeight: FontWeight.w500, color: Colors.white, height: 1))),
             ]),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAnswerOption(int i, List<String> options, String correct) {
+    if (_hiddenOptions.contains(i)) {
+      // Ô bị ẩn bởi 50:50 → giữ chỗ trống để lưới không vỡ
+      return const SizedBox.shrink();
+    }
+    final isCorrect = options[i] == correct;
+    final isSelected = _selectedAnswer == i;
+    final isTimeout = _answered && _selectedAnswer == -1;
+    Color bgColor = _DS.white;
+    Color borderColor = Colors.grey.shade200;
+    Color textColor = _DS.textDark;
+    Widget? trailingIcon;
+    if (_answered) {
+      if (isCorrect) {
+        bgColor = _DS.greenLight;
+        borderColor = _DS.green;
+        textColor = _DS.green;
+        trailingIcon = const Icon(Icons.check_circle_rounded, color: _DS.green, size: 20);
+      } else if (isSelected || (isTimeout && isCorrect)) {
+        bgColor = _DS.redLight;
+        borderColor = _DS.red;
+        textColor = _DS.red;
+        trailingIcon = const Icon(Icons.cancel_rounded, color: _DS.red, size: 20);
+      }
+    }
+    return GestureDetector(
+      onTap: () => _selectAnswer(i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: _answered && (isCorrect || isSelected) ? 2 : 1),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+        ),
+        child: Row(children: [
+          Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(
+              color: (_answered && isCorrect) ? _DS.green : (_answered && isSelected) ? _DS.red : _DS.bg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(child: Text(['A', 'B', 'C', 'D'][i],
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
+                    color: (_answered && (isCorrect || isSelected)) ? Colors.white : _DS.textGrey))),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(options[i],
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor))),
+          if (trailingIcon != null) trailingIcon,
+        ]),
       ),
     );
   }
