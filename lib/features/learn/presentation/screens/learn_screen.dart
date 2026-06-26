@@ -76,6 +76,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   int _survivalTimeLeft = 60;
   int _survivalCorrect = 0;
   Timer? _survivalTimer;
+  Timer? _healthTimer;
 
   // Calendar data — 30 ngày
   final List<double> _calendarData = List.generate(30, (i) => 0.0);
@@ -96,7 +97,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
     _tabController = TabController(length: 7, vsync: this);
     _loadDailyVocabulary();
     _loadCalendarData();
-    Timer.periodic(const Duration(minutes: 4), (_) async {
+    _healthTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       try {
         await Dio().get('https://taiwanmate-backend-production.up.railway.app/health');
       } catch (_) {}
@@ -107,6 +108,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   void dispose() {
     _tabController.dispose();
     _survivalTimer?.cancel();
+    _healthTimer?.cancel();
     super.dispose();
   }
 
