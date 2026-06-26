@@ -1,6 +1,6 @@
 {
-    "name": "ChineseMate AI",
-    "short_name": "ChineseMate", 
+    "name": "TaiwanMate AI",
+    "short_name": "TaiwanMate",
     "description": "Trợ lý AI học tiếng Trung cho người Việt tại Đài Loan. Dịch thuật, Chat AI, Flashcard, Công cụ thông minh.",
     "start_url": "/",
     "display": "standalone",
