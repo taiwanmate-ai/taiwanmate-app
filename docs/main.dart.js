@@ -51452,7 +51452,7 @@ p=q.a
 p=q.b.Z(0,p.gt(p))
 q=k>0.88?(1-k)*8:1
 l.push(A.iY(o,A.yS(A.awu(-0.12+s*0.08,A.p(o,B.Ly,B.i,o,o,new A.o(A.m(64,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),o,o,o,o,o,B.a5),o,44,o,o,o,o,44)),p*q),o,o,-50+(m.a+50- -50)*k-22,o,m.b*0.15+r*-60-22,o))
-r=A.bL(A.cN(A.m4("assets/images/Digital_tools-rafiki.png",B.cW),280,280),o,o)
+r=A.bL(A.cN(A.m4("assets/images/Digital_tools-rafiki.webp",B.cW),280,280),o,o)
 m=n.at
 m===$&&A.b()
 k=n.as
@@ -52003,7 +52003,7 @@ case 1:return A.A(p.at(-1),r)}})
 return A.C($async$xo,r)},
 H(a){var s=null,r=A.ba(a,s,t.w).w.a
 return A.eo(s,B.c,A.d4(new A.dP(new A.ax(0,1/0,r.b,1/0),A.X(A.a([this.aia(r),this.aha()],t.p),B.j,B.e,B.h),s),s,B.n,s,B.mT,B.C),s,s)},
-aia(a){var s,r,q,p,o,n,m=this,l=null,k=t.p,j=A.Z(A.a([A.p(l,B.a7G,B.i,l,l,new A.o(A.m(31,B.c.h()>>>16&255,B.c.h()>>>8&255,B.c.h()&255),l,l,A.q(20),l,l,B.k),l,l,l,B.cS,l,l,l),A.p(l,B.a7h,B.i,l,l,new A.o(A.m(31,B.c.h()>>>16&255,B.c.h()>>>8&255,B.c.h()&255),l,l,A.q(20),l,l,B.k),l,l,l,B.cZ,l,l,l)],k),B.j,B.cG,B.h,0),i=A.ak(A.bL(A.m4("assets/images/Sign_up-amico.png",B.cW),l,l),1),h=m.Q
+aia(a){var s,r,q,p,o,n,m=this,l=null,k=t.p,j=A.Z(A.a([A.p(l,B.a7G,B.i,l,l,new A.o(A.m(31,B.c.h()>>>16&255,B.c.h()>>>8&255,B.c.h()&255),l,l,A.q(20),l,l,B.k),l,l,l,B.cS,l,l,l),A.p(l,B.a7h,B.i,l,l,new A.o(A.m(31,B.c.h()>>>16&255,B.c.h()>>>8&255,B.c.h()&255),l,l,A.q(20),l,l,B.k),l,l,l,B.cZ,l,l,l)],k),B.j,B.cG,B.h,0),i=A.ak(A.bL(A.m4("assets/images/Sign_up-amico.webp",B.cW),l,l),1),h=m.Q
 h===$&&A.b()
 s=m.ay
 r=s[m.x].j(0,"main")
@@ -52216,7 +52216,7 @@ s=t.w
 l=A.ba(l,m,s).w
 r=n.c
 r.toString
-s=A.bL(new A.dP(new A.ax(0,l.a.a*0.6,0,A.ba(r,m,s).w.a.b*0.22),A.m4("assets/images/Community-rafiki.png",B.cW),m),m,m)
+s=A.bL(new A.dP(new A.ax(0,l.a.a*0.6,0,A.ba(r,m,s).w.a.b*0.22),A.m4("assets/images/Community-rafiki.webp",B.cW),m),m,m)
 r=n.c
 r.toString
 r=A.a0(r).ax.k3
@@ -53473,7 +53473,7 @@ e_(a){return!1}}
 A.Jm.prototype={
 H(a){var s=this,r=null,q=s.f,p=s.d,o=p[0],n=A.aO(o,2)
 o=A.a([new A.a6(0,B.q,o.aC(0.3),B.as,8)],t.V)
-o=A.p(r,A.b0i(A.m4(s.c==="female"?"assets/images/Work_chat-bro.png":"assets/images/Digital_tools-rafiki.png",B.rv)),B.i,r,r,new A.o(r,r,n,r,o,r,B.a5),r,q,r,r,r,r,q)
+o=A.p(r,A.b0i(A.m4(s.c==="female"?"assets/images/Work_chat-bro.png":"assets/images/Digital_tools-rafiki.webp",B.rv)),B.i,r,r,new A.o(r,r,n,r,o,r,B.a5),r,q,r,r,r,r,q)
 n=q*0.35
 p=A.aO(p[0],1)
 return A.eN(B.bv,A.a([o,A.iY(0,A.p(r,A.bL(A.n(s.e,r,r,r,r,A.aj(r,r,r,r,r,r,r,r,r,r,r,q*0.18,r,r,r,r,r,!0,r,r,r,r,r,r,r,r),r,r),r,r),B.i,r,r,new A.o(B.c,r,p,r,r,r,B.a5),r,n,r,r,r,r,n),r,r,r,0,r,r)],t.p),B.D,B.b8,r)}}
@@ -54753,7 +54753,7 @@ q.push(A.p(k,A.X(A.a([B.amR,B.aw,A.n(l.gagE(),k,k,k,k,B.ahK,k,k)],s),B.v,B.e,B.h
 q.push(B.bn)
 q.push(A.ac(k,A.p(k,B.a7L,B.i,k,k,new A.o(B.o,k,k,A.q(20),A.a([new A.a6(0,B.q,A.m(102,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),B.ao,12)],t.V),k,B.k),k,k,k,B.nQ,k,k,k),B.n,!1,k,k,k,k,k,k,k,k,k,k,k,k,k,k,new A.aFF(l),k,k,k,k,k,k))
 j=j.a.a*0.38
-return A.p(k,A.f9(!1,new A.ab(B.PN,A.X(A.a([p,B.X,A.Z(A.a([A.ak(A.X(q,B.v,B.e,B.h),1),B.a8,A.cN(A.m4("assets/images/Digital_tools-rafiki.png",B.cW),j,j)],s),B.cd,B.e,B.h,0)],s),B.v,B.e,B.h),k),B.af,!0),B.i,k,k,B.Jm,k,k,k,k,k,k,1/0)},
+return A.p(k,A.f9(!1,new A.ab(B.PN,A.X(A.a([p,B.X,A.Z(A.a([A.ak(A.X(q,B.v,B.e,B.h),1),B.a8,A.cN(A.m4("assets/images/Digital_tools-rafiki.webp",B.cW),j,j)],s),B.cd,B.e,B.h,0)],s),B.v,B.e,B.h),k),B.af,!0),B.i,k,k,B.Jm,k,k,k,k,k,k,1/0)},
 ahA(){var s,r,q=this,p=null,o=A.q(20),n=A.a([new A.a6(0,B.q,A.m(20,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),B.ao,16)],t.V),m=A.aO(A.m(31,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),1),l=q.gxt()===3?A.m(B.f.N(25.5),B.w.h()>>>16&255,B.w.h()>>>8&255,B.w.h()&255):A.m(B.f.N(25.5),B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),k=A.q(20),j=q.gxt(),i=t.p
 k=A.Z(A.a([B.aka,A.p(p,A.n(""+j+"/3",p,p,p,p,A.aj(p,p,q.gxt()===3?B.w:B.o,p,p,p,p,p,p,p,p,12,p,p,B.N,p,p,!0,p,p,p,p,p,p,p,p),p,p),B.i,p,p,new A.o(l,p,p,k,p,p,B.k),p,p,p,B.cR,p,p,p)],i),B.j,B.cG,B.h,0)
 l=A.q(4)
@@ -55254,7 +55254,7 @@ n=t.p
 o=A.cN(A.eN(B.T,A.a([p,A.n(o,l,l,l,l,A.aj(l,l,s,l,l,l,l,l,l,l,l,i?20:16,l,l,B.a4,l,l,!0,l,l,l,l,l,l,l,l),l,l)],n),B.D,B.b8,l),60,60)
 p=i?"Ho\xe0n th\xe0nh h\xf4m nay! \ud83c\udf8a":"M\u1ee5c ti\xeau h\xf4m nay"
 return new A.ab(new A.a4(20,k,20,0),A.p(l,A.Z(A.a([o,B.dl,A.ak(A.X(A.a([A.n(p,l,l,l,l,A.aj(l,l,i?B.w:B.J,l,l,l,l,l,l,l,l,13,l,l,B.N,l,l,!0,l,l,l,l,l,l,l,l),l,l),B.aw,A.n(""+m.y+" / 20 t\u1eeb \xb7 "+m.Q+" c\u1ea7n \xf4n",l,l,l,l,B.ck,l,l),B.aA,A.Z(A.u6(30,new A.aHB(m),!0,t.C),B.j,B.e,B.h,0),B.cj,B.amf],n),B.v,B.e,B.h),1)],n),B.j,B.e,B.h,0),B.i,l,l,new A.o(B.c,l,l,r,q,l,B.k),l,l,l,B.aW,l,l,l),l)},
-Bl(){var s=null,r=A.cN(A.m4("assets/images/Studying-rafiki.png",B.cW),200,200),q=A.q(16),p=A.aO(B.ag,1),o=t.V,n=A.a([new A.a6(0,B.q,A.m(20,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),B.ao,12)],o),m=t.p
+Bl(){var s=null,r=A.cN(A.m4("assets/images/Studying-rafiki.webp",B.cW),200,200),q=A.q(16),p=A.aO(B.ag,1),o=t.V,n=A.a([new A.a6(0,B.q,A.m(20,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),B.ao,12)],o),m=t.p
 return A.bL(A.X(A.a([r,B.X,new A.ab(B.ud,A.p(s,A.X(A.a([B.ajO,B.V,B.an9,B.aA,A.n('"N\xe0y, tao c\u1ee7a 6 th\xe1ng tr\u01b0\u1edbc. H\xf4m nay tao \u0111\xe3 n\xf3i chuy\u1ec7n \u0111\u01b0\u1ee3c v\u1edbi s\u1ebfp \u0110\xe0i Loan m\xe0 kh\xf4ng c\u1ea7n phi\xean d\u1ecbch. B\u1eaft \u0111\u1ea7u t\u1eeb h\xf4m nay \u0111i!"',s,s,s,s,A.aj(s,s,B.es,s,s,s,s,s,s,s,s,12,B.bF,s,s,s,1.5,!0,s,s,s,s,s,s,s,s),B.Y,s)],m),B.j,B.e,B.h),B.i,s,s,new A.o(B.c,s,p,q,n,s,B.k),s,s,s,B.R,s,s,s),s),B.a9,A.ac(s,A.p(s,B.a7M,B.i,s,s,new A.o(s,s,s,A.q(20),A.a([new A.a6(0,B.q,A.m(89,B.o.h()>>>16&255,B.o.h()>>>8&255,B.o.h()&255),B.ao,12)],o),B.bX,B.k),s,s,s,B.Q0,s,s,s),B.n,!1,s,s,s,s,s,s,s,s,s,s,s,s,s,s,this.gYI(),s,s,s,s,s,s)],m),B.j,B.ac,B.h),s,s)}}
 A.aHJ.prototype={
 $0(){return this.a.r=!0},
@@ -57437,7 +57437,7 @@ p=t.w
 q=A.ba(q,f,p).w
 o=g.c
 o.toString
-p=A.bL(new A.dP(new A.ax(0,q.a.a*0.4,0,A.ba(o,f,p).w.a.b*0.15),A.m4("assets/images/Profile_pic-amico.png",B.cW),f),f,f)
+p=A.bL(new A.dP(new A.ax(0,q.a.a*0.4,0,A.ba(o,f,p).w.a.b*0.15),A.m4("assets/images/Profile_pic-amico.webp",B.cW),f),f,f)
 o=t.V
 q=A.a([new A.a6(0,B.q,A.m(102,B.z.h()>>>16&255,B.z.h()>>>8&255,B.z.h()&255),B.ao,16)],o)
 if(g.gUH()!=null){n=g.gUH()
@@ -59024,7 +59024,7 @@ r=t.w
 s=A.ba(s,i,r).w
 q=j.c
 q.toString
-e.push(new A.ab(B.cQ,A.bL(new A.dP(new A.ax(0,s.a.a*0.7,0,A.ba(q,i,r).w.a.b*0.22),A.m4("assets/images/Translator-amico.png",B.cW),i),i,i),i))}e.push(j.ahw())
+e.push(new A.ab(B.cQ,A.bL(new A.dP(new A.ax(0,s.a.a*0.7,0,A.ba(q,i,r).w.a.b*0.22),A.m4("assets/images/Translator-amico.webp",B.cW),i),i,i),i))}e.push(j.ahw())
 e.push(B.bn)
 s=A.q(20)
 r=t.V
