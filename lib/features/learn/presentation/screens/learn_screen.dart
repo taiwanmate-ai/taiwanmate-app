@@ -9,6 +9,7 @@ import 'package:chinesemate/core/utils/web_utils.dart';
 import 'dart:convert';
 import 'package:chinesemate/features/learn/presentation/widgets/learning_path.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/journey.dart';
+import 'package:chinesemate/core/cache/app_cache.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -78,7 +79,6 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   int _survivalTimeLeft = 60;
   int _survivalCorrect = 0;
   Timer? _survivalTimer;
-  Timer? _healthTimer;
 
   // Calendar data — 30 ngày
   final List<double> _calendarData = List.generate(30, (i) => 0.0);
@@ -99,11 +99,6 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
     _tabController = TabController(length: 7, vsync: this);
     _loadDailyVocabulary();
     _loadCalendarData();
-    _healthTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
-      try {
-        await Dio().get('https://taiwanmate-backend-production.up.railway.app/health');
-      } catch (_) {}
-    });
   }
 
   @override
@@ -115,27 +110,21 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   }
 
   Future<void> _loadDailyVocabulary() async {
-    setState(() => _isLoading = true);
-    try {
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio();
-      final response = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary/daily?limit=30&lang=$_lang',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      final words = List<Map<String, dynamic>>.from(response.data);
-      final reviewCount = words.where((w) => w['is_review'] == true).length;
-      setState(() {
-        _vocabulary = words;
-        _reviewDue = reviewCount;
-        _totalWords = words.length;
-      });
-    } catch (e) {
-      setState(() => _vocabulary = _sampleWords);
-    } finally {
-      setState(() => _isLoading = false);
-    }
+  setState(() => _isLoading = true);
+  try {
+    final words = await AppCache.instance.getDailyVocab(lang: _lang);
+    final reviewCount = (words ?? []).where((w) => w['is_review'] == true).length;
+    if (mounted) setState(() {
+      _vocabulary = words ?? _sampleWords;
+      _reviewDue = reviewCount;
+      _totalWords = _vocabulary.length;
+    });
+  } catch (_) {
+    if (mounted) setState(() => _vocabulary = _sampleWords);
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> _updateSRS(String vocabularyId, bool known) async {
     try {
@@ -2318,6 +2307,9 @@ class _FillBlankTabState extends State<FillBlankTab> {
   // ═══════════════════════════════════════════════════════════════
 // VOCABULARY LIST TAB — Xem lại toàn bộ từ đã học
 // ═══════════════════════════════════════════════════════════════
+// PATCH cho VocabularyListTab trong learn_screen.dart
+// Thay class VocabularyListTab + _VocabularyListTabState bằng code này
+
 class VocabularyListTab extends StatefulWidget {
   final FlutterSecureStorage storage;
   final String lang;
@@ -2326,7 +2318,11 @@ class VocabularyListTab extends StatefulWidget {
   State<VocabularyListTab> createState() => _VocabularyListTabState();
 }
 
-class _VocabularyListTabState extends State<VocabularyListTab> {
+class _VocabularyListTabState extends State<VocabularyListTab>
+    with AutomaticKeepAliveClientMixin {   // ← THÊM keep-alive
+  @override
+  bool get wantKeepAlive => true;          // ← GIỮ state khi chuyển tab
+
   List<Map<String, dynamic>> _allWords = [];
   List<Map<String, dynamic>> _filtered = [];
   bool _isLoading = true;
@@ -2343,7 +2339,10 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
   }
 
   @override
-  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _loadAll() async {
     setState(() => _isLoading = true);
@@ -2390,13 +2389,16 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // ← BẮT BUỘC khi dùng AutomaticKeepAliveClientMixin
     return Column(children: [
-      // Search bar
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: Container(
-          decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))]),
+          decoration: BoxDecoration(
+            color: _DS.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
+          ),
           child: TextField(
             controller: _searchCtrl,
             style: const TextStyle(fontSize: 14, color: _DS.textDark),
@@ -2407,14 +2409,14 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
               suffixIcon: _searchCtrl.text.isNotEmpty
-                  ? GestureDetector(onTap: () { _searchCtrl.clear(); _applyFilter(); },
+                  ? GestureDetector(
+                      onTap: () { _searchCtrl.clear(); _applyFilter(); },
                       child: const Icon(Icons.clear_rounded, color: _DS.textGrey, size: 18))
                   : null,
             ),
           ),
         ),
       ),
-      // Level filter
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         child: SingleChildScrollView(
@@ -2437,17 +2439,17 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
           )).toList()),
         ),
       ),
-      // Count
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: Row(children: [
           Text('${_filtered.length} từ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _DS.textGrey)),
           const Spacer(),
-          GestureDetector(onTap: _loadAll,
-              child: const Icon(Icons.refresh_rounded, size: 18, color: _DS.textGrey)),
+          GestureDetector(
+            onTap: _loadAll,
+            child: const Icon(Icons.refresh_rounded, size: 18, color: _DS.textGrey),
+          ),
         ]),
       ),
-      // List
       Expanded(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: _DS.orange))
@@ -2455,7 +2457,8 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                 ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Text('📭', style: TextStyle(fontSize: 48)),
                     const SizedBox(height: 12),
-                    const Text('Không tìm thấy từ nào', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _DS.textDark)),
+                    const Text('Không tìm thấy từ nào',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _DS.textDark)),
                   ]))
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -2467,11 +2470,12 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
+                        decoration: BoxDecoration(
+                          color: _DS.white,
+                          borderRadius: BorderRadius.circular(_DS.radiusSm),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                        ),
                         child: Row(children: [
-                          // Chinese word
-                          // Word box — hiển thị đúng theo lang
                           Container(
                             width: 56, height: 56,
                             decoration: BoxDecoration(
@@ -2485,16 +2489,16 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                                       : (w['chinese'] ?? ''),
                                   style: TextStyle(
                                     fontSize: widget.lang == 'en' ? 13 : 22,
-                                     fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w500,
                                     color: Colors.white,
-                                     fontFamily: 'NotoSansTC',
+                                    fontFamily: 'NotoSansTC',
                                   ),
                                 ))),
                           ),
                           const SizedBox(width: 12),
-                          // Info
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(w['vietnamese'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark)),
+                            Text(w['vietnamese'] ?? '',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark)),
                             const SizedBox(height: 2),
                             Text(
                               widget.lang == 'en' ? (w['ipa'] ?? '') : (w['pinyin'] ?? ''),
@@ -2507,22 +2511,26 @@ class _VocabularyListTabState extends State<VocabularyListTab> {
                               if (example.isEmpty) return const SizedBox.shrink();
                               return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 const SizedBox(height: 4),
-                                Text(example, style: const TextStyle(fontSize: 11, color: _DS.textGrey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(example,
+                                    style: const TextStyle(fontSize: 11, color: _DS.textGrey),
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
                               ]);
                             }),
                           ])),
-                          // Right side: level + SRS
                           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                             if (level.isNotEmpty) Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(color: _DS.blueLight, borderRadius: BorderRadius.circular(8)),
-                              child: Text(level, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _DS.blue)),
+                              child: Text(level,
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _DS.blue)),
                             ),
                             const SizedBox(height: 6),
                             Row(children: List.generate(5, (j) => Container(
                               width: 5, height: 5, margin: const EdgeInsets.only(left: 2),
-                              decoration: BoxDecoration(shape: BoxShape.circle,
-                                  color: j < srs ? _DS.green : _DS.green.withOpacity(0.2)),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: j < srs ? _DS.green : _DS.green.withOpacity(0.2),
+                              ),
                             ))),
                           ]),
                         ]),

@@ -6,6 +6,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../shared/theme/app_colors.dart';
+import 'package:chinesemate/core/cache/app_cache.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -79,6 +80,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         },
       );
       await SecureStorage.saveToken(response.data['access_token']);
+
+       AppCache.instance.preloadAll();
+
       if (mounted) context.go('/home');
     } on DioException catch (e) {
       setState(() => _error = e.response?.data['detail'] ?? 'Email hoặc mật khẩu không đúng');

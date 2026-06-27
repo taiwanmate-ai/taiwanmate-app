@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:chinesemate/core/cache/app_cache.dart';
 
 class _DS {
   static const indigo = Color(0xFF5B5FEF);
@@ -193,26 +194,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   Future<void> _loadUserStats() async {
-    try {
-      final token = await const FlutterSecureStorage().read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 10)));
-      final res = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      final vocabRes = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      if (mounted) setState(() {
-        _streak = res.data['streak_days'] ?? 0;
-        _xp = res.data['total_xp'] ?? 0;
-        _vocabCount = (vocabRes.data as List).where((w) => (w['srs_level'] as num? ?? 0) > 0).length;
-      });
-   } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
-    if (mounted) _fadeCtrl.forward();
-  }
+  try {
+    final user = await AppCache.instance.getUser();
+    final vocab = await AppCache.instance.getVocabulary();
+    if (mounted) setState(() {
+      _streak = user?['streak_days'] ?? 0;
+      _xp = user?['total_xp'] ?? 0;
+      _vocabCount = (vocab ?? []).where((w) => (w['srs_level'] as num? ?? 0) > 0).length;
+    });
+  } catch (_) {}
+  if (mounted) setState(() => _isLoading = false);
+  if (mounted) _fadeCtrl.forward();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -681,21 +674,12 @@ List<Map<String, dynamic>> _previewNews = [];
   bool _newsLoading = true;
 
   Future<void> _loadNewsPreview() async {
-    try {
-      final token = await const FlutterSecureStorage().read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 15), receiveTimeout: const Duration(seconds: 15)));
-      final response = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/news/feed',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      final newsList = List<Map<String, dynamic>>.from(response.data['news'] ?? []);
-      print('News loaded: ${newsList.length} items');
-      if (mounted) setState(() { _previewNews = newsList.take(3).toList(); _newsLoading = false; });
-    } catch (e) {
-      print('News error: $e');
-      if (mounted) setState(() => _newsLoading = false);
-    }
-  }
+  final newsList = await AppCache.instance.getNews();
+  if (mounted) setState(() {
+    _previewNews = (newsList ?? []).take(3).toList();
+    _newsLoading = false;
+  });
+}
 
   Widget _buildNewsPreview() {
     if (_newsLoading) {
@@ -708,7 +692,15 @@ List<Map<String, dynamic>> _previewNews = [];
         ),
       );
     }
-    if (_previewNews.isEmpty) return const SizedBox.shrink();
+    if (_previewNews.isEmpty) return Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+    child: const Text('Đăng nhập để xem tin tức mới nhất 📰',
+        style: TextStyle(color: Color(0xFF8A8FA3), fontSize: 13)),
+  ),
+);
     return Column(children: [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),

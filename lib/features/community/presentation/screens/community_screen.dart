@@ -218,6 +218,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           child: TextField(
             controller: _searchController,
             onSubmitted: (_) => _loadPosts(),
+             style: const TextStyle(color: _DS.textDark, fontSize: 14),
             decoration: const InputDecoration(
               hintText: 'Tìm việc làm, nhà trọ, khu vực...',
               hintStyle: TextStyle(color: _DS.textGrey, fontSize: 14),
@@ -677,6 +678,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         TextField(
           controller: ctrl,
           maxLines: maxLines,
+          style: const TextStyle(color: _DS.textDark, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: _DS.textGrey, fontSize: 13),
