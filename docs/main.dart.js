@@ -10386,7 +10386,7 @@ var $async$aVb=A.E(function(a,b){if(a===1)return A.A(b,r)
 for(;;)switch(s){case 0:if($.ah==null)A.axp()
 $.ah.toString
 q=new A.agu("NotoSansTC",A.a([],t.ty))
-q.aAq($.PP().lZ(0,"assets/fonts/NotoSansTC-VariableFont_wght.ttf"))
+q.aAq($.PP().lZ(0,"assets/fonts/NotoSansTC-Regular.ttf"))
 s=2
 return A.r(q.zt(0),$async$aVb)
 case 2:if($.ah==null)A.axp()
