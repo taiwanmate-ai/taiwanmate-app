@@ -48,4 +48,4 @@ flutter:
   fonts:
     - family: NotoSansTC
       fonts:
-       - asset: assets/fonts/NotoSansTC-VariableFont_wght.ttf
+       - asset: assets/fonts/NotoSansTC-Regular.ttf

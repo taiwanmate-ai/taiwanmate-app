@@ -50,97 +50,97 @@ class _ToolConfig {
 
 const _tools = [
   _ToolConfig(
-    key: 'pronunciation', emoji: 'ðŸŽ¤', title: 'Luyá»‡n phÃ¡t Ã¢m', subtitle: 'AI cháº¥m Ä‘iá»ƒm phÃ¡t Ã¢m',
+    key: 'pronunciation', emoji: '🎤', title: 'Luyện phát âm', subtitle: 'AI chấm điểm phát âm',
     gradient: [Color(0xFF2979FF), Color(0xFF1565C0)],
-    quickPrompts: ['PhÃ¡t Ã¢m tá»« "è¬è¬" Ä‘Ãºng chÆ°a?', 'Dáº¡y tÃ´i Ã¢m "ã„“ã„”ã„•"', 'Lá»—i phÃ¡t Ã¢m thÆ°á»ng gáº·p lÃ  gÃ¬?'],
-    system: 'Báº¡n lÃ  giÃ¡o viÃªn dáº¡y phÃ¡t Ã¢m tiáº¿ng Trung (ÄÃ i Loan). Khi ngÆ°á»i dÃ¹ng nháº­p tá»«/cÃ¢u, hÃ£y: 1) PhiÃªn Ã¢m bopomofo, 2) HÆ°á»›ng dáº«n cÃ¡ch phÃ¡t Ã¢m chi tiáº¿t, 3) CÃ¡c lá»—i thÆ°á»ng gáº·p, 4) VÃ­ dá»¥ cÃ¢u. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t. KHÃ”NG viáº¿t pinyin.',
+    quickPrompts: ['Phát âm từ "謝謝" đúng chưa?', 'Dạy tôi âm "ㄓㄔㄕ"', 'Lỗi phát âm thường gặp là gì?'],
+    system: 'Bạn là giáo viên dạy phát âm tiếng Trung (Đài Loan). Khi người dùng nhập từ/câu, hãy: 1) Phiên âm bopomofo, 2) Hướng dẫn cách phát âm chi tiết, 3) Các lỗi thường gặp, 4) Ví dụ câu. Trả lời bằng tiếng Việt. KHÔNG viết pinyin.',
   ),
   _ToolConfig(
-    key: 'grammar', emoji: 'ðŸ“–', title: 'Ngá»¯ phÃ¡p', subtitle: 'Giáº£i thÃ­ch chi tiáº¿t',
+    key: 'grammar', emoji: '📖', title: 'Ngữ pháp', subtitle: 'Giải thích chi tiết',
     gradient: [Color(0xFF00C853), Color(0xFF2E7D32)],
-    quickPrompts: ['Giáº£i thÃ­ch cáº¥u trÃºc "æŠŠ" sentence', 'DÃ¹ng "äº†" khi nÃ o?', 'PhÃ¢n biá»‡t çš„/åœ°/å¾—'],
-    system: 'Báº¡n lÃ  giÃ¡o viÃªn ngá»¯ phÃ¡p tiáº¿ng Trung. PhÃ¢n tÃ­ch cáº¥u trÃºc cÃ¢u, giáº£i thÃ­ch tá»«ng thÃ nh pháº§n, cho vÃ­ dá»¥ thá»±c táº¿. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t. KHÃ”NG viáº¿t pinyin.',
+    quickPrompts: ['Giải thích cấu trúc "把" sentence', 'Dùng "了" khi nào?', 'Phân biệt 的/地/得'],
+    system: 'Bạn là giáo viên ngữ pháp tiếng Trung. Phân tích cấu trúc câu, giải thích từng thành phần, cho ví dụ thực tế. Trả lời bằng tiếng Việt. KHÔNG viết pinyin.',
   ),
   _ToolConfig(
-    key: 'context_translate', emoji: 'ðŸ”¤', title: 'Dá»‹ch cÃ³ ngá»¯ cáº£nh', subtitle: 'Dá»‹ch kÃ¨m vÄƒn hÃ³a, cÃ¡ch dÃ¹ng',
+    key: 'context_translate', emoji: '🔤', title: 'Dịch có ngữ cảnh', subtitle: 'Dịch kèm văn hóa, cách dùng',
     gradient: [Color(0xFF009688), Color(0xFF00695C)],
-    quickPrompts: ['Dá»‹ch "æ²’é—œä¿‚" vá»›i Ä‘áº§y Ä‘á»§ nghÄ©a', '"è¾›è‹¦äº†" dÃ¹ng lÃºc nÃ o?', 'Dá»‹ch menu nÃ y giÃºp tÃ´i'],
-    system: 'Báº¡n lÃ  phiÃªn dá»‹ch viÃªn chuyÃªn nghiá»‡p Viá»‡t-Trung. Dá»‹ch chÃ­nh xÃ¡c, giáº£i thÃ­ch ngá»¯ cáº£nh, cÃ¡c cÃ¡ch diá»…n Ä‘áº¡t khÃ¡c, lÆ°u Ã½ vÄƒn hÃ³a. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.',
+    quickPrompts: ['Dịch "沒關係" với đầy đủ nghĩa', '"辛苦了" dùng lúc nào?', 'Dịch menu này giúp tôi'],
+    system: 'Bạn là phiên dịch viên chuyên nghiệp Việt-Trung. Dịch chính xác, giải thích ngữ cảnh, các cách diễn đạt khác, lưu ý văn hóa. Trả lời bằng tiếng Việt.',
   ),
   _ToolConfig(
-    key: 'work', emoji: 'ðŸ’¼', title: 'CÃ´ng viá»‡c', subtitle: 'Email, há»£p Ä‘á»“ng, cÃ´ng sá»Ÿ',
+    key: 'work', emoji: '💼', title: 'Công việc', subtitle: 'Email, hợp đồng, công sở',
     gradient: [Color(0xFFFF6B35), Color(0xFFE65100)],
-    quickPrompts: ['Soáº¡n email xin nghá»‰ phÃ©p', 'Giáº£i thÃ­ch Ä‘iá»u khoáº£n há»£p Ä‘á»“ng nÃ y', 'CÃ¡ch nÃ³i chuyá»‡n vá»›i sáº¿p ÄÃ i Loan'],
+    quickPrompts: ['Soạn email xin nghỉ phép', 'Giải thích điều khoản hợp đồng này', 'Cách nói chuyện với sếp Đài Loan'],
     isPopular: true,
-    system: 'Báº¡n lÃ  trá»£ lÃ½ há»— trá»£ ngÆ°á»i Viá»‡t lÃ m viá»‡c á»Ÿ ÄÃ i Loan. GiÃºp soáº¡n email, giáº£i thÃ­ch há»£p Ä‘á»“ng, tá»« vá»±ng cÃ´ng sá»Ÿ, cÃ¡ch giao tiáº¿p chuyÃªn nghiá»‡p. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Trung khi cáº§n.',
+    system: 'Bạn là trợ lý hỗ trợ người Việt làm việc ở Đài Loan. Giúp soạn email, giải thích hợp đồng, từ vựng công sở, cách giao tiếp chuyên nghiệp. Trả lời bằng tiếng Việt, kèm tiếng Trung khi cần.',
   ),
   _ToolConfig(
-    key: 'medical', emoji: 'ðŸ¥', title: 'Y táº¿ & NHI', subtitle: 'Bá»‡nh viá»‡n, báº£o hiá»ƒm',
+    key: 'medical', emoji: '🏥', title: 'Y tế & NHI', subtitle: 'Bệnh viện, bảo hiểm',
     gradient: [Color(0xFFE91E8C), Color(0xFFAD1457)],
-    quickPrompts: ['TÃ´i bá»‹ sá»‘t cáº§n lÃ m gÃ¬?', 'Giáº£i thÃ­ch tháº» NHI cho tÃ´i', 'Thuá»‘c nÃ y uá»‘ng tháº¿ nÃ o?'],
+    quickPrompts: ['Tôi bị sốt cần làm gì?', 'Giải thích thẻ NHI cho tôi', 'Thuốc này uống thế nào?'],
     isPopular: true,
-    system: 'Báº¡n lÃ  trá»£ lÃ½ y táº¿ cho ngÆ°á»i Viá»‡t á»Ÿ ÄÃ i Loan. GiÃºp hiá»ƒu NHI (å…¨æ°‘å¥ä¿), tá»« vá»±ng bá»‡nh viá»‡n, Ä‘á»c Ä‘Æ¡n thuá»‘c, quy trÃ¬nh khÃ¡m bá»‡nh. LuÃ´n nháº¯c tham kháº£o bÃ¡c sÄ©. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.',
+    system: 'Bạn là trợ lý y tế cho người Việt ở Đài Loan. Giúp hiểu NHI (全民健保), từ vựng bệnh viện, đọc đơn thuốc, quy trình khám bệnh. Luôn nhắc tham khảo bác sĩ. Trả lời bằng tiếng Việt.',
   ),
   _ToolConfig(
-    key: 'admin', emoji: 'ðŸ›ï¸', title: 'HÃ nh chÃ­nh', subtitle: 'ARC, visa, Ä‘Äƒng kÃ½',
+    key: 'admin', emoji: '🏛️', title: 'Hành chính', subtitle: 'ARC, visa, đăng ký',
     gradient: [Color(0xFF7C4DFF), Color(0xFF4527A0)],
-    quickPrompts: ['Gia háº¡n ARC cáº§n giáº¥y tá» gÃ¬?', 'Má»Ÿ tÃ i khoáº£n ngÃ¢n hÃ ng tháº¿ nÃ o?', 'ÄÄƒng kÃ½ SIM card á»Ÿ Ä‘Ã¢u?'],
-    system: 'Báº¡n lÃ  trá»£ lÃ½ thá»§ tá»¥c hÃ nh chÃ­nh cho ngÆ°á»i Viá»‡t á»Ÿ ÄÃ i Loan. HÆ°á»›ng dáº«n ARC, visa, Ä‘Äƒng kÃ½ há»™ kháº©u, má»Ÿ tÃ i khoáº£n ngÃ¢n hÃ ng. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, rÃµ rÃ ng tá»«ng bÆ°á»›c.',
+    quickPrompts: ['Gia hạn ARC cần giấy tờ gì?', 'Mở tài khoản ngân hàng thế nào?', 'Đăng ký SIM card ở đâu?'],
+    system: 'Bạn là trợ lý thủ tục hành chính cho người Việt ở Đài Loan. Hướng dẫn ARC, visa, đăng ký hộ khẩu, mở tài khoản ngân hàng. Trả lời bằng tiếng Việt, rõ ràng từng bước.',
   ),
   _ToolConfig(
-    key: 'daily', emoji: 'ðŸœ', title: 'áº¨m thá»±c & Mua sáº¯m', subtitle: 'Menu, máº·c cáº£, Ä‘áº·t hÃ ng',
+    key: 'daily', emoji: '🍜', title: 'Ẩm thực & Mua sắm', subtitle: 'Menu, mặc cả, đặt hàng',
     gradient: [Color(0xFFFF5722), Color(0xFFBF360C)],
-    quickPrompts: ['Dá»‹ch menu nÃ y cho tÃ´i', 'CÃ¡ch máº·c cáº£ á»Ÿ chá»£ Ä‘Ãªm', 'Gá»i mÃ³n khÃ´ng cÃ³ rau mÃ¹i'],
-    system: 'Báº¡n lÃ  hÆ°á»›ng dáº«n viÃªn áº©m thá»±c vÃ  mua sáº¯m táº¡i ÄÃ i Loan cho ngÆ°á»i Viá»‡t. GiÃºp Ä‘á»c menu, gá»i mÃ³n, thÆ°Æ¡ng lÆ°á»£ng giÃ¡, mua sáº¯m. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Trung thá»±c táº¿.',
+    quickPrompts: ['Dịch menu này cho tôi', 'Cách mặc cả ở chợ đêm', 'Gọi món không có rau mùi'],
+    system: 'Bạn là hướng dẫn viên ẩm thực và mua sắm tại Đài Loan cho người Việt. Giúp đọc menu, gọi món, thương lượng giá, mua sắm. Trả lời bằng tiếng Việt, kèm tiếng Trung thực tế.',
   ),
   _ToolConfig(
-    key: 'image_translate', emoji: 'ðŸ“·', title: 'Dá»‹ch áº£nh AI', subtitle: 'Há»£p Ä‘á»“ng, menu, biá»ƒn bÃ¡o',
+    key: 'image_translate', emoji: '📷', title: 'Dịch ảnh AI', subtitle: 'Hợp đồng, menu, biển báo',
     gradient: [Color(0xFF6A1B9A), Color(0xFF4A148C)],
-    quickPrompts: ['Dá»‹ch há»£p Ä‘á»“ng lao Ä‘á»™ng', 'Dá»‹ch menu nhÃ  hÃ ng', 'Dá»‹ch biá»ƒn bÃ¡o Ä‘Æ°á»ng phá»‘'],
+    quickPrompts: ['Dịch hợp đồng lao động', 'Dịch menu nhà hàng', 'Dịch biển báo đường phố'],
     isPopular: true,
     system: '',
   ),
   _ToolConfig(
-    key: 'study_abroad', emoji: 'ðŸŽ“', title: 'Du há»c ÄÃ i Loan', subtitle: 'Lá»™ trÃ¬nh A-Z Â· Há»c bá»•ng Â· Visa',
+    key: 'study_abroad', emoji: '🎓', title: 'Du học Đài Loan', subtitle: 'Lộ trình A-Z · Học bổng · Visa',
     gradient: [Color(0xFF1565C0), Color(0xFF0D47A1)],
-    quickPrompts: ['TÃ´i vá»«a thi xong THPT, muá»‘n du há»c ÄÃ i Loan', 'Há»c bá»•ng MOE lÃ  gÃ¬, ná»™p nhÆ° tháº¿ nÃ o?', 'Chi phÃ­ du há»c ÄÃ i Loan háº¿t bao nhiÃªu?'],
+    quickPrompts: ['Tôi vừa thi xong THPT, muốn du học Đài Loan', 'Học bổng MOE là gì, nộp như thế nào?', 'Chi phí du học Đài Loan hết bao nhiêu?'],
     isPopular: true,
-    system: '''Báº¡n lÃ  chuyÃªn gia tÆ° váº¥n du há»c ÄÃ i Loan cho há»c sinh Viá»‡t Nam, vá»›i kiáº¿n thá»©c chÃ­nh xÃ¡c tá»« nguá»“n chÃ­nh thá»‘ng (MOE, BOCA, TECO).
-NGUYÃŠN Táº®C: CHá»ˆ cung cáº¥p thÃ´ng tin Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c minh. LuÃ´n ghi rÃµ nguá»“n. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.''',
+    system: '''Bạn là chuyên gia tư vấn du học Đài Loan cho học sinh Việt Nam, với kiến thức chính xác từ nguồn chính thống (MOE, BOCA, TECO).
+NGUYÊN TẮC: CHỈ cung cấp thông tin đã được xác minh. Luôn ghi rõ nguồn. Trả lời bằng tiếng Việt.''',
   ),
   _ToolConfig(
-    key: 'tourism', emoji: 'ðŸ—ºï¸', title: 'Du lá»‹ch ÄÃ i Loan', subtitle: 'Äá»‹a Ä‘iá»ƒm, Äƒn uá»‘ng, di chuyá»ƒn',
+    key: 'tourism', emoji: '🗺️', title: 'Du lịch Đài Loan', subtitle: 'Địa điểm, ăn uống, di chuyển',
     gradient: [Color(0xFF00897B), Color(0xFF00695C)],
-    quickPrompts: ['ÄÃ i Báº¯c cÃ³ gÃ¬ hay chÆ¡i?', 'Äi Jiufen cáº§n chuáº©n bá»‹ gÃ¬?', 'Ä‚n gÃ¬ á»Ÿ ÄÃ i Nam?'],
-    system: 'Báº¡n lÃ  hÆ°á»›ng dáº«n viÃªn du lá»‹ch ÄÃ i Loan chuyÃªn nghiá»‡p cho ngÆ°á»i Viá»‡t. TÆ° váº¥n Ä‘á»‹a Ä‘iá»ƒm, di chuyá»ƒn, Äƒn uá»‘ng, chi phÃ­ thá»±c táº¿. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.',
+    quickPrompts: ['Đài Bắc có gì hay chơi?', 'Đi Jiufen cần chuẩn bị gì?', 'Ăn gì ở Đài Nam?'],
+    system: 'Bạn là hướng dẫn viên du lịch Đài Loan chuyên nghiệp cho người Việt. Tư vấn địa điểm, di chuyển, ăn uống, chi phí thực tế. Trả lời bằng tiếng Việt.',
   ),
 ];
 
 const _englishTools = [
   _ToolConfig(
-    key: 'en_pronunciation', emoji: 'ðŸ—£ï¸', title: 'PhÃ¡t Ã¢m tiáº¿ng Anh', subtitle: 'AI sá»­a phÃ¡t Ã¢m, luyá»‡n accent',
+    key: 'en_pronunciation', emoji: '🗣️', title: 'Phát âm tiếng Anh', subtitle: 'AI sửa phát âm, luyện accent',
     gradient: [Color(0xFF1565C0), Color(0xFF0D47A1)],
-    quickPrompts: ['PhÃ¡t Ã¢m "comfortable" Ä‘Ãºng khÃ´ng?', 'Sá»­a lá»—i phÃ¡t Ã¢m "th" cho tÃ´i', 'Accent Má»¹ khÃ¡c Anh tháº¿ nÃ o?'],
-    system: 'Báº¡n lÃ  giÃ¡o viÃªn phÃ¡t Ã¢m tiáº¿ng Anh chuyÃªn nghiá»‡p. Khi user nháº­p tá»«/cÃ¢u tiáº¿ng Anh, phiÃªn Ã¢m IPA, hÆ°á»›ng dáº«n phÃ¡t Ã¢m, lá»—i ngÆ°á»i Viá»‡t hay máº¯c. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.',
+    quickPrompts: ['Phát âm "comfortable" đúng không?', 'Sửa lỗi phát âm "th" cho tôi', 'Accent Mỹ khác Anh thế nào?'],
+    system: 'Bạn là giáo viên phát âm tiếng Anh chuyên nghiệp. Khi user nhập từ/câu tiếng Anh, phiên âm IPA, hướng dẫn phát âm, lỗi người Việt hay mắc. Trả lời bằng tiếng Việt.',
   ),
   _ToolConfig(
-    key: 'en_grammar', emoji: 'ðŸ“', title: 'Ngá»¯ phÃ¡p tiáº¿ng Anh', subtitle: 'Giáº£i thÃ­ch grammar thá»±c táº¿',
+    key: 'en_grammar', emoji: '📝', title: 'Ngữ pháp tiếng Anh', subtitle: 'Giải thích grammar thực tế',
     gradient: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
-    quickPrompts: ['Khi nÃ o dÃ¹ng "have been" vs "had been"?', 'PhÃ¢n biá»‡t "since" vÃ  "for"', 'CÃ¡ch dÃ¹ng conditional sentences'],
-    system: 'Báº¡n lÃ  giÃ¡o viÃªn ngá»¯ phÃ¡p tiáº¿ng Anh cho ngÆ°á»i Viá»‡t. Giáº£i thÃ­ch ngá»¯ phÃ¡p rÃµ rÃ ng, cho vÃ­ dá»¥ thá»±c táº¿. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.',
+    quickPrompts: ['Khi nào dùng "have been" vs "had been"?', 'Phân biệt "since" và "for"', 'Cách dùng conditional sentences'],
+    system: 'Bạn là giáo viên ngữ pháp tiếng Anh cho người Việt. Giải thích ngữ pháp rõ ràng, cho ví dụ thực tế. Trả lời bằng tiếng Việt.',
   ),
   _ToolConfig(
-    key: 'en_workplace', emoji: 'ðŸ’¼', title: 'Tiáº¿ng Anh cÃ´ng sá»Ÿ', subtitle: 'Email, há»p, thuyáº¿t trÃ¬nh',
+    key: 'en_workplace', emoji: '💼', title: 'Tiếng Anh công sở', subtitle: 'Email, họp, thuyết trình',
     gradient: [Color(0xFF4527A0), Color(0xFF311B92)],
-    quickPrompts: ['Soáº¡n email xin nghá»‰ phÃ©p báº±ng tiáº¿ng Anh', 'CÃ¡ch nÃ³i "tÃ´i khÃ´ng Ä‘á»“ng Ã½" lá»‹ch sá»±', 'Tá»« vá»±ng trong cuá»™c há»p'],
+    quickPrompts: ['Soạn email xin nghỉ phép bằng tiếng Anh', 'Cách nói "tôi không đồng ý" lịch sự', 'Từ vựng trong cuộc họp'],
     isPopular: true,
-    system: 'Báº¡n lÃ  chuyÃªn gia tiáº¿ng Anh cÃ´ng sá»Ÿ cho ngÆ°á»i Viá»‡t. GiÃºp soáº¡n email, giao tiáº¿p cuá»™c há»p, thuyáº¿t trÃ¬nh. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Anh.',
+    system: 'Bạn là chuyên gia tiếng Anh công sở cho người Việt. Giúp soạn email, giao tiếp cuộc họp, thuyết trình. Trả lời bằng tiếng Việt, kèm tiếng Anh.',
   ),
   _ToolConfig(
-    key: 'en_daily', emoji: 'ðŸŽ¬', title: 'Tiáº¿ng Anh thá»±c táº¿', subtitle: 'Slang, phim, nháº¡c, Gen Z',
+    key: 'en_daily', emoji: '🎬', title: 'Tiếng Anh thực tế', subtitle: 'Slang, phim, nhạc, Gen Z',
     gradient: [Color(0xFFBF360C), Color(0xFF870000)],
-    quickPrompts: ['"No cap" nghÄ©a lÃ  gÃ¬?', 'Slang Gen Z phá»• biáº¿n 2024', 'Hiá»ƒu cÃ¢u thoáº¡i phim nÃ y giÃºp tÃ´i'],
-    system: 'Báº¡n lÃ  chuyÃªn gia tiáº¿ng Anh thá»±c táº¿, slang, vÄƒn hÃ³a pop cho ngÆ°á»i Viá»‡t. Giáº£i thÃ­ch slang, idiom, cÃ¡ch nÃ³i tá»± nhiÃªn. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t.',
+    quickPrompts: ['"No cap" nghĩa là gì?', 'Slang Gen Z phổ biến 2024', 'Hiểu câu thoại phim này giúp tôi'],
+    system: 'Bạn là chuyên gia tiếng Anh thực tế, slang, văn hóa pop cho người Việt. Giải thích slang, idiom, cách nói tự nhiên. Trả lời bằng tiếng Việt.',
   ),
 ];
 
@@ -151,41 +151,41 @@ class _JobSource {
 }
 
 const _jobSources = [
-  _JobSource(name: '104äººåŠ›éŠ€è¡Œ', desc: 'Trang tÃ¬m viá»‡c lá»›n nháº¥t ÄÃ i Loan', emoji: 'ðŸ†', url: 'https://www.104.com.tw', tag: 'Phá»• biáº¿n nháº¥t', color: Color(0xFF2979FF)),
-  _JobSource(name: '1111äººåŠ›éŠ€è¡Œ', desc: 'Lá»›n thá»© 2, nhiá»u viá»‡c part-time', emoji: 'â­', url: 'https://www.1111.com.tw', tag: 'Part-time', color: Color(0xFFFF6B35)),
-  _JobSource(name: 'Cake.me', desc: 'Viá»‡c tech, startup, creative', emoji: 'ðŸŽ‚', url: 'https://www.cake.me/jobs', tag: 'Tech & Startup', color: Color(0xFF00C853)),
-  _JobSource(name: 'LinkedIn', desc: 'Viá»‡c vÄƒn phÃ²ng, cÃ´ng ty nÆ°á»›c ngoÃ i', emoji: 'ðŸ’¼', url: 'https://www.linkedin.com/jobs', tag: 'VÄƒn phÃ²ng', color: Color(0xFF0A66C2)),
-  _JobSource(name: 'WDA - Lao Ä‘á»™ng nÆ°á»›c ngoÃ i', desc: 'CÆ¡ quan chÃ­nh phá»§ há»— trá»£ lao Ä‘á»™ng nÆ°á»›c ngoÃ i', emoji: 'ðŸ›ï¸', url: 'https://fw.wda.gov.tw', tag: 'ChÃ­nh thá»©c', color: Color(0xFF7C4DFF)),
-  _JobSource(name: 'LINE: TÆ° váº¥n viá»‡c lÃ m', desc: 'LiÃªn há»‡ mÃ´i giá»›i viá»‡c lÃ m trá»±c tiáº¿p qua LINE', emoji: 'ðŸ’¬', url: 'https://lin.ee/jISSjV4', tag: 'MÃ´i giá»›i', color: Color(0xFF00C300)),
-  _JobSource(name: 'Yourator', desc: 'Startup, creative, mÃ´i trÆ°á»ng tráº»', emoji: 'ðŸš€', url: 'https://www.yourator.co', tag: 'Startup', color: Color(0xFFE91E8C)),
+  _JobSource(name: '104人力銀行', desc: 'Trang tìm việc lớn nhất Đài Loan', emoji: '🏆', url: 'https://www.104.com.tw', tag: 'Phổ biến nhất', color: Color(0xFF2979FF)),
+  _JobSource(name: '1111人力銀行', desc: 'Lớn thứ 2, nhiều việc part-time', emoji: '⭐', url: 'https://www.1111.com.tw', tag: 'Part-time', color: Color(0xFFFF6B35)),
+  _JobSource(name: 'Cake.me', desc: 'Việc tech, startup, creative', emoji: '🎂', url: 'https://www.cake.me/jobs', tag: 'Tech & Startup', color: Color(0xFF00C853)),
+  _JobSource(name: 'LinkedIn', desc: 'Việc văn phòng, công ty nước ngoài', emoji: '💼', url: 'https://www.linkedin.com/jobs', tag: 'Văn phòng', color: Color(0xFF0A66C2)),
+  _JobSource(name: 'WDA - Lao động nước ngoài', desc: 'Cơ quan chính phủ hỗ trợ lao động nước ngoài', emoji: '🏛️', url: 'https://fw.wda.gov.tw', tag: 'Chính thức', color: Color(0xFF7C4DFF)),
+  _JobSource(name: 'LINE: Tư vấn việc làm', desc: 'Liên hệ môi giới việc làm trực tiếp qua LINE', emoji: '💬', url: 'https://lin.ee/jISSjV4', tag: 'Môi giới', color: Color(0xFF00C300)),
+  _JobSource(name: 'Yourator', desc: 'Startup, creative, môi trường trẻ', emoji: '🚀', url: 'https://www.yourator.co', tag: 'Startup', color: Color(0xFFE91E8C)),
 ];
 
 const _emergencyPhrases = [
-  {'vi': 'TÃ´i cáº§n giÃºp Ä‘á»¡!', 'zh': 'æˆ‘éœ€è¦å¹«åŠ©ï¼', 'pinyin': 'WÇ’ xÅ«yÃ o bÄngzhÃ¹!', 'note': ''},
-  {'vi': 'Gá»i cáº¥p cá»©u!', 'zh': 'å«æ•‘è­·è»Šï¼', 'pinyin': 'JiÃ o jiÃ¹hÃ¹chÄ“!', 'note': '119'},
-  {'vi': 'Gá»i cáº£nh sÃ¡t!', 'zh': 'å«è­¦å¯Ÿï¼', 'pinyin': 'JiÃ o jÇngchÃ¡!', 'note': '110'},
-  {'vi': 'TÃ´i bá»‹ láº¡c', 'zh': 'æˆ‘è¿·è·¯äº†', 'pinyin': 'WÇ’ mÃ­lÃ¹ le', 'note': ''},
-  {'vi': 'TÃ´i bá»‹ á»‘m', 'zh': 'æˆ‘ç”Ÿç—…äº†', 'pinyin': 'WÇ’ shÄ“ngbÃ¬ng le', 'note': ''},
-  {'vi': 'TÃ´i bá»‹ tai náº¡n', 'zh': 'æˆ‘å‡ºè»Šç¦äº†', 'pinyin': 'WÇ’ chÅ« chÄ“huÃ² le', 'note': ''},
-  {'vi': 'Bá»‡nh viá»‡n á»Ÿ Ä‘Ã¢u?', 'zh': 'é†«é™¢åœ¨å“ªè£¡ï¼Ÿ', 'pinyin': 'YÄ«yuÃ n zÃ i nÇŽlÇ?', 'note': ''},
-  {'vi': 'TÃ´i khÃ´ng hiá»ƒu tiáº¿ng Trung', 'zh': 'æˆ‘ä¸æ‡‚ä¸­æ–‡', 'pinyin': 'WÇ’ bÃ¹ dÇ’ng ZhÅngwÃ©n', 'note': ''},
-  {'vi': 'CÃ³ ai nÃ³i tiáº¿ng Anh khÃ´ng?', 'zh': 'æœ‰äººèªªè‹±æ–‡å—Žï¼Ÿ', 'pinyin': 'YÇ’u rÃ©n shuÅ YÄ«ngwÃ©n ma?', 'note': ''},
-  {'vi': 'Xin gá»i cho sá»‘ nÃ y', 'zh': 'è«‹æ‰“é€™å€‹é›»è©±', 'pinyin': 'QÇng dÇŽ zhÃ¨ge diÃ nhuÃ ', 'note': ''},
-  {'vi': 'TÃ´i bá»‹ máº¥t há»™ chiáº¿u', 'zh': 'æˆ‘çš„è­·ç…§ä¸è¦‹äº†', 'pinyin': 'WÇ’ de hÃ¹zhÃ o bÃ¹ jiÃ n le', 'note': ''},
-  {'vi': 'TÃ´i cáº§n thÃ´ng dá»‹ch viÃªn', 'zh': 'æˆ‘éœ€è¦ç¿»è­¯', 'pinyin': 'WÇ’ xÅ«yÃ o fÄnyÃ¬', 'note': ''},
-  {'vi': 'Xin gá»i Ä‘áº¡i sá»© quÃ¡n Viá»‡t Nam', 'zh': 'è«‹æ‰“é›»è©±çµ¦è¶Šå—å¤§ä½¿é¤¨', 'pinyin': 'QÇng dÇŽ diÃ nhuÃ  gÄ›i YuÃ¨nÃ¡n dÃ shÇguÇŽn', 'note': '(+84-4) 3845-3637'},
-  {'vi': 'TÃ´i bá»‹ chá»§ nhÃ  Ä‘uá»•i', 'zh': 'æˆ¿æ±æŠŠæˆ‘è¶•èµ°äº†', 'pinyin': 'FÃ¡ngdÅng bÇŽ wÇ’ gÇŽn zÇ’u le', 'note': ''},
-  {'vi': 'TÃ´i chÆ°a Ä‘Æ°á»£c tráº£ lÆ°Æ¡ng', 'zh': 'æˆ‘é‚„æ²’æœ‰æ‹¿åˆ°è–ªæ°´', 'pinyin': 'WÇ’ hÃ¡i mÃ©iyÇ’u nÃ¡ dÃ o xÄ«nshuÇ', 'note': '1955'},
-  {'vi': 'TÃ´i bá»‹ tai náº¡n lao Ä‘á»™ng', 'zh': 'æˆ‘ç™¼ç”Ÿå·¥å‚·äº†', 'pinyin': 'WÇ’ fÄshÄ“ng gÅngshÄng le', 'note': ''},
-  {'vi': 'Xin chá»‰ Ä‘Æ°á»ng Ä‘áº¿n Ä‘á»“n cáº£nh sÃ¡t', 'zh': 'è«‹å‘Šè¨´æˆ‘è­¦å¯Ÿå±€åœ¨å“ªè£¡', 'pinyin': 'QÇng gÃ osÃ¹ wÇ’ jÇngchÃ¡jÃº zÃ i nÇŽlÇ', 'note': ''},
-  {'vi': 'TÃ´i dá»‹ á»©ng vá»›i thuá»‘c nÃ y', 'zh': 'æˆ‘å°é€™å€‹è—¥éŽæ•', 'pinyin': 'WÇ’ duÃ¬ zhÃ¨ge yÃ o guÃ²mÇn', 'note': ''},
-  {'vi': 'Xin viáº¿t xuá»‘ng giÃºp tÃ´i', 'zh': 'è«‹å¹«æˆ‘å¯«ä¸‹ä¾†', 'pinyin': 'QÇng bÄng wÇ’ xiÄ› xiÃ lÃ¡i', 'note': ''},
-  {'vi': 'TÃ´i cáº§n vá» nhÃ  ngay', 'zh': 'æˆ‘éœ€è¦é¦¬ä¸Šå›žå®¶', 'pinyin': 'WÇ’ xÅ«yÃ o mÇŽshÃ ng huÃ­jiÄ', 'note': ''},
+  {'vi': 'Tôi cần giúp đỡ!', 'zh': '我需要幫助！', 'pinyin': 'Wǒ xūyào bāngzhù!', 'note': ''},
+  {'vi': 'Gọi cấp cứu!', 'zh': '叫救護車！', 'pinyin': 'Jiào jiùhùchē!', 'note': '119'},
+  {'vi': 'Gọi cảnh sát!', 'zh': '叫警察！', 'pinyin': 'Jiào jǐngchá!', 'note': '110'},
+  {'vi': 'Tôi bị lạc', 'zh': '我迷路了', 'pinyin': 'Wǒ mílù le', 'note': ''},
+  {'vi': 'Tôi bị ốm', 'zh': '我生病了', 'pinyin': 'Wǒ shēngbìng le', 'note': ''},
+  {'vi': 'Tôi bị tai nạn', 'zh': '我出車禍了', 'pinyin': 'Wǒ chū chēhuò le', 'note': ''},
+  {'vi': 'Bệnh viện ở đâu?', 'zh': '醫院在哪裡？', 'pinyin': 'Yīyuàn zài nǎlǐ?', 'note': ''},
+  {'vi': 'Tôi không hiểu tiếng Trung', 'zh': '我不懂中文', 'pinyin': 'Wǒ bù dǒng Zhōngwén', 'note': ''},
+  {'vi': 'Có ai nói tiếng Anh không?', 'zh': '有人說英文嗎？', 'pinyin': 'Yǒu rén shuō Yīngwén ma?', 'note': ''},
+  {'vi': 'Xin gọi cho số này', 'zh': '請打這個電話', 'pinyin': 'Qǐng dǎ zhège diànhuà', 'note': ''},
+  {'vi': 'Tôi bị mất hộ chiếu', 'zh': '我的護照不見了', 'pinyin': 'Wǒ de hùzhào bù jiàn le', 'note': ''},
+  {'vi': 'Tôi cần thông dịch viên', 'zh': '我需要翻譯', 'pinyin': 'Wǒ xūyào fānyì', 'note': ''},
+  {'vi': 'Xin gọi đại sứ quán Việt Nam', 'zh': '請打電話給越南大使館', 'pinyin': 'Qǐng dǎ diànhuà gěi Yuènán dàshǐguǎn', 'note': '(+84-4) 3845-3637'},
+  {'vi': 'Tôi bị chủ nhà đuổi', 'zh': '房東把我趕走了', 'pinyin': 'Fángdōng bǎ wǒ gǎn zǒu le', 'note': ''},
+  {'vi': 'Tôi chưa được trả lương', 'zh': '我還沒有拿到薪水', 'pinyin': 'Wǒ hái méiyǒu ná dào xīnshuǐ', 'note': '1955'},
+  {'vi': 'Tôi bị tai nạn lao động', 'zh': '我發生工傷了', 'pinyin': 'Wǒ fāshēng gōngshāng le', 'note': ''},
+  {'vi': 'Xin chỉ đường đến đồn cảnh sát', 'zh': '請告訴我警察局在哪裡', 'pinyin': 'Qǐng gàosù wǒ jǐngchájú zài nǎlǐ', 'note': ''},
+  {'vi': 'Tôi dị ứng với thuốc này', 'zh': '我對這個藥過敏', 'pinyin': 'Wǒ duì zhège yào guòmǐn', 'note': ''},
+  {'vi': 'Xin viết xuống giúp tôi', 'zh': '請幫我寫下來', 'pinyin': 'Qǐng bāng wǒ xiě xiàlái', 'note': ''},
+  {'vi': 'Tôi cần về nhà ngay', 'zh': '我需要馬上回家', 'pinyin': 'Wǒ xūyào mǎshàng huíjiā', 'note': ''},
 ];
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
 // TOOLS SCREEN
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
 class ToolsScreen extends StatefulWidget {
   const ToolsScreen({super.key});
   @override
@@ -202,36 +202,36 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
 
   // Reminder data
   final List<Map<String, dynamic>> _reminders = [
-    {'icon': 'ðŸ›µ', 'label': 'PhÃ­ Ä‘Æ°á»ng bá»™ xe mÃ¡y', 'zh': 'ç‡ƒæ–™è²»', 'month': 4, 'note': 'NT\$900/nÄƒm Â· ThÃ¡ng 4'},
-    {'icon': 'ðŸš—', 'label': 'PhÃ­ Ä‘Æ°á»ng bá»™ Ã´ tÃ´', 'zh': 'ç‰Œç…§ç¨…', 'month': 4, 'note': 'Theo cc xe Â· ThÃ¡ng 4'},
-    {'icon': 'ðŸ”§', 'label': 'ÄÄƒng kiá»ƒm xe', 'zh': 'å®šæœŸæª¢é©—', 'month': 0, 'note': '2 nÄƒm/láº§n vá»›i xe má»›i'},
-    {'icon': 'ðŸ›¡ï¸', 'label': 'Báº£o hiá»ƒm báº¯t buá»™c', 'zh': 'å¼·åˆ¶éšª', 'month': 0, 'note': 'HÃ ng nÄƒm Â· ~NT\$1,000'},
-    {'icon': 'ðŸªª', 'label': 'Gia háº¡n ARC', 'zh': 'å±…ç•™è­‰', 'month': 0, 'note': 'TrÆ°á»›c 30 ngÃ y háº¿t háº¡n'},
-    {'icon': 'ðŸ“‹', 'label': 'Khai thuáº¿ thu nháº­p', 'zh': 'ç¶œåˆæ‰€å¾—ç¨…', 'month': 5, 'note': 'ThÃ¡ng 5 hÃ ng nÄƒm'},
-    {'icon': 'ðŸ¥', 'label': 'Kiá»ƒm tra NHI', 'zh': 'å…¨æ°‘å¥ä¿', 'month': 0, 'note': 'Kiá»ƒm tra Ä‘á»‹nh ká»³'},
+    {'icon': '🛵', 'label': 'Phí đường bộ xe máy', 'zh': '燃料費', 'month': 4, 'note': 'NT\$900/năm · Tháng 4'},
+    {'icon': '🚗', 'label': 'Phí đường bộ ô tô', 'zh': '牌照稅', 'month': 4, 'note': 'Theo cc xe · Tháng 4'},
+    {'icon': '🔧', 'label': 'Đăng kiểm xe', 'zh': '定期檢驗', 'month': 0, 'note': '2 năm/lần với xe mới'},
+    {'icon': '🛡️', 'label': 'Bảo hiểm bắt buộc', 'zh': '強制險', 'month': 0, 'note': 'Hàng năm · ~NT\$1,000'},
+    {'icon': '🪪', 'label': 'Gia hạn ARC', 'zh': '居留證', 'month': 0, 'note': 'Trước 30 ngày hết hạn'},
+    {'icon': '📋', 'label': 'Khai thuế thu nhập', 'zh': '綜合所得稅', 'month': 5, 'note': 'Tháng 5 hàng năm'},
+    {'icon': '🏥', 'label': 'Kiểm tra NHI', 'zh': '全民健保', 'month': 0, 'note': 'Kiểm tra định kỳ'},
   ];
 
   // Rights checklist
   final List<Map<String, dynamic>> _rights = [
-    {'icon': 'ðŸ’°', 'label': 'LÆ°Æ¡ng tá»‘i thiá»ƒu 2024', 'zh': 'æœ€ä½Žè–ªè³‡', 'value': 'NT\$27,470/thÃ¡ng', 'checked': false},
-    {'icon': 'ðŸ¥', 'label': 'Báº£o hiá»ƒm lao Ä‘á»™ng', 'zh': 'å‹žå·¥ä¿éšª', 'value': 'Sáº¿p pháº£i Ä‘Ã³ng', 'checked': false},
-    {'icon': 'ðŸ¨', 'label': 'Báº£o hiá»ƒm y táº¿ NHI', 'zh': 'å…¨æ°‘å¥ä¿', 'value': 'Sáº¿p Ä‘Ã³ng 60%', 'checked': false},
-    {'icon': 'ðŸ“…', 'label': 'NgÃ y nghá»‰ phÃ©p', 'zh': 'ç‰¹ä¼‘å‡', 'value': '3 ngÃ y/nÄƒm Ä‘áº§u', 'checked': false},
-    {'icon': 'â°', 'label': 'Giá» lÃ m tá»‘i Ä‘a', 'zh': 'å·¥æ™‚ä¸Šé™', 'value': '40h/tuáº§n + OT cÃ³ phá»¥ cáº¥p', 'checked': false},
-    {'icon': 'ðŸ¤°', 'label': 'Nghá»‰ thai sáº£n', 'zh': 'ç”¢å‡', 'value': '8 tuáº§n cÃ³ lÆ°Æ¡ng', 'checked': false},
+    {'icon': '💰', 'label': 'Lương tối thiểu 2024', 'zh': '最低薪資', 'value': 'NT\$27,470/tháng', 'checked': false},
+    {'icon': '🏥', 'label': 'Bảo hiểm lao động', 'zh': '勞工保險', 'value': 'Sếp phải đóng', 'checked': false},
+    {'icon': '🏨', 'label': 'Bảo hiểm y tế NHI', 'zh': '全民健保', 'value': 'Sếp đóng 60%', 'checked': false},
+    {'icon': '📅', 'label': 'Ngày nghỉ phép', 'zh': '特休假', 'value': '3 ngày/năm đầu', 'checked': false},
+    {'icon': '⏰', 'label': 'Giờ làm tối đa', 'zh': '工時上限', 'value': '40h/tuần + OT có phụ cấp', 'checked': false},
+    {'icon': '🤰', 'label': 'Nghỉ thai sản', 'zh': '產假', 'value': '8 tuần có lương', 'checked': false},
   ];
 
   String get _contextualSituation {
     final h = DateTime.now().hour;
     final weekday = DateTime.now().weekday;
     final day = DateTime.now().day;
-    if (day >= 25) return 'ðŸ“„ Cuá»‘i thÃ¡ng â€” Kiá»ƒm tra báº£ng lÆ°Æ¡ng';
-    if (weekday == 1) return 'ðŸ’¼ Thá»© 2 â€” Dá»‹ch há»£p Ä‘á»“ng tuáº§n má»›i';
-    if (weekday == 5 && h >= 17) return 'ðŸ’° Thá»© 6 chiá»u â€” TÃ­nh lÆ°Æ¡ng cuá»‘i tuáº§n';
-    if (h < 10) return 'â˜€ï¸ SÃ¡ng sá»›m â€” Há»c tá»« vá»±ng cÃ´ng sá»Ÿ';
-    if (h < 14) return 'ðŸœ Buá»•i trÆ°a â€” Gá»i mÃ³n tiáº¿ng Trung';
-    if (h >= 20) return 'ðŸŒ™ Tá»‘i â€” Ã”n láº¡i Ä‘iá»u khoáº£n há»£p Ä‘á»“ng';
-    return 'ðŸ› ï¸ CÃ´ng cá»¥ AI â€” DÃ nh riÃªng cho báº¡n';
+    if (day >= 25) return '📄 Cuối tháng — Kiểm tra bảng lương';
+    if (weekday == 1) return '💼 Thứ 2 — Dịch hợp đồng tuần mới';
+    if (weekday == 5 && h >= 17) return '💰 Thứ 6 chiều — Tính lương cuối tuần';
+    if (h < 10) return '☀️ Sáng sớm — Học từ vựng công sở';
+    if (h < 14) return '🍜 Buổi trưa — Gọi món tiếng Trung';
+    if (h >= 20) return '🌙 Tối — Ôn lại điều khoản hợp đồng';
+    return '🛠️ Công cụ AI — Dành riêng cho bạn';
   }
 
   double get _afterTaxSalary {
@@ -265,11 +265,11 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
             const SizedBox(height: 16),
             _buildCalcCard(),
             const SizedBox(height: 24),
-            _buildSectionLabel('ðŸ§  Há»c tiáº¿ng Trung'),
+            _buildSectionLabel('🧠 Học tiếng Trung'),
             const SizedBox(height: 14),
             _buildToolGrid(_tools.sublist(0, 3)),
             const SizedBox(height: 24),
-            _buildSectionLabel('ðŸ‡¹ðŸ‡¼ Sá»‘ng á»Ÿ ÄÃ i Loan'),
+            _buildSectionLabel('🇹🇼 Sống ở Đài Loan'),
             const SizedBox(height: 14),
             _buildToolGrid(_tools.sublist(3)),
             const SizedBox(height: 24),
@@ -285,7 +285,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     );
   }
 
-  // â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── HEADER ────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -297,17 +297,17 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('CÃ´ng cá»¥ AI', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
-            Text('Báº£o vá»‡ quyá»n lá»£i ngÆ°á»i Viá»‡t táº¡i ÄÃ i Loan', style: TextStyle(fontSize: 11, color: Color(0xFFA78BFA))),
+            Text('Công cụ AI', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+            Text('Bảo vệ quyền lợi người Việt tại Đài Loan', style: TextStyle(fontSize: 11, color: Color(0xFFA78BFA))),
           ]),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(color: _DS.indigo, borderRadius: BorderRadius.circular(20)),
             child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('âš¡', style: TextStyle(fontSize: 13)),
+              Text('⚡', style: TextStyle(fontSize: 13)),
               SizedBox(width: 4),
-              Text('15 cÃ´ng cá»¥', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text('15 công cụ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
             ]),
           ),
         ]),
@@ -330,7 +330,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     );
   }
 
-  // â”€â”€ EMERGENCY STRIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── EMERGENCY STRIP ───────────────────────────────────────
   Widget _buildEmergencyStrip(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmergencyPage())),
@@ -347,12 +347,12 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(color: _DS.red, borderRadius: BorderRadius.circular(8)),
-            child: const Text('ðŸ†˜', style: TextStyle(fontSize: 14)),
+            child: const Text('🆘', style: TextStyle(fontSize: 14)),
           ),
           const SizedBox(width: 10),
           const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('CÃ¢u kháº©n cáº¥p', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.red)),
-            Text('110 Â· 119 Â· 1955 Â· 20 cÃ¢u cá»©u máº¡ng', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
+            Text('Câu khẩn cấp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.red)),
+            Text('110 · 119 · 1955 · 20 câu cứu mạng', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
           ])),
           const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _DS.red),
         ]),
@@ -360,14 +360,14 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     );
   }
 
-  // â”€â”€ CONTEXTUAL BANNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── CONTEXTUAL BANNER ─────────────────────────────────────
   Widget _buildContextualBanner() {
     final hour = DateTime.now().hour;
     final suggestions = hour < 12
-        ? ['Dá»‹ch thÃ´ng bÃ¡o tá»« sáº¿p', 'Soáº¡n email xin phÃ©p', 'Há»c tá»« vá»±ng cÃ´ng sá»Ÿ']
+        ? ['Dịch thông báo từ sếp', 'Soạn email xin phép', 'Học từ vựng công sở']
         : hour < 18
-            ? ['Gá»i mÃ³n tiáº¿ng Trung', 'Kiá»ƒm tra lÆ°Æ¡ng thÃ¡ng nÃ y', 'Dá»‹ch tin nháº¯n']
-            : ['Ã”n há»£p Ä‘á»“ng lao Ä‘á»™ng', 'Kiá»ƒm tra quyá»n lá»£i', 'Há»c tá»« má»›i'];
+            ? ['Gọi món tiếng Trung', 'Kiểm tra lương tháng này', 'Dịch tin nhắn']
+            : ['Ôn hợp đồng lao động', 'Kiểm tra quyền lợi', 'Học từ mới'];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
@@ -380,9 +380,9 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Text('ðŸ¤–', style: TextStyle(fontSize: 16)),
+            const Text('🤖', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 8),
-            Text('Gá»£i Ã½ cho ${hour < 12 ? "buá»•i sÃ¡ng" : hour < 18 ? "buá»•i chiá»u" : "buá»•i tá»‘i"} hÃ´m nay',
+            Text('Gợi ý cho ${hour < 12 ? "buổi sáng" : hour < 18 ? "buổi chiều" : "buổi tối"} hôm nay',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
           ]),
           const SizedBox(height: 10),
@@ -408,7 +408,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     );
   }
 
-  // â”€â”€ REMINDER CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── REMINDER CARD ─────────────────────────────────────────
   Widget _buildReminderCard() {
     final currentMonth = DateTime.now().month;
     final urgent = _reminders.where((r) => r['month'] == currentMonth).toList();
@@ -431,16 +431,16 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                 Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(color: _DS.yellowLight, borderRadius: BorderRadius.circular(10)),
-                  child: const Center(child: Text('ðŸ””', style: TextStyle(fontSize: 20))),
+                  child: const Center(child: Text('🔔', style: TextStyle(fontSize: 20))),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Nháº¯c nhá»Ÿ phÃ­ Ä‘á»‹nh ká»³', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
+                  const Text('Nhắc nhở phí định kỳ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
                   if (urgent.isNotEmpty)
-                    Text('âš ï¸ ${urgent.length} khoáº£n Ä‘áº¿n háº¡n thÃ¡ng nÃ y!',
+                    Text('⚠️ ${urgent.length} khoản đến hạn tháng này!',
                         style: const TextStyle(fontSize: 11, color: _DS.orange, fontWeight: FontWeight.w600))
                   else
-                    const Text('Xe cá»™ Â· ARC Â· Thuáº¿ Â· Báº£o hiá»ƒm', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
+                    const Text('Xe cộ · ARC · Thuế · Bảo hiểm', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
                 ])),
                 Icon(_reminderExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                     color: _DS.textGrey),
@@ -466,13 +466,13 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                     const SizedBox(width: 10),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(r['label'] as String, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
-                      Text('${r['zh']} Â· ${r['note']}', style: const TextStyle(fontSize: 11, color: _DS.textGrey)),
+                      Text('${r['zh']} · ${r['note']}', style: const TextStyle(fontSize: 11, color: _DS.textGrey)),
                     ])),
                     if (isUrgent)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(color: _DS.yellow.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                        child: const Text('ThÃ¡ng nÃ y!', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _DS.orange)),
+                        child: const Text('Tháng này!', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _DS.orange)),
                       ),
                   ]),
                 );
@@ -484,7 +484,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     );
   }
 
-  // â”€â”€ RIGHTS CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── RIGHTS CARD ───────────────────────────────────────────
   Widget _buildRightsCard() {
     final checkedCount = _rights.where((r) => r['checked'] == true).length;
     return Padding(
@@ -505,12 +505,12 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                 Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(10)),
-                  child: const Center(child: Text('âš–ï¸', style: TextStyle(fontSize: 20))),
+                  child: const Center(child: Text('⚖️', style: TextStyle(fontSize: 20))),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Báº£n Ä‘á»“ quyá»n lá»£i', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
-                  Text('$checkedCount/${_rights.length} quyá»n lá»£i Ä‘Ã£ xÃ¡c nháº­n',
+                  const Text('Bản đồ quyền lợi', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
+                  Text('$checkedCount/${_rights.length} quyền lợi đã xác nhận',
                       style: TextStyle(fontSize: 11, color: checkedCount == _rights.length ? _DS.green : _DS.textGrey)),
                 ])),
                 Icon(_rightsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: _DS.textGrey),
@@ -527,7 +527,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(12)),
                   child: const Text(
-                    'âœ… Tick vÃ o nhá»¯ng quyá»n lá»£i báº¡n Ä‘ang Ä‘Æ°á»£c hÆ°á»Ÿng. Náº¿u thiáº¿u â€” báº¡n cÃ³ quyá»n yÃªu cáº§u sáº¿p!',
+                    '✅ Tick vào những quyền lợi bạn đang được hưởng. Nếu thiếu — bạn có quyền yêu cầu sếp!',
                     style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w600, height: 1.5),
                   ),
                 ),
@@ -561,7 +561,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                         const SizedBox(width: 8),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(r['label'] as String, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
-                          Text('${r['zh']} Â· ${r['value']}', style: const TextStyle(fontSize: 11, color: _DS.textGrey)),
+                          Text('${r['zh']} · ${r['value']}', style: const TextStyle(fontSize: 11, color: _DS.textGrey)),
                         ])),
                       ]),
                     ),
@@ -573,7 +573,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                     width: double.infinity, padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: _DS.redLight, borderRadius: BorderRadius.circular(12)),
                     child: Text(
-                      'âš ï¸ Báº¡n chÆ°a xÃ¡c nháº­n ${_rights.length - checkedCount} quyá»n lá»£i. LiÃªn há»‡ 1955 Ä‘á»ƒ Ä‘Æ°á»£c tÆ° váº¥n!',
+                      '⚠️ Bạn chưa xác nhận ${_rights.length - checkedCount} quyền lợi. Liên hệ 1955 để được tư vấn!',
                       style: const TextStyle(fontSize: 12, color: _DS.red, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -586,7 +586,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     );
   }
 
-  // â”€â”€ SURVIVAL CALCULATOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SURVIVAL CALCULATOR ───────────────────────────────────
   Widget _buildCalcCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -606,12 +606,12 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                 Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(color: _DS.greenLight, borderRadius: BorderRadius.circular(10)),
-                  child: const Center(child: Text('ðŸ§®', style: TextStyle(fontSize: 20))),
+                  child: const Center(child: Text('🧮', style: TextStyle(fontSize: 20))),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('MÃ¡y tÃ­nh sinh tá»“n', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
-                  Text('TÃ­nh lÆ°Æ¡ng thá»±c nháº­n Â· Chi phÃ­ Â· Gá»­i tiá»n vá»', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
+                  Text('Máy tính sinh tồn', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.textDark)),
+                  Text('Tính lương thực nhận · Chi phí · Gửi tiền về', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
                 ])),
                 Icon(_calcExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: _DS.textGrey),
               ]),
@@ -624,9 +624,9 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
               child: Column(children: [
                 // Salary input
                 Row(children: [
-                  const Text('ðŸ’°', style: TextStyle(fontSize: 16)),
+                  const Text('💰', style: TextStyle(fontSize: 16)),
                   const SizedBox(width: 8),
-                  const Text('LÆ°Æ¡ng gross:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
+                  const Text('Lương gross:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
                   const Spacer(),
                   Text('NT\$${_salaryInput.toInt()}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.indigo)),
                 ]),
@@ -640,20 +640,20 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                 const SizedBox(height: 8),
 
                 // Results
-                _buildCalcRow('ðŸ’µ LÆ°Æ¡ng thá»±c nháº­n', 'NT\$${_afterTaxSalary.toInt()}', _DS.green),
+                _buildCalcRow('💵 Lương thực nhận', 'NT\$${_afterTaxSalary.toInt()}', _DS.green),
                 const SizedBox(height: 8),
-                _buildCalcRow('ðŸ  Tiá»n nhÃ  tá»‘i Ä‘a (30%)', 'NT\$${_maxRent.toInt()}', _DS.blue),
+                _buildCalcRow('🏠 Tiền nhà tối đa (30%)', 'NT\$${_maxRent.toInt()}', _DS.blue),
                 const SizedBox(height: 8),
-                _buildCalcRow('âœˆï¸ Gá»­i vá» VN (30%)', 'NT\$${_remittance.toInt()} â‰ˆ ${(_remittance * 800).toInt()} VNÄ', _DS.orange),
+                _buildCalcRow('✈️ Gửi về VN (30%)', 'NT\$${_remittance.toInt()} ≈ ${(_remittance * 800).toInt()} VNĐ', _DS.orange),
                 const SizedBox(height: 8),
-                _buildCalcRow('ðŸ¦ Tiáº¿t kiá»‡m (20%)', 'NT\$${_savingsTarget.toInt()}', _DS.purple),
+                _buildCalcRow('🏦 Tiết kiệm (20%)', 'NT\$${_savingsTarget.toInt()}', _DS.purple),
                 const SizedBox(height: 12),
 
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(12)),
                   child: const Text(
-                    'ðŸ’¡ Sau khi trá»« báº£o hiá»ƒm lao Ä‘á»™ng (20%) vÃ  NHI (30%), lÆ°Æ¡ng thá»±c nháº­n tháº¥p hÆ¡n gross khoáº£ng 5-8%.',
+                    '💡 Sau khi trừ bảo hiểm lao động (20%) và NHI (30%), lương thực nhận thấp hơn gross khoảng 5-8%.',
                     style: TextStyle(fontSize: 11, color: _DS.indigo, height: 1.5),
                   ),
                 ),
@@ -672,7 +672,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     ]);
   }
 
-  // â”€â”€ SECTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SECTIONS ──────────────────────────────────────────────
   Widget _buildSectionLabel(String title) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _DS.textDark)),
@@ -695,12 +695,12 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(children: [
-        const Text('ðŸ‡ºðŸ‡¸ Há»c tiáº¿ng Anh', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _DS.textDark)),
+        const Text('🇺🇸 Học tiếng Anh', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _DS.textDark)),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(color: _DS.blueLight, borderRadius: BorderRadius.circular(10)),
-          child: const Text('Má»›i', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _DS.blue)),
+          child: const Text('Mới', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _DS.blue)),
         ),
       ]),
     ),
@@ -711,7 +711,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
   Widget _buildJobSection(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 20),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('ðŸ’¼ TÃ¬m viá»‡c & PhÃ¡t triá»ƒn', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _DS.textDark)),
+      const Text('💼 Tìm việc & Phát triển', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _DS.textDark)),
       const SizedBox(height: 14),
       GestureDetector(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobSearchPage())),
@@ -726,17 +726,17 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
             Container(
               width: 60, height: 60,
               decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
-              child: const Center(child: Text('ðŸ”', style: TextStyle(fontSize: 30))),
+              child: const Center(child: Text('🔍', style: TextStyle(fontSize: 30))),
             ),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Row(children: [
-                Text('TÃ¬m viá»‡c lÃ m', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
+                Text('Tìm việc làm', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
                 SizedBox(width: 8),
                 _HotBadge(),
               ]),
               const SizedBox(height: 4),
-              Text('7 nguá»“n tÃ¬m viá»‡c Â· AI soáº¡n CV Â· TÆ° váº¥n nghá» nghiá»‡p',
+              Text('7 nguồn tìm việc · AI soạn CV · Tư vấn nghề nghiệp',
                   style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75))),
               const SizedBox(height: 8),
               Row(children: [
@@ -746,7 +746,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
                 const SizedBox(width: 6),
                 _MiniTag(label: 'LinkedIn', color: Colors.white),
                 const SizedBox(width: 6),
-                _MiniTag(label: '+4 ná»¯a', color: Colors.white),
+                _MiniTag(label: '+4 nữa', color: Colors.white),
               ]),
             ])),
             Container(
@@ -775,13 +775,13 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
           Container(
             width: 56, height: 56,
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(14)),
-            child: const Center(child: Text('ðŸ†˜', style: TextStyle(fontSize: 28))),
+            child: const Center(child: Text('🆘', style: TextStyle(fontSize: 28))),
           ),
           const SizedBox(width: 16),
           const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('CÃ¢u kháº©n cáº¥p', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white)),
+            Text('Câu khẩn cấp', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white)),
             SizedBox(height: 3),
-            Text('20 cÃ¢u cáº§n thiáº¿t nháº¥t Â· DÃ¹ng Ä‘Æ°á»£c offline', style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text('20 câu cần thiết nhất · Dùng được offline', style: TextStyle(fontSize: 12, color: Colors.white70)),
           ])),
           Container(
             padding: const EdgeInsets.all(8),
@@ -797,7 +797,7 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
   static const _redLight = Color(0xFFFFEBEE);
 }
 
-// â”€â”€â”€ Tool Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Tool Card ────────────────────────────────────────────────
 class _ToolCard extends StatelessWidget {
   final _ToolConfig tool;
   const _ToolCard({required this.tool});
@@ -828,7 +828,7 @@ class _ToolCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), borderRadius: BorderRadius.circular(20)),
-                  child: const Text('ðŸ”¥ Phá»• biáº¿n', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w800)),
+                  child: const Text('🔥 Phổ biến', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w800)),
                 )),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -854,7 +854,7 @@ class _HotBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(color: _DS.orange, borderRadius: BorderRadius.circular(10)),
-    child: const Text('ðŸ”¥ Má»›i', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800)),
+    child: const Text('🔥 Mới', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800)),
   );
 }
 
@@ -870,9 +870,9 @@ class _MiniTag extends StatelessWidget {
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// EMERGENCY PAGE â€” Fix lá»—i láº·p cÃ¢u
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
+// EMERGENCY PAGE — Fix lỗi lặp câu
+// ═══════════════════════════════════════════════════════════════
 class EmergencyPage extends StatelessWidget {
   const EmergencyPage({super.key});
 
@@ -884,9 +884,9 @@ class EmergencyPage extends StatelessWidget {
         backgroundColor: _DS.red,
         foregroundColor: Colors.white,
         title: const Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('ðŸ†˜', style: TextStyle(fontSize: 18)),
+          Text('🆘', style: TextStyle(fontSize: 18)),
           SizedBox(width: 8),
-          Text('CÃ¢u kháº©n cáº¥p', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
+          Text('Câu khẩn cấp', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
         ]),
         centerTitle: true,
         elevation: 0,
@@ -902,18 +902,18 @@ class EmergencyPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(_DS.radius),
             ),
             child: Column(children: [
-              const Text('Sá»‘ Ä‘iá»‡n thoáº¡i kháº©n cáº¥p', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+              const Text('Số điện thoại khẩn cấp', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
               const SizedBox(height: 12),
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                _EmergencyNumber(number: '110', label: 'Cáº£nh sÃ¡t'),
-                _EmergencyNumber(number: '119', label: 'Cáº¥p cá»©u'),
-                _EmergencyNumber(number: '1955', label: 'Lao Ä‘á»™ng'),
+                _EmergencyNumber(number: '110', label: 'Cảnh sát'),
+                _EmergencyNumber(number: '119', label: 'Cấp cứu'),
+                _EmergencyNumber(number: '1955', label: 'Lao động'),
               ]),
             ]),
           ),
           const SizedBox(height: 16),
 
-          // Phrases â€” fixed no duplicate
+          // Phrases — fixed no duplicate
           ..._emergencyPhrases.map((p) => Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(16),
@@ -938,7 +938,7 @@ class EmergencyPage extends StatelessWidget {
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: p['zh']!));
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: const Text('ÄÃ£ sao chÃ©p!'),
+                    content: const Text('Đã sao chép!'),
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     duration: const Duration(seconds: 1),
@@ -976,9 +976,9 @@ class _EmergencyNumber extends StatelessWidget {
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// JOB SEARCH PAGE â€” giá»¯ nguyÃªn
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
+// JOB SEARCH PAGE — giữ nguyên
+// ═══════════════════════════════════════════════════════════════
 class JobSearchPage extends StatefulWidget {
   const JobSearchPage({super.key});
   @override
@@ -995,9 +995,9 @@ class _JobSearchPageState extends State<JobSearchPage> with SingleTickerProvider
   bool _isVip = false;
   int _freeAiLeft = 10;
 
-  static const _systemPrompt = '''Báº¡n lÃ  chuyÃªn gia tÆ° váº¥n viá»‡c lÃ m cho ngÆ°á»i Viá»‡t táº¡i ÄÃ i Loan.
-Nhiá»‡m vá»¥: tÆ° váº¥n loáº¡i viá»‡c phÃ¹ há»£p, giáº£i thÃ­ch yÃªu cáº§u tuyá»ƒn dá»¥ng, soáº¡n CV tiáº¿ng Trung, tÆ° váº¥n má»©c lÆ°Æ¡ng, hÆ°á»›ng dáº«n phá»ng váº¥n.
-LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Trung khi cáº§n. CHá»ˆ dÃ¹ng Phá»“n thá»ƒ (ç¹é«”å­—).''';
+  static const _systemPrompt = '''Bạn là chuyên gia tư vấn việc làm cho người Việt tại Đài Loan.
+Nhiệm vụ: tư vấn loại việc phù hợp, giải thích yêu cầu tuyển dụng, soạn CV tiếng Trung, tư vấn mức lương, hướng dẫn phỏng vấn.
+Luôn trả lời bằng tiếng Việt, kèm tiếng Trung khi cần. CHỈ dùng Phồn thể (繁體字).''';
 
   @override
   void initState() {
@@ -1044,9 +1044,9 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
           return;
         }
       }
-      setState(() => _messages.add({'role': 'assistant', 'content': 'âš ï¸ Lá»—i káº¿t ná»‘i. Thá»­ láº¡i nhÃ©!'}));
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
     } catch (e) {
-      setState(() => _messages.add({'role': 'assistant', 'content': 'âš ï¸ Lá»—i káº¿t ná»‘i. Thá»­ láº¡i nhÃ©!'}));
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
     } finally {
       setState(() => _isLoading = false);
       _scrollToBottom();
@@ -1072,18 +1072,18 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 72, height: 72,
                 decoration: const BoxDecoration(gradient: LinearGradient(colors: [_DS.indigo, _DS.indigoDark]), shape: BoxShape.circle),
-                child: const Center(child: Text('â­', style: TextStyle(fontSize: 36)))),
+                child: const Center(child: Text('⭐', style: TextStyle(fontSize: 36)))),
             const SizedBox(height: 16),
-            const Text('NÃ¢ng cáº¥p VIP', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
+            const Text('Nâng cấp VIP', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
             const SizedBox(height: 8),
-            Text(limit != null ? 'GÃ³i Free giá»›i háº¡n $limit lÆ°á»£t/ngÃ y.\nVIP Ä‘á»ƒ há»i khÃ´ng giá»›i háº¡n!' : 'Háº¿t lÆ°á»£t miá»…n phÃ­!',
+            Text(limit != null ? 'Gói Free giới hạn $limit lượt/ngày.\nVIP để hỏi không giới hạn!' : 'Hết lượt miễn phí!',
                 textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey, height: 1.5)),
             const SizedBox(height: 24),
             GestureDetector(
               onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1'); },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
-                  child: const Text('NT\$199/thÃ¡ng', textAlign: TextAlign.center,
+                  child: const Text('NT\$199/tháng', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
             ),
             const SizedBox(height: 10),
@@ -1093,11 +1093,11 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
                   decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Text('NT\$1,499/nÄƒm Â· tiáº¿t kiá»‡m 37% ðŸ”¥', textAlign: TextAlign.center,
+                  child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Äá»ƒ sau', style: TextStyle(color: _DS.textGrey))),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
           ]),
         ),
       ),
@@ -1112,9 +1112,9 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
         backgroundColor: const Color(0xFF1A237E),
         foregroundColor: Colors.white,
         title: const Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('ðŸ”', style: TextStyle(fontSize: 18)),
+          Text('🔍', style: TextStyle(fontSize: 18)),
           SizedBox(width: 8),
-          Text('TÃ¬m viá»‡c lÃ m', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
+          Text('Tìm việc làm', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
         ]),
         centerTitle: false, elevation: 0,
         bottom: TabBar(
@@ -1124,7 +1124,7 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-          tabs: const [Tab(text: 'ðŸŒ Nguá»“n tÃ¬m viá»‡c'), Tab(text: 'ðŸ¤– AI tÆ° váº¥n')],
+          tabs: const [Tab(text: '🌐 Nguồn tìm việc'), Tab(text: '🤖 AI tư vấn')],
         ),
       ),
       body: TabBarView(controller: _tabCtrl, children: [_buildSourcesTab(), _buildAITab()]),
@@ -1138,14 +1138,14 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
         width: double.infinity, padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF1A237E), Color(0xFF283593)]), borderRadius: BorderRadius.circular(_DS.radius)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('ðŸ’¡ Máº¹o tÃ¬m viá»‡c táº¡i ÄÃ i Loan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+          const Text('💡 Mẹo tìm việc tại Đài Loan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
           const SizedBox(height: 8),
-          Text('â€¢ Cáº§n ARC há»£p lá»‡ má»›i lÃ m viá»‡c Ä‘Æ°á»£c\nâ€¢ LÆ°Æ¡ng tá»‘i thiá»ƒu 2024: NT\$27,470/thÃ¡ng\nâ€¢ Part-time: max 20h/tuáº§n vá»›i visa há»c',
+          Text('• Cần ARC hợp lệ mới làm việc được\n• Lương tối thiểu 2024: NT\$27,470/tháng\n• Part-time: max 20h/tuần với visa học',
               style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.85), height: 1.6)),
         ]),
       ),
       const SizedBox(height: 20),
-      const Text('ðŸŒ CÃ¡c trang tÃ¬m viá»‡c', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.textDark)),
+      const Text('🌐 Các trang tìm việc', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.textDark)),
       const SizedBox(height: 12),
       ..._jobSources.map((source) => GestureDetector(
         onTap: () => _openUrl(source.url),
@@ -1174,10 +1174,10 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
         ),
       )),
       const SizedBox(height: 20),
-      const Text('ðŸ¤– Há»i AI nhanh', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.textDark)),
+      const Text('🤖 Hỏi AI nhanh', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.textDark)),
       const SizedBox(height: 12),
       Wrap(spacing: 8, runSpacing: 8, children: [
-        'ðŸ“ Soáº¡n CV tiáº¿ng Trung', 'ðŸ’° LÆ°Æ¡ng ngÃ nh F&B', 'ðŸ—£ï¸ CÃ¡ch phá»ng váº¥n', 'ðŸ“‹ Giáº£i thÃ­ch há»£p Ä‘á»“ng',
+        '📝 Soạn CV tiếng Trung', '💰 Lương ngành F&B', '🗣️ Cách phỏng vấn', '📋 Giải thích hợp đồng',
       ].map((q) => GestureDetector(
         onTap: () { _tabCtrl.animateTo(1); Future.delayed(const Duration(milliseconds: 300), () => _sendAI(override: q)); },
         child: Container(
@@ -1215,15 +1215,15 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
       const SizedBox(height: 20),
       Container(width: 90, height: 90,
           decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF1A237E), Color(0xFF283593)]), shape: BoxShape.circle),
-          child: const Center(child: Text('ðŸ¤–', style: TextStyle(fontSize: 40)))),
+          child: const Center(child: Text('🤖', style: TextStyle(fontSize: 40)))),
       const SizedBox(height: 16),
-      const Text('AI TÆ° váº¥n viá»‡c lÃ m', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: _DS.textDark)),
+      const Text('AI Tư vấn việc làm', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: _DS.textDark)),
       const SizedBox(height: 28),
       ...[
-        'ðŸ“ Soáº¡n CV tiáº¿ng Trung cho tÃ´i â€” tÃ´i lÃ m nhÃ  hÃ ng 2 nÄƒm',
-        'ðŸ’° LÆ°Æ¡ng trung bÃ¬nh ngÃ nh logistics á»Ÿ ÄÃ i Loan?',
-        'ðŸ—£ï¸ CÃ¡ch giá»›i thiá»‡u báº£n thÃ¢n khi phá»ng váº¥n',
-        'ðŸ“‹ Há»£p Ä‘á»“ng cÃ³ Ä‘iá»u khoáº£n "è©¦ç”¨æœŸ" lÃ  gÃ¬?',
+        '📝 Soạn CV tiếng Trung cho tôi — tôi làm nhà hàng 2 năm',
+        '💰 Lương trung bình ngành logistics ở Đài Loan?',
+        '🗣️ Cách giới thiệu bản thân khi phỏng vấn',
+        '📋 Hợp đồng có điều khoản "試用期" là gì?',
       ].map((p) => GestureDetector(
         onTap: () => _sendAI(override: p),
         child: Container(
@@ -1249,7 +1249,7 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
         if (!isUser) ...[
           Container(width: 36, height: 36,
               decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF1A237E), Color(0xFF283593)]), shape: BoxShape.circle),
-              child: const Center(child: Text('ðŸ¤–', style: TextStyle(fontSize: 18)))),
+              child: const Center(child: Text('🤖', style: TextStyle(fontSize: 18)))),
           const SizedBox(width: 8),
         ],
         Flexible(child: Container(
@@ -1275,7 +1275,7 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
     child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
       Container(width: 36, height: 36,
           decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF1A237E), Color(0xFF283593)]), shape: BoxShape.circle),
-          child: const Center(child: Text('ðŸ¤–', style: TextStyle(fontSize: 18)))),
+          child: const Center(child: Text('🤖', style: TextStyle(fontSize: 18)))),
       const SizedBox(width: 8),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1302,7 +1302,7 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
         child: TextField(
           controller: _controller, maxLines: 3, minLines: 1,
           style: const TextStyle(fontSize: 14, color: Colors.black),
-          decoration: InputDecoration(hintText: 'Há»i vá» viá»‡c lÃ m, CV, phá»ng váº¥n...',
+          decoration: InputDecoration(hintText: 'Hỏi về việc làm, CV, phỏng vấn...',
               hintStyle: TextStyle(color: _DS.textGrey.withOpacity(0.7), fontSize: 13),
               border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               filled: true, fillColor: _DS.bg),
@@ -1328,9 +1328,9 @@ LuÃ´n tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, kÃ¨m tiáº¿ng Tru
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// AI TOOL PAGE â€” giá»¯ nguyÃªn
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
+// AI TOOL PAGE — giữ nguyên
+// ═══════════════════════════════════════════════════════════════
 class AiToolPage extends StatefulWidget {
   final _ToolConfig tool;
   const AiToolPage({super.key, required this.tool});
@@ -1390,9 +1390,9 @@ class _AiToolPageState extends State<AiToolPage> {
           return;
         }
       }
-      setState(() => _messages.add({'role': 'assistant', 'content': 'âš ï¸ Lá»—i káº¿t ná»‘i. Vui lÃ²ng thá»­ láº¡i.'}));
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
     } catch (e) {
-      setState(() => _messages.add({'role': 'assistant', 'content': 'âš ï¸ Lá»—i káº¿t ná»‘i. Vui lÃ²ng thá»­ láº¡i.'}));
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
     } finally {
       setState(() => _isLoading = false);
       _scrollToBottom();
@@ -1416,19 +1416,19 @@ class _AiToolPageState extends State<AiToolPage> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('ðŸ”’', style: TextStyle(fontSize: 48)),
+            const Text('🔒', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 12),
-            Text('Háº¿t lÆ°á»£t ${widget.tool.title} hÃ´m nay',
+            Text('Hết lượt ${widget.tool.title} hôm nay',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            Text('GÃ³i Free giá»›i háº¡n $limit lÆ°á»£t/ngÃ y.\nNÃ¢ng VIP Ä‘á»ƒ dÃ¹ng khÃ´ng giá»›i háº¡n!',
+            Text('Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
                 textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey)),
             const SizedBox(height: 20),
             GestureDetector(
               onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1'); },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(12)),
-                  child: const Text('NT\$199/thÃ¡ng', textAlign: TextAlign.center,
+                  child: const Text('NT\$199/tháng', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
             ),
             const SizedBox(height: 10),
@@ -1436,10 +1436,10 @@ class _AiToolPageState extends State<AiToolPage> {
               onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'); },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(gradient: LinearGradient(colors: widget.tool.gradient), borderRadius: BorderRadius.circular(12)),
-                  child: const Text('NT\$1,499/nÄƒm Â· tiáº¿t kiá»‡m 37% ðŸ”¥', textAlign: TextAlign.center,
+                  child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Äá»ƒ sau', style: TextStyle(color: _DS.textGrey))),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
           ]),
         ),
       ),
@@ -1447,10 +1447,10 @@ class _AiToolPageState extends State<AiToolPage> {
   }
 
   void _copyAll() {
-    final text = _messages.map((m) => '${m['role'] == 'user' ? 'TÃ´i' : widget.tool.title}: ${m['content']}').join('\n\n');
+    final text = _messages.map((m) => '${m['role'] == 'user' ? 'Tôi' : widget.tool.title}: ${m['content']}').join('\n\n');
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('âœ… ÄÃ£ sao chÃ©p!'),
+      content: const Text('✅ Đã sao chép!'),
       behavior: SnackBarBehavior.floating, backgroundColor: _DS.green,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
@@ -1478,7 +1478,7 @@ class _AiToolPageState extends State<AiToolPage> {
                 child: const Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.copy_rounded, size: 14, color: _DS.indigo),
                   SizedBox(width: 4),
-                  Text('Sao chÃ©p', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w700)),
+                  Text('Sao chép', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w700)),
                 ]),
               ),
             ),
@@ -1569,19 +1569,19 @@ class _AiToolPageState extends State<AiToolPage> {
           border: Border.all(color: _DS.green.withOpacity(0.3)),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
       child: Column(children: [
-        const Text('âœ… ÄÃ£ giáº£i quyáº¿t váº¥n Ä‘á» chÆ°a?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
+        const Text('✅ Đã giải quyết vấn đề chưa?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textDark)),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: GestureDetector(
             onTap: () { setState(() { _showCompletion = false; _showXp = true; }); Future.delayed(const Duration(seconds: 3), () { if (mounted) setState(() => _showXp = false); }); },
             child: Container(padding: const EdgeInsets.symmetric(vertical: 10), decoration: BoxDecoration(color: _DS.greenLight, borderRadius: BorderRadius.circular(10)),
-                child: const Text('âœ… Xong rá»“i! +5 XP', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.green))),
+                child: const Text('✅ Xong rồi! +5 XP', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.green))),
           )),
           const SizedBox(width: 10),
           Expanded(child: GestureDetector(
             onTap: () => setState(() => _showCompletion = false),
             child: Container(padding: const EdgeInsets.symmetric(vertical: 10), decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(10)),
-                child: const Text('ðŸ™‹ Há»i thÃªm', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.indigo))),
+                child: const Text('🙋 Hỏi thêm', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.indigo))),
           )),
         ]),
       ]),
@@ -1623,7 +1623,7 @@ class _AiToolPageState extends State<AiToolPage> {
   );
 }
 
-// â”€â”€â”€ Tool Chat Bubble â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Tool Chat Bubble ─────────────────────────────────────────
 class _ToolChatBubble extends StatelessWidget {
   final String message;
   final bool isUser;
@@ -1632,7 +1632,7 @@ class _ToolChatBubble extends StatelessWidget {
 
   Widget _buildHighlight(String text, Color color) {
     final spans = <TextSpan>[];
-    final regex = RegExp(r'[\u4e00-\u9fff\u3400-\u4dbfï¼Œã€‚ï¼ï¼Ÿã€ï¼šï¼›ã€Œã€]+');
+    final regex = RegExp(r'[\u4e00-\u9fff\u3400-\u4dbf，。！？、：；「」]+');
     int last = 0;
     for (final m in regex.allMatches(text)) {
       if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start), style: const TextStyle(color: _DS.textDark, fontSize: 14, height: 1.6)));
@@ -1674,7 +1674,7 @@ class _ToolChatBubble extends StatelessWidget {
   );
 }
 
-// â”€â”€â”€ Typing dot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Typing dot ───────────────────────────────────────────────
 class _Dot extends StatefulWidget {
   final int delay;
   final Color color;
@@ -1705,9 +1705,9 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// IMAGE TRANSLATE PAGE â€” giá»¯ nguyÃªn logic, Ä‘á»•i mÃ u Indigo
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
+// IMAGE TRANSLATE PAGE — giữ nguyên logic, đổi màu Indigo
+// ═══════════════════════════════════════════════════════════════
 class ImageTranslatePage extends StatefulWidget {
   const ImageTranslatePage({super.key});
   @override
@@ -1726,18 +1726,18 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
   int _freeLeft = 3;
 
   static const _imageTypes = [
-    {'key': 'general', 'emoji': 'ðŸ“·', 'label': 'áº¢nh chung'},
-    {'key': 'contract', 'emoji': 'ðŸ“‹', 'label': 'Há»£p Ä‘á»“ng'},
-    {'key': 'menu', 'emoji': 'ðŸœ', 'label': 'Menu'},
-    {'key': 'sign', 'emoji': 'ðŸª§', 'label': 'Biá»ƒn bÃ¡o'},
+    {'key': 'general', 'emoji': '📷', 'label': 'Ảnh chung'},
+    {'key': 'contract', 'emoji': '📋', 'label': 'Hợp đồng'},
+    {'key': 'menu', 'emoji': '🍜', 'label': 'Menu'},
+    {'key': 'sign', 'emoji': '🪧', 'label': 'Biển báo'},
   ];
 
   String get _systemContext {
     switch (_imageType) {
-      case 'contract': return 'ÄÃ¢y lÃ  há»£p Ä‘á»“ng lao Ä‘á»™ng. HÃ£y: 1) Dá»‹ch toÃ n bá»™ ná»™i dung, 2) Giáº£i thÃ­ch cÃ¡c Ä‘iá»u khoáº£n quan trá»ng, 3) Cáº£nh bÃ¡o Ä‘iá»u khoáº£n báº¥t lá»£i náº¿u cÃ³.';
-      case 'menu': return 'ÄÃ¢y lÃ  menu nhÃ  hÃ ng. HÃ£y: 1) Dá»‹ch tÃªn mÃ³n Äƒn, 2) MÃ´ táº£ nguyÃªn liá»‡u chÃ­nh, 3) Gá»£i Ã½ mÃ³n phÃ¹ há»£p ngÆ°á»i Viá»‡t.';
-      case 'sign': return 'ÄÃ¢y lÃ  biá»ƒn bÃ¡o/thÃ´ng bÃ¡o. HÃ£y dá»‹ch chÃ­nh xÃ¡c vÃ  giáº£i thÃ­ch Ã½ nghÄ©a thá»±c táº¿.';
-      default: return 'Dá»‹ch toÃ n bá»™ vÄƒn báº£n trong áº£nh vÃ  giáº£i thÃ­ch ngáº¯n gá»n.';
+      case 'contract': return 'Đây là hợp đồng lao động. Hãy: 1) Dịch toàn bộ nội dung, 2) Giải thích các điều khoản quan trọng, 3) Cảnh báo điều khoản bất lợi nếu có.';
+      case 'menu': return 'Đây là menu nhà hàng. Hãy: 1) Dịch tên món ăn, 2) Mô tả nguyên liệu chính, 3) Gợi ý món phù hợp người Việt.';
+      case 'sign': return 'Đây là biển báo/thông báo. Hãy dịch chính xác và giải thích ý nghĩa thực tế.';
+      default: return 'Dịch toàn bộ văn bản trong ảnh và giải thích ngắn gọn.';
     }
   }
 
@@ -1773,7 +1773,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
         _explanation = response.data['explanation'] ?? '';
       });
     } catch (e) {
-      setState(() => _result = 'âš ï¸ Lá»—i káº¿t ná»‘i. Thá»­ láº¡i nhÃ©!');
+      setState(() => _result = '⚠️ Lỗi kết nối. Thử lại nhé!');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1789,18 +1789,18 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 72, height: 72,
                 decoration: const BoxDecoration(gradient: LinearGradient(colors: [_DS.indigo, _DS.indigoDark]), shape: BoxShape.circle),
-                child: const Center(child: Text('â­', style: TextStyle(fontSize: 36)))),
+                child: const Center(child: Text('⭐', style: TextStyle(fontSize: 36)))),
             const SizedBox(height: 16),
-            const Text('NÃ¢ng cáº¥p VIP', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
+            const Text('Nâng cấp VIP', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _DS.textDark)),
             const SizedBox(height: 8),
-            const Text('Háº¿t lÆ°á»£t dá»‹ch áº£nh miá»…n phÃ­!\nVIP má»Ÿ khÃ³a dá»‹ch áº£nh khÃ´ng giá»›i háº¡n!',
+            const Text('Hết lượt dịch ảnh miễn phí!\nVIP mở khóa dịch ảnh không giới hạn!',
                 textAlign: TextAlign.center, style: TextStyle(color: _DS.textGrey, height: 1.6)),
             const SizedBox(height: 24),
             GestureDetector(
               onTap: () { Navigator.pop(context); PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1'); },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
-                  child: const Text('NT\$199/thÃ¡ng', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
+                  child: const Text('NT\$199/tháng', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
             ),
             const SizedBox(height: 10),
             GestureDetector(
@@ -1808,11 +1808,11 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]), borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Text('NT\$1,499/nÄƒm Â· tiáº¿t kiá»‡m 37% ðŸ”¥', textAlign: TextAlign.center,
+                  child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 10),
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Äá»ƒ sau', style: TextStyle(color: _DS.textGrey))),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
           ]),
         ),
       ),
@@ -1826,16 +1826,16 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
       appBar: AppBar(
         backgroundColor: _DS.white, foregroundColor: _DS.textDark, elevation: 0,
         title: const Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('ðŸ“·', style: TextStyle(fontSize: 20)),
+          Text('📷', style: TextStyle(fontSize: 20)),
           SizedBox(width: 8),
-          Text('Dá»‹ch áº£nh AI', style: TextStyle(fontWeight: FontWeight.w800, color: _DS.textDark, fontSize: 16)),
+          Text('Dịch ảnh AI', style: TextStyle(fontWeight: FontWeight.w800, color: _DS.textDark, fontSize: 16)),
         ]),
         actions: [
           if (!_isVip)
             Container(margin: const EdgeInsets.only(right: 12), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(20)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('ðŸ“·', style: TextStyle(fontSize: 12)),
+                  const Text('📷', style: TextStyle(fontSize: 12)),
                   const SizedBox(width: 4),
                   Text('$_freeLeft', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.indigo)),
                 ])),
@@ -1886,7 +1886,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                       Container(width: 64, height: 64, decoration: const BoxDecoration(color: _DS.indigoLight, shape: BoxShape.circle),
                           child: const Icon(Icons.add_photo_alternate_rounded, size: 32, color: _DS.indigo)),
                       const SizedBox(height: 12),
-                      const Text('Nháº¥n Ä‘á»ƒ chá»n áº£nh', style: TextStyle(fontWeight: FontWeight.w700, color: _DS.textDark)),
+                      const Text('Nhấn để chọn ảnh', style: TextStyle(fontWeight: FontWeight.w700, color: _DS.textDark)),
                       const SizedBox(height: 4),
                       Text('JPG, PNG, WEBP', style: TextStyle(fontSize: 12, color: _DS.textGrey.withOpacity(0.7))),
                     ]),
@@ -1903,7 +1903,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                   child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(Icons.photo_library_rounded, size: 20, color: _DS.indigo),
                     SizedBox(height: 4),
-                    Text('ThÆ° viá»‡n', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                    Text('Thư viện', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
                   ])),
             )),
             const SizedBox(width: 8),
@@ -1914,7 +1914,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                   child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Icon(Icons.camera_alt_rounded, size: 20, color: _DS.indigo),
                     SizedBox(height: 4),
-                    Text('Chá»¥p áº£nh', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                    Text('Chụp ảnh', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
                   ])),
             )),
             const SizedBox(width: 8),
@@ -1933,7 +1933,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.translate_rounded, size: 20, color: Colors.white),
                   const SizedBox(height: 4),
-                  Text(_isLoading ? 'Äang dá»‹ch...' : 'Dá»‹ch áº£nh', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+                  Text(_isLoading ? 'Đang dịch...' : 'Dịch ảnh', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
                 ]),
               ),
             )),
@@ -1946,7 +1946,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                 child: const Column(children: [
                   CircularProgressIndicator(color: _DS.indigo, strokeWidth: 3),
                   SizedBox(height: 12),
-                  Text('Äang phÃ¢n tÃ­ch áº£nh...', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
+                  Text('Đang phân tích ảnh...', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
                 ])),
 
           if (_extractedText.isNotEmpty)
@@ -1954,7 +1954,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                 decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm), border: Border.all(color: Colors.grey.shade200)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Row(children: [Icon(Icons.text_fields_rounded, size: 14, color: _DS.textGrey), SizedBox(width: 6),
-                    Text('VÄƒn báº£n nháº­n diá»‡n:', style: TextStyle(fontSize: 12, color: _DS.textGrey, fontWeight: FontWeight.w700))]),
+                    Text('Văn bản nhận diện:', style: TextStyle(fontSize: 12, color: _DS.textGrey, fontWeight: FontWeight.w700))]),
                   const SizedBox(height: 8),
                   Text(_extractedText, style: const TextStyle(fontSize: 14, color: _DS.textDark, height: 1.5)),
                 ])),
@@ -1966,7 +1966,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                     boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))]),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Row(children: [Icon(Icons.translate_rounded, size: 14, color: _DS.indigo), SizedBox(width: 6),
-                    Text('Báº£n dá»‹ch:', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w700))]),
+                    Text('Bản dịch:', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w700))]),
                   const SizedBox(height: 10),
                   Text(_result, style: const TextStyle(fontSize: 16, color: _DS.textDark, height: 1.6, fontWeight: FontWeight.w600)),
                   if (_explanation.isNotEmpty) ...[
@@ -1974,7 +1974,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                     Container(width: double.infinity, padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('ðŸ’¡ Giáº£i thÃ­ch:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+                          const Text('💡 Giải thích:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _DS.textGrey)),
                           const SizedBox(height: 6),
                           Text(_explanation, style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.5)),
                         ])),
@@ -1985,7 +1985,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: _result));
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: const Text('ÄÃ£ sao chÃ©p!'), behavior: SnackBarBehavior.floating,
+                          content: const Text('Đã sao chép!'), behavior: SnackBarBehavior.floating,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), duration: const Duration(seconds: 1),
                         ));
                       },
@@ -1994,7 +1994,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                           child: const Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.copy_rounded, size: 14, color: _DS.textGrey),
                             SizedBox(width: 6),
-                            Text('Sao chÃ©p', style: TextStyle(fontSize: 12, color: _DS.textGrey, fontWeight: FontWeight.w700)),
+                            Text('Sao chép', style: TextStyle(fontSize: 12, color: _DS.textGrey, fontWeight: FontWeight.w700)),
                           ])),
                     ),
                   ]),
