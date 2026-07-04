@@ -8941,7 +8941,7 @@ Pp:function Pp(){},
 aaO:function aaO(){var _=this
 _.e=_.d=_.c=_.b=_.a=null
 _.x=_.w=_.r=_.f=!1},
-adT(){var s=A.cM(A.eF(u.l,B.bE,A.Z(["Content-Type","application/json"],t.N,t.z),B.bE,B.bk)),r=s.a52$
+adT(){var s=A.cM(A.eF(u.l,B.bE,A.Z(["Content-Type","application/json","X-Platform","web"],t.N,t.z),B.bE,B.bk)),r=s.a52$
 r.F(r,new A.U_(new A.adU(),new A.adV(),null,null,null))
 return s},
 adU:function adU(){},
