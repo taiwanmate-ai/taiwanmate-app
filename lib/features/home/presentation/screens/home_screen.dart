@@ -441,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                   SizedBox(
                     width: size.width * 0.38,
                     height: size.width * 0.38,
-                    child: Image.asset('assets/images/Digital_tools-rafiki.png', fit: BoxFit.contain),
+                    child: Image.asset('assets/images/Digital_tools-rafiki.webp', fit: BoxFit.contain),
                   ),
                 ],
               ),

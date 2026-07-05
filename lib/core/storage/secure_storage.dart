@@ -1,4 +1,4 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+﻿import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorage {
   static const _storage = FlutterSecureStorage();
@@ -10,7 +10,14 @@ class SecureStorage {
   }
 
   static Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
+    try {
+      return await _storage.read(key: _tokenKey);
+    } catch (e) {
+      // Dữ liệu cũ hỏng do đổi signing key giữa các lần cài (Keystore đổi)
+      // → xóa sạch, coi như chưa đăng nhập, không chặn luồng khác
+      await clearAll();
+      return null;
+    }
   }
 
   static Future<void> deleteToken() async {

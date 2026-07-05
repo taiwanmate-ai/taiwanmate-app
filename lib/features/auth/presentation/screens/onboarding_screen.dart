@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -205,7 +205,7 @@ Center(
       maxWidth: MediaQuery.of(context).size.width * 0.60,
       maxHeight: MediaQuery.of(context).size.height * 0.22,
     ),
-    child: Image.asset('assets/images/Learning-bro.png', fit: BoxFit.contain),
+    child: Image.asset('assets/images/Learning-bro.webp', fit: BoxFit.contain),
   ),
 ),
 const SizedBox(height: 16),
@@ -271,7 +271,7 @@ Center(
       maxWidth: MediaQuery.of(context).size.width * 0.60,
       maxHeight: MediaQuery.of(context).size.height * 0.22,
     ),
-    child: Image.asset('assets/images/Personal_goals-bro.png', fit: BoxFit.contain),
+    child: Image.asset('assets/images/Personal_goals-bro.webp', fit: BoxFit.contain),
   ),
 ),
 const SizedBox(height: 16),
@@ -309,7 +309,7 @@ Center(
       maxWidth: MediaQuery.of(context).size.width * 0.60,
       maxHeight: MediaQuery.of(context).size.height * 0.22,
     ),
-    child: Image.asset('assets/images/Community-rafiki.png', fit: BoxFit.contain),
+    child: Image.asset('assets/images/Community-rafiki.webp', fit: BoxFit.contain),
   ),
 ),
 const SizedBox(height: 16),

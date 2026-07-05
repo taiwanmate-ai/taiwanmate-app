@@ -169,7 +169,7 @@ Widget _buildTopSection(Size size) {
             Expanded(
               child: Center(
                 child: Image.asset(
-                  'assets/images/Sign_up-amico.png',
+                  'assets/images/Sign_up-amico.webp',
                   fit: BoxFit.contain,
                 ),
               ),

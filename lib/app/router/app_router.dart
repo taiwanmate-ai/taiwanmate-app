@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -253,7 +253,7 @@ class _SplashScreenState extends State<SplashScreen>
     width: 280,
     height: 280,
     child: Image.asset(
-      'assets/images/Digital_tools-rafiki.png',
+      'assets/images/Digital_tools-rafiki.webp',
       fit: BoxFit.contain,
     ),
   ),

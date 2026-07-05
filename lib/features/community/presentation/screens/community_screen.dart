@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════
 // COMMUNITY SCREEN — Tab Cộng Đồng TaiwanMate
 // Khớp với backend: app/api/v1/community.py (prefix /community)
 // Chức năng: list bài (filter category/user_type/city/search),

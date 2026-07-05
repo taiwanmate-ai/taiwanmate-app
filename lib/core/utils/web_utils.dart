@@ -1,2 +1,2 @@
-export 'web_utils_stub.dart'
+﻿export 'web_utils_stub.dart'
     if (dart.library.html) 'web_utils_impl.dart';

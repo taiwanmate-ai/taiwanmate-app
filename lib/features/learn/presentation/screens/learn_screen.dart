@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:chinesemate/features/learn/presentation/widgets/learning_path.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/journey.dart';
 import 'package:chinesemate/core/cache/app_cache.dart';
+import 'package:share_plus/share_plus.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -64,6 +65,11 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   int _dailyDone = 0;
   int _totalWords = 0;
   int _reviewDue = 0;
+  // Thu gọn header
+  int _currentTab = 0;
+  bool _headerCollapsed = false;
+  bool get _isExerciseTab =>
+      _currentTab == 0 || _currentTab == 1 || _currentTab == 2 || _currentTab == 3;
 
   // Mood selector
   int _selectedMood = -1;
@@ -97,6 +103,11 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _tabController = TabController(length: 7, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index != _currentTab && mounted) {
+        setState(() => _currentTab = _tabController.index);
+      }
+    });
     _loadDailyVocabulary();
     _loadCalendarData();
   }
@@ -127,6 +138,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
 }
 
   Future<void> _updateSRS(String vocabularyId, bool known) async {
+    if (vocabularyId.isEmpty) return;
     try {
       final token = await _storage.read(key: 'access_token');
       final dio = Dio();
@@ -135,7 +147,9 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
         data: {'vocabulary_id': vocabularyId, 'known': known},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('[SRS] Lỗi lưu tiến độ vocab=$vocabularyId: $e');
+    }
   }
 
   void _loadCalendarData() {
@@ -241,15 +255,17 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final bool tall = MediaQuery.of(context).size.height > 700;
+    final bool showDashboard = !_isExerciseTab && !_headerCollapsed;
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: SafeArea(
         child: Column(children: [
           _buildHeader(),
-if (MediaQuery.of(context).size.height > 700) _buildMeiMessage(),
-if (MediaQuery.of(context).size.height > 700) _buildMoodSelector(),
-_buildDailyRing(),
-_buildTabBar(),
+          if (showDashboard && tall) _buildMeiMessage(),
+          if (showDashboard && tall) _buildMoodSelector(),
+          if (showDashboard) _buildDailyRing(),
+          _buildTabBar(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF5B5FEF)))
@@ -267,17 +283,20 @@ _buildTabBar(),
                       _vocabulary.isEmpty ? _buildEmpty() : QuizTab(
                         vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin, getMeaning: _getMeaning,
+                        getVocabId: _getVocabId, onUpdateSRS: _updateSRS,
                         onXpEarned: (xp) => _onStudied(),
                       ),
                       _vocabulary.isEmpty ? _buildEmpty() : ListenChooseTab(
                         vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin, getMeaning: _getMeaning,
+                        getVocabId: _getVocabId, onUpdateSRS: _updateSRS,
                         onXpEarned: (xp) => _onStudied(),
                       ),
                       _vocabulary.isEmpty ? _buildEmpty() : FillBlankTab(
                         vocabulary: _vocabulary, lang: _lang,
                         getWord: _getWord, getPinyin: _getPinyin,
                         getMeaning: _getMeaning, getExample: _getExample,
+                        getVocabId: _getVocabId, onUpdateSRS: _updateSRS,
                         onXpEarned: (xp) => _onStudied(),
                       ),
                       LearningPathTab(lang: _lang, onStartLearn: () => _tabController.animateTo(0)),
@@ -386,6 +405,7 @@ _buildTabBar(),
               child: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white70),
             ),
           ),
+          
         ]),
       ]),
     );
@@ -564,37 +584,71 @@ _buildTabBar(),
   // ── TAB BAR ───────────────────────────────────────────────
   Widget _buildTabBar() => Padding(
     padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-    child: Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        indicator: BoxDecoration(
-          color: const Color(0xFF5B5FEF),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+    child: Row(children: [
+      Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            indicator: BoxDecoration(
+              color: const Color(0xFF5B5FEF),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelColor: Colors.white,
+            unselectedLabelColor: const Color(0xFF8A8FA3),
+            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            tabs: const [
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🃏', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Flashcard')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('⚡', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Quiz')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎧', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Nghe')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('✍️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Điền từ')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🗺️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Lộ trình')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎯', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Hành trình')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📝', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Từ đã học')])),
+            ],
+          ),
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelColor: Colors.white,
-        unselectedLabelColor: const Color(0xFF8A8FA3),
-        labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-        tabs: const [
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🃏', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Flashcard')])),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('⚡', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Quiz')])),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎧', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Nghe')])),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('✍️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Điền từ')])),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🗺️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Lộ trình')])),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎯', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Hành trình')])),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📝', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Từ đã học')])),
-        ],
       ),
-    ),
+      // Nút thu gọn — chỉ hiện ở 3 tab thường (tab tự ẩn thì không cần)
+      if (!_isExerciseTab) ...[
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => setState(() => _headerCollapsed = !_headerCollapsed),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: _headerCollapsed ? const Color(0xFF5B5FEF) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(
+                _headerCollapsed ? Icons.unfold_more_rounded : Icons.unfold_less_rounded,
+                size: 15,
+                color: _headerCollapsed ? Colors.white : const Color(0xFF5B5FEF),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _headerCollapsed ? 'Mở' : 'Thu gọn',
+                style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700,
+                  color: _headerCollapsed ? Colors.white : const Color(0xFF5B5FEF),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ],
+    ]),
   );
 
   // ── EMPTY STATE ───────────────────────────────────────────
@@ -603,7 +657,7 @@ _buildTabBar(),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         SizedBox(
           width: 200, height: 200,
-          child: Image.asset('assets/images/Studying-rafiki.png', fit: BoxFit.contain),
+          child: Image.asset('assets/images/Studying-rafiki.webp', fit: BoxFit.contain),
         ),
         const SizedBox(height: 16),
 
@@ -813,8 +867,7 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
           ]),
         ]),
       ),
-      SizedBox(
-        height: MediaQuery.of(context).size.height * 0.22,
+      Expanded(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
           child: GestureDetector(
@@ -981,7 +1034,9 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
 
   Widget _buildFrontFace(Map<String, dynamic> word) => Padding(
     padding: const EdgeInsets.all(16),
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+    child: Center(
+      child: SingleChildScrollView(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
@@ -1015,7 +1070,9 @@ height: 1.2, fontFamily: 'NotoSansTC',),
         const SizedBox(width: 6),
         Text('Nhấn để xem nghĩa', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.5))),
       ]),
-    ]),
+      ]),
+      ),
+    ),
   );
 
   Widget _buildBackFace(Map<String, dynamic> word) => Padding(
@@ -1053,11 +1110,13 @@ class QuizTab extends StatefulWidget {
   final String Function(Map<String, dynamic>) getWord;
   final String Function(Map<String, dynamic>) getPinyin;
   final String Function(Map<String, dynamic>) getMeaning;
+  final String Function(Map<String, dynamic>) getVocabId;
+  final Future<void> Function(String, bool) onUpdateSRS;
   final Function(int) onXpEarned;
 
   const QuizTab({super.key, required this.vocabulary, required this.lang, required this.getWord,
-      required this.getPinyin, required this.getMeaning, required this.onXpEarned});
-
+      required this.getPinyin, required this.getMeaning, required this.getVocabId,
+      required this.onUpdateSRS, required this.onXpEarned});
   @override
   State<QuizTab> createState() => _QuizTabState();
 }
@@ -1140,6 +1199,7 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
   void _onTimeout() {
     setState(() { _answered = true; _combo = 0; _selectedAnswer = -1; });
     _wrongAnswers.add(_shuffled[_currentIndex]);
+    widget.onUpdateSRS(widget.getVocabId(_shuffled[_currentIndex]), false);
     _flashRed();
     HapticFeedback.heavyImpact();
   }
@@ -1149,6 +1209,7 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
     _timer?.cancel();
     final correct = widget.getMeaning(_shuffled[_currentIndex]);
     final isCorrect = _options[_currentIndex][index] == correct;
+    widget.onUpdateSRS(widget.getVocabId(_shuffled[_currentIndex]), isCorrect);
     int baseScore = _isBossRound ? 300 : 100;
     int timeBonus = _timeLeft * (_isBossRound ? 20 : 10);
     final earned = isCorrect ? ((baseScore + timeBonus) * _comboMultiplier).toInt() : 0;
@@ -1526,10 +1587,13 @@ class ListenChooseTab extends StatefulWidget {
   final String Function(Map<String, dynamic>) getWord;
   final String Function(Map<String, dynamic>) getPinyin;
   final String Function(Map<String, dynamic>) getMeaning;
+  final String Function(Map<String, dynamic>) getVocabId;
+  final Future<void> Function(String, bool) onUpdateSRS;
   final Function(int) onXpEarned;
 
   const ListenChooseTab({super.key, required this.vocabulary, required this.lang, required this.getWord,
-      required this.getPinyin, required this.getMeaning, required this.onXpEarned});
+      required this.getPinyin, required this.getMeaning, required this.getVocabId,
+      required this.onUpdateSRS, required this.onXpEarned});
 
   @override
   State<ListenChooseTab> createState() => _ListenChooseTabState();
@@ -1585,7 +1649,6 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
     try {
       final token = await _storage.read(key: 'access_token');
       final word = widget.getWord(_shuffled[_currentIndex]);
-      print('TTS đọc từ: $word');
       final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60), responseType: ResponseType.bytes));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts',
@@ -1593,27 +1656,12 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       final b64 = base64Encode(response.data as List<int>);
-      webEval('''
-  (function() {
-    if (window._listenAudio) { window._listenAudio.pause(); }
-    var a = new Audio("data:audio/mpeg;base64,$b64");
-    a.playbackRate = ${widget.lang == 'en' ? 0.9 : 1.0};
-    window._listenAudio = a;
-    setTimeout(function() { a.play(); }, 500);
-  })();
-''');
       if (mounted) setState(() => _hasPlayed = true);
+      // Dùng webPlayAudio, chạy được cả web lẫn Android
+      await webPlayAudio(b64);
     } catch (e) {
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) {
-        try {
-          await _playAudio();
-        } catch (_) {
-          setState(() => _hasPlayed = true);
-        }
-      }
+      if (mounted) setState(() => _hasPlayed = true);
     } finally {
-      await Future.delayed(const Duration(milliseconds: 4000));
       if (mounted) {
         setState(() => _isPlaying = false);
         _pulseCtrl.stop();
@@ -1627,6 +1675,7 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
     final correct = widget.getMeaning(_shuffled[_currentIndex]);
     final isCorrect = _options[_currentIndex][index] == correct;
     final earned = isCorrect ? (100 + (_combo * 20)).toInt() : 0;
+    widget.onUpdateSRS(widget.getVocabId(_shuffled[_currentIndex]), isCorrect);
     setState(() {
       _selectedAnswer = index; _answered = true;
       if (isCorrect) {
@@ -1876,10 +1925,13 @@ class FillBlankTab extends StatefulWidget {
   final String Function(Map<String, dynamic>) getPinyin;
   final String Function(Map<String, dynamic>) getMeaning;
   final String Function(Map<String, dynamic>) getExample;
+  final String Function(Map<String, dynamic>) getVocabId;
+  final Future<void> Function(String, bool) onUpdateSRS;
   final Function(int) onXpEarned;
 
   const FillBlankTab({super.key, required this.vocabulary, required this.lang, required this.getWord,
-      required this.getPinyin, required this.getMeaning, required this.getExample, required this.onXpEarned});
+      required this.getPinyin, required this.getMeaning, required this.getExample,
+      required this.getVocabId, required this.onUpdateSRS, required this.onXpEarned});
 
   @override
   State<FillBlankTab> createState() => _FillBlankTabState();
@@ -1961,8 +2013,17 @@ class _FillBlankTabState extends State<FillBlankTab> {
         _blanks = blanks;
         _answered = false;
       });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          setState(() { _paragraph = ''; _blanks = []; });
+          if (mounted) _showFillBlankQuotaDialog(detail['limit'] ?? 5);
+          return;
+        }
+      }
+      setState(() { _paragraph = '載入失敗，請重試。'; _blanks = []; });
     } catch (e) {
-      // Fallback đơn giản nếu lỗi
       setState(() { _paragraph = '載入失敗，請重試。'; _blanks = []; });
     } finally {
       setState(() => _isLoadingParagraph = false);
@@ -1979,6 +2040,13 @@ class _FillBlankTabState extends State<FillBlankTab> {
       final isCorrect = input == correct;
       newResults.add(isCorrect);
       if (isCorrect) correctCount++;
+
+      final vocabObj = widget.vocabulary.firstWhere(
+        (w) => widget.getWord(w) == correct,
+        orElse: () => <String, dynamic>{},
+      );
+      final vocabId = vocabObj.isNotEmpty ? widget.getVocabId(vocabObj) : '';
+      if (vocabId.isNotEmpty) widget.onUpdateSRS(vocabId, isCorrect);
     }
     final earned = (correctCount * 50 - _hintsUsed * 10).clamp(0, 200);
     setState(() {
@@ -2014,6 +2082,43 @@ class _FillBlankTabState extends State<FillBlankTab> {
       _maxCombo = 0; _answered = false; _finished = false;
     });
     _loadNextParagraph();
+  }
+
+  void _showFillBlankQuotaDialog(int limit) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🔒', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 12),
+            const Text('Hết lượt điền từ hôm nay',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text('Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để luyện không giới hạn!',
+                textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey)),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => Navigator.pop(ctx),
+              child: Container(
+                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [_DS.green, Color(0xFF2E7D32)]),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('⭐ Nâng lên VIP',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            TextButton(onPressed: () => Navigator.pop(ctx),
+                child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
+          ]),
+        ),
+      ),
+    );
   }
 
   // Build đoạn văn với [1],[2],[3] highlight màu
@@ -2609,17 +2714,9 @@ class _ShareSheetState extends State<_ShareSheet> {
     });
   }
 
-  void _shareFacebook() {
-    final encoded = Uri.encodeComponent(widget.text);
-    webOpenUrl('https://www.facebook.com/sharer/sharer.php?u=https://taiwanmate-ai.github.io&quote=$encoded');}
-
-  void _shareTwitter() {
-    final encoded = Uri.encodeComponent(widget.text);
-    webOpenUrl('https://twitter.com/intent/tweet?text=$encoded');}
-
-  void _shareLine() {
-    final encoded = Uri.encodeComponent(widget.text);
-    webOpenUrl('https://social-plugins.line.me/lineit/share?url=https://taiwanmate-ai.github.io&text=$encoded');}
+  void _shareNative() {
+    SharePlus.instance.share(ShareParams(text: widget.text));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2660,6 +2757,7 @@ class _ShareSheetState extends State<_ShareSheet> {
         const SizedBox(height: 20),
 
         // Share buttons
+        // Share buttons
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
@@ -2695,58 +2793,20 @@ class _ShareSheetState extends State<_ShareSheet> {
             )),
             const SizedBox(width: 10),
 
-            // Facebook
+            // Chia sẻ — share sheet native (Facebook, Zalo, LINE, Messenger... tùy app đã cài)
             Expanded(child: GestureDetector(
-              onTap: _shareFacebook,
+              onTap: _shareNative,
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FF),
+                  gradient: const LinearGradient(colors: [Color(0xFF5B5FEF), Color(0xFF3B3FA8)]),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2979FF).withOpacity(0.3)),
+                  boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
                 ),
                 child: const Column(children: [
-                  Text('f', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1877F2))),
-                  SizedBox(height: 4),
-                  Text('Facebook', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1877F2))),
-                ]),
-              ),
-            )),
-            const SizedBox(width: 10),
-
-            // Twitter/X
-            Expanded(child: GestureDetector(
-              onTap: _shareTwitter,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F6FA),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: const Column(children: [
-                  Text('𝕏', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1A1D2E))),
-                  SizedBox(height: 4),
-                  Text('Twitter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1A1D2E))),
-                ]),
-              ),
-            )),
-            const SizedBox(width: 10),
-
-            // LINE
-            Expanded(child: GestureDetector(
-              onTap: _shareLine,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF00C300).withOpacity(0.3)),
-                ),
-                child: const Column(children: [
-                  Text('LINE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF00C300))),
-                  SizedBox(height: 4),
-                  Text('LINE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF00C300))),
+                  Icon(Icons.share_rounded, color: Colors.white, size: 24),
+                  SizedBox(height: 6),
+                  Text('Chia sẻ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
                 ]),
               ),
             )),

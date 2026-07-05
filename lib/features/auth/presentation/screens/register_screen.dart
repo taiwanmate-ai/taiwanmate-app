@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
@@ -42,7 +42,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) context.go('/home');
     } on DioException catch (e) {
       setState(() {
-        _error = e.response?.data['detail'] ?? 'Đăng ký thất bại';
+        _error = e.response?.data['detail']?.toString()
+            ?? 'Lỗi mạng: ${e.type} - ${e.message}';
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Lỗi hệ thống: ${e.runtimeType} - $e';
       });
     } finally {
       setState(() { _isLoading = false; });

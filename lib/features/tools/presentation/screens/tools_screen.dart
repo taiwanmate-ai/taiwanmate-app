@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 
 class _DS {
   static const indigo = Color(0xFF5B5FEF);
@@ -1080,20 +1082,17 @@ Luôn trả lời bằng tiếng Việt, kèm tiếng Trung khi cần. CHỈ dù
                 textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey, height: 1.5)),
             const SizedBox(height: 24),
             GestureDetector(
-              onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1'); },
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
+              },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
-                  child: const Text('NT\$199/tháng', textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'); },
-              child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                  child: const Text('⭐ Xem các gói VIP', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 10),
@@ -1424,21 +1423,20 @@ class _AiToolPageState extends State<AiToolPage> {
             Text('Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
                 textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey)),
             const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1'); },
-              child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(12)),
-                  child: const Text('NT\$199/tháng', textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () { Navigator.pop(ctx); PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'); },
-              child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: widget.tool.gradient), borderRadius: BorderRadius.circular(12)),
-                  child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
-            ),
+            if (kIsWeb)
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
+                },
+                child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: widget.tool.gradient),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('⭐ Xem các gói VIP', textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
+              ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
           ]),
         ),
@@ -1756,15 +1754,13 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
 
   Future<void> _translate() async {
     if (_imageBase64 == null) return;
-    if (!_isVip && _freeLeft <= 0) { _showVipDialog(); return; }
     setState(() { _isLoading = true; _result = ''; _explanation = ''; _extractedText = ''; });
-    if (!_isVip) setState(() => _freeLeft--);
     try {
       final token = await _storage.read(key: 'access_token');
       final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
-        data: {'image_base64': _imageBase64, 'target_lang': 'vi', 'context': _systemContext},
+        data: {'image_base64': _imageBase64, 'target_lang': 'vi', 'context': _systemContext, 'image_type': _imageType},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() {
@@ -1772,6 +1768,21 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
         _result = response.data['translated'] ?? '';
         _explanation = response.data['explanation'] ?? '';
       });
+      // Đồng bộ quota từ header backend (nguồn đúng)
+      final q = response.headers.value('x-quota-remaining');
+      if (q != null && q != 'unlimited') {
+        final parsed = int.tryParse(q);
+        if (parsed != null && mounted) setState(() => _freeLeft = parsed);
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          if (mounted) { setState(() => _freeLeft = 0); _showVipDialog(); }
+          return;
+        }
+      }
+      setState(() => _result = '⚠️ Lỗi kết nối. Thử lại nhé!');
     } catch (e) {
       setState(() => _result = '⚠️ Lỗi kết nối. Thử lại nhé!');
     } finally {
@@ -1797,18 +1808,17 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                 textAlign: TextAlign.center, style: TextStyle(color: _DS.textGrey, height: 1.6)),
             const SizedBox(height: 24),
             GestureDetector(
-              onTap: () { Navigator.pop(context); PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1'); },
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
+              },
               child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
-                  child: const Text('NT\$199/tháng', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo))),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () { Navigator.pop(context); PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'); },
-              child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]), borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                  child: const Text('⭐ Xem các gói VIP', textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white))),
             ),
             const SizedBox(height: 10),

@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
-import 'payment_service.dart';
+import 'package:chinesemate/core/services/payment_service.dart';
 
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
@@ -12,21 +13,59 @@ class _PaywallScreenState extends State<PaywallScreen> {
   bool _loading = false;
   bool _isYearly = false;
 
-  Future<void> _subscribe() async {
-    setState(() => _loading = true);
-    try {
-      final url = await PaymentService.createCheckout();
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+ Future<void> _subscribe() async {
+    if (kIsWeb) {
+      setState(() => _loading = true);
+      try {
+        final url = _isYearly
+            ? 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'
+            : 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1';
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
+      if (mounted) setState(() => _loading = false);
+    } else {
+      setState(() => _loading = true);
+      await PaymentService.purchaseAndroid(
+        plan: _isYearly ? 'yearly' : 'monthly',
+        onSuccess: () {
+          if (mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('🎉 Nâng cấp VIP thành công!'), backgroundColor: Colors.green),
+            );
+          }
+        },
+        onError: (msg) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        },
       );
+      if (mounted) setState(() => _loading = false);
     }
-    setState(() => _loading = false);
   }
+  Future<void> _restore() async {
+    if (kIsWeb) return; // Restore chỉ áp dụng cho Google Play Billing
+    setState(() => _loading = true);
+    await PaymentService.restorePurchases(
+      onSuccess: () {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('🎉 Đã khôi phục VIP thành công!'), backgroundColor: Colors.green),
+          );
+        }
+      },
+      onError: (msg) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      },
+    );
+    if (mounted) setState(() => _loading = false);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +222,14 @@ if (_isYearly)
               const SizedBox(height: 12),
               const Text('Huỷ bất cứ lúc nào • Thanh toán an toàn',
                   style: TextStyle(color: Colors.white38, fontSize: 12)),
+              if (!kIsWeb) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _loading ? null : _restore,
+                  child: const Text('Đã mua rồi? Khôi phục giao dịch',
+                      style: TextStyle(color: Colors.white54, fontSize: 13)),
+                ),
+              ],
             ],
           ),
         ),

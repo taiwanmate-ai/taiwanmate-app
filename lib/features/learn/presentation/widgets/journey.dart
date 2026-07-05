@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════
 // JOURNEY TAB — "30 NGÀY SINH TỒN TẠI ĐÀI LOAN" (FILE LOGIC + UI)
 // MODEL + GIAO DIỆN. Nội dung các ngày ở journey_data.dart.
 // Muốn thêm tháng mới → CHỈ sửa journey_data.dart, KHÔNG đụng file này.

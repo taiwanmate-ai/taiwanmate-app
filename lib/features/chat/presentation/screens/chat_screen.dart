@@ -12,6 +12,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:characters/characters.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 
 class _DS {
   static const indigo = Color(0xFF5B5FEF);
@@ -274,9 +276,12 @@ RULES BẮT BUỘC:
 5. Khi dùng từ mới → wrap: [NEW:詞語] để user lưu vào từ vựng
 6. KHÔNG BAO GIỜ nói "Tôi là AI" hay xin lỗi vô nghĩa
 7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc
-8. LUÔN có khoảng trắng trước và sau dấu ngoặc VÀ giữa các từ tiếng Việt: 
+8. ⚠️ CỰC KỲ QUAN TRỌNG — TIẾNG VIỆT PHẢI CÓ DẤU CÁCH GIỮA MỖI TỪ:
    ĐÚNG: (Hôm nay bạn chuẩn bị học gì?)
    SAI: (Hômnaybạnchuẩnbịhọcgì?)
+   ĐÚNG: (Mày là heo à?)
+   SAI: (Màylàheoà?)
+   Mỗi từ tiếng Việt là 1 âm tiết riêng, PHẢI cách nhau bằng dấu cách. TUYỆT ĐỐI không viết dính liền.
 9. Thỉnh thoảng (1/5 lần reply) share chuyện cá nhân ngắn
 10. Nếu biết tên user từ memory → gọi tên tự nhiên trong reply
 $mistakesNote$emotionNote
@@ -555,6 +560,12 @@ $memoryNote
     return chunks;
   }
 
+  // Cache audio đã generate theo (text, chunk) — bấm Nghe lại không gọi lại API
+  final Map<String, String> _audioCache = {};
+  final Map<String, Future<String?>> _audioFetchInFlight = {};
+
+  int _speakSession = 0;
+
   Future<void> _speak(String text) async {
     if (!_autoSpeak) return;
     _stopSpeak();
@@ -563,46 +574,72 @@ $memoryNote
     final chunks = _splitTextForTTS(ttsText);
     if (chunks.isEmpty) return;
     _isSpeakingChunks = true;
-    _speakChunks(chunks, 0);
+    final session = ++_speakSession;
+    _speakChunks(text, chunks, 0, session);
   }
 
-  Future<void> _speakChunks(List<String> chunks, int index) async {
-    if (!_isSpeakingChunks) return;
-    if (!_autoSpeak) return;
+  Future<String?> _fetchTtsBase64(String fullText, List<String> chunks, int index) {
+    final key = '${fullText.hashCode}_$index';
+    final cached = _audioCache[key];
+    if (cached != null) return Future.value(cached);
+
+    return _audioFetchInFlight.putIfAbsent(key, () async {
+      try {
+        final token = await _storage.read(key: 'access_token');
+        final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30), responseType: ResponseType.bytes));
+        final response = await dio.post(
+          'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts-mixed',
+          data: {'text': chunks[index], 'gender': _aiGender, 'learning_mode': _learningMode},
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        final b64 = base64Encode(response.data as List<int>);
+        // Giới hạn cache tránh phình bộ nhớ khi chat dài
+        if (_audioCache.length > 60) _audioCache.clear();
+        _audioCache[key] = b64;
+        return b64;
+      } catch (e) {
+        return null;
+      } finally {
+        _audioFetchInFlight.remove(key);
+      }
+    });
+  }
+
+  Future<void> _speakChunks(String fullText, List<String> chunks, int index, int session) async {
+    if (!_isSpeakingChunks || !_autoSpeak) return;
+    if (session != _speakSession) return;
     if (index >= chunks.length) { _isSpeakingChunks = false; return; }
+    if (!mounted) { _isSpeakingChunks = false; return; }
     try {
-      if (!mounted) { _isSpeakingChunks = false; return; }
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30), responseType: ResponseType.bytes));
-      final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts-mixed',
-        data: {'text': chunks[index], 'gender': _aiGender, 'learning_mode': _learningMode},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      if (!_isSpeakingChunks) return;
-      final b64 = base64Encode(response.data as List<int>);
-      final charCount = chunks[index].length;
-      final estimatedMs = (charCount * 250).clamp(1500, 10000);
-      webEval('''
-(function() {
-  if (window._currentAudio) { window._currentAudio.pause(); window._currentAudio = null; }
-  var a = new Audio("data:audio/mpeg;base64,$b64");
-  window._currentAudio = a;
-  a.play().catch(function(e) { console.log("Audio play error:", e); });
-})();
-''');
-      await Future.delayed(Duration(milliseconds: estimatedMs));
-      _speakChunks(chunks, index + 1);
+      final currentFuture = _fetchTtsBase64(fullText, chunks, index);
+      if (index + 1 < chunks.length) {
+        _fetchTtsBase64(fullText, chunks, index + 1);
+      }
+
+      final b64 = await currentFuture;
+      if (session != _speakSession || !_isSpeakingChunks) return;
+      if (b64 == null) {
+        _speakChunks(fullText, chunks, index + 1, session);
+        return;
+      }
+
+      // Chờ ĐÚNG lúc audio phát xong thật (sự kiện onEnded), không đoán thời gian
+      await webPlayAudio(b64);
+
+      if (session != _speakSession || !_isSpeakingChunks) return;
+      _speakChunks(fullText, chunks, index + 1, session);
     } catch (e) {
-      if (_isSpeakingChunks) _speakChunks(chunks, index + 1);
+      if (session == _speakSession && _isSpeakingChunks) {
+        _speakChunks(fullText, chunks, index + 1, session);
+      }
     }
   }
 
   void _stopSpeak() {
     _isSpeakingChunks = false;
-    try { webEval('if(window._currentAudio){window._currentAudio.pause();window._currentAudio=null;}'); } catch (e) {}
+    _speakSession++; // vô hiệu mọi lượt phát cũ đang chờ dở, chặn chồng audio
+    try { webStopAudio(); } catch (e) {}
   }
-
   void _updateMood(String reply) {
     final lower = reply.toLowerCase();
     String mood = '😊';
@@ -700,18 +737,50 @@ $memoryNote
     else if (_sessionMessages == 20) _showXpReward(50);
     try {
       final token2 = await _storage.read(key: 'access_token');
-      final dio2 = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
-      final response = await dio2.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/chat',
-        data: {'message': text, 'system_prompt': _systemPrompt, 'history': _cleanHistory, 'learning_mode': _learningMode},
-        options: Options(headers: {'Authorization': 'Bearer $token2'}),
+
+      final int botIndex = _messages.length;
+      setState(() {
+        _messages.add({'role': 'assistant', 'content': ''});
+        _isLoading = false;
+        _isStreaming = true;
+      });
+
+      String rawReply = '';
+      final stream = webChatStream(
+        url: 'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/chat-stream',
+        token: token2 ?? '',
+        body: {
+          'message': text,
+          'system_prompt': _systemPrompt,
+          'history': _cleanHistory,
+          'learning_mode': _learningMode,
+        },
       );
-      final quotaHeader = response.headers.value('x-quota-remaining');
-      if (quotaHeader != null && quotaHeader != 'unlimited') {
-        final parsed = int.tryParse(quotaHeader);
-        if (parsed != null && mounted) setState(() => _freeMessagesLeft = parsed);
+
+      try {
+        await for (final chunk in stream) {
+          rawReply += chunk;
+          final display = rawReply.replaceAllMapped(
+              RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
+          if (mounted) {
+            setState(() => _messages[botIndex]['content'] = display);
+            _scrollToBottom();
+          }
+        }
+      } catch (streamErr) {
+        if (streamErr.toString().contains('QUOTA_EXCEEDED')) {
+          if (mounted) {
+            setState(() {
+              if (botIndex < _messages.length) _messages.removeAt(botIndex);
+              _freeMessagesLeft = 0;
+            });
+            _showUpgradeDialog();
+          }
+          return;
+        }
+        rethrow;
       }
-      final rawReply = response.data['reply'] as String? ?? '';
+
       final fixedReply = rawReply.replaceAllMapped(
         RegExp(r'\(([^)]+)\)'),
         (m) {
@@ -723,13 +792,14 @@ $memoryNote
       final displayReply = fixedReply.replaceAllMapped(RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
       _updateMood(displayReply);
       _extractNewVocab(rawReply);
-
-      // Update quick replies after AI response
-      setState(() {
-        _messages.add({'role': 'assistant', 'content': displayReply});
-        _quickReplies = _generateQuickReplies(displayReply);
-      });
+      if (mounted) {
+        setState(() {
+          _messages[botIndex]['content'] = displayReply;
+          _quickReplies = _generateQuickReplies(displayReply);
+        });
+      }
       if (_autoSpeak) _speak(displayReply);
+      _loadQuota();
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
@@ -738,9 +808,13 @@ $memoryNote
           return;
         }
       }
-      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
-    } catch (e) {
-      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Thử lại nhé!'}));
+      // ignore: avoid_print
+      print('❌ CHAT DioException: type=${e.type}, message=${e.message}, response=${e.response?.data}');
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi: ${e.type} - ${e.message}'}));
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('❌ CHAT ERROR: $e\n$stack');
+      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi: ${e.runtimeType} - $e'}));
     } finally {
       setState(() { _isLoading = false; _streamingText = ''; });
       _scrollToBottom();
@@ -792,20 +866,7 @@ $memoryNote
             GestureDetector(
               onTap: () {
                 Navigator.pop(dialogCtx);
-                PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1');
-              },
-              child: Container(
-                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(border: Border.all(color: _DS.indigo, width: 2), borderRadius: BorderRadius.circular(16)),
-                child: const Text('NT\$199/tháng', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: _DS.indigo)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () {
-                Navigator.pop(dialogCtx);
-                PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac');
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
               },
               child: Container(
                 width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
@@ -814,7 +875,7 @@ $memoryNote
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
                 ),
-                child: const Text('NT\$1,499/năm · tiết kiệm 37% 🔥', textAlign: TextAlign.center,
+                child: const Text('⭐ Xem các gói VIP', textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
               ),
             ),
@@ -1199,7 +1260,7 @@ $memoryNote
                 maxWidth: MediaQuery.of(context).size.width * 0.70,
                 maxHeight: MediaQuery.of(context).size.height * 0.25,
               ),
-              child: Image.asset('assets/images/Work_chat-bro.png', fit: BoxFit.contain),
+              child: Image.asset('assets/images/Work_chat-bro.webp', fit: BoxFit.contain),
             ),
             const SizedBox(height: 16),
 
@@ -1457,8 +1518,8 @@ class _AiAvatar extends StatelessWidget {
         child: ClipOval(
           child: Image.asset(
             gender == 'female'
-                ? 'assets/images/Work_chat-bro.png'
-                : 'assets/images/Digital_tools-rafiki.png',
+                ? 'assets/images/Work_chat-bro.webp'
+                : 'assets/images/Digital_tools-rafiki.webp',
             fit: BoxFit.cover,
           ),
         ),

@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'dart:async';
+import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
+import 'package:chinesemate/core/state/incoming_text_state.dart';
 
 class _DS {
   static const bg = Color(0xFFF0F4FF);
@@ -110,10 +112,22 @@ class _TranslateScreenState extends State<TranslateScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _inputController.addListener(() => setState(() {}));
+    IncomingTextState.pendingText.addListener(_handleIncomingText);
+    _handleIncomingText(); // xử lý trường hợp text đã có sẵn khi màn hình này build lần đầu
+  }
+
+  void _handleIncomingText() {
+    final text = IncomingTextState.pendingText.value;
+    if (text != null && text.isNotEmpty && mounted) {
+      IncomingTextState.consume();
+      _tabController.animateTo(0);
+      _translate(overrideText: text);
+    }
   }
 
   @override
   void dispose() {
+    IncomingTextState.pendingText.removeListener(_handleIncomingText);
     _tabController.dispose();
     _inputController.dispose();
     super.dispose();
@@ -265,7 +279,7 @@ class _TranslateScreenState extends State<TranslateScreen>
       ));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
-        data: {'image_base64': _imageBase64, 'target_lang': _imageTargetLang},
+        data: {'image_base64': _imageBase64, 'target_lang': _imageTargetLang, 'image_type': 'general'},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() {
@@ -326,7 +340,11 @@ class _TranslateScreenState extends State<TranslateScreen>
       final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice',
-        data: {'audio_base64': audioBase64, 'target_lang': _voiceTargetLang},
+        data: {
+          'audio_base64': audioBase64,
+          'target_lang': _voiceTargetLang,
+          'audio_format': getRecordingMimeType(),
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() {
@@ -405,7 +423,7 @@ class _TranslateScreenState extends State<TranslateScreen>
             GestureDetector(
               onTap: () {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanh toán VIP sắp ra mắt!')));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
               },
               child: Container(
                 width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
@@ -500,24 +518,13 @@ class _TranslateScreenState extends State<TranslateScreen>
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       final b64 = base64Encode(response.data as List<int>);
-      webEval('''
-(function() {
-  if (window._translateAudio) {
-    window._translateAudio.pause();
-    window._translateAudio = null;
-  }
-  var a = new Audio("data:audio/mpeg;base64,$b64");
-  a.playbackRate = ${lang == 'zh-TW' || lang == 'zh-CN' ? 0.75 : 0.9};
-  window._translateAudio = a;
-  setTimeout(function() { a.play(); }, 300);
-})();
-''');
+      // Dùng webPlayAudio (chạy được cả web lẫn Android), chờ đúng lúc phát xong thật
+      await webPlayAudio(b64);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lỗi phát âm. Thử lại sau.')),
       );
     } finally {
-      await Future.delayed(const Duration(milliseconds: 3000));
       if (mounted) setState(() => _isSpeaking = false);
     }
   }
@@ -678,7 +685,7 @@ class _TranslateScreenState extends State<TranslateScreen>
                   maxWidth: MediaQuery.of(context).size.width * 0.70,
                   maxHeight: MediaQuery.of(context).size.height * 0.22,
                 ),
-                child: Image.asset('assets/images/Translator-amico.png', fit: BoxFit.contain),
+                child: Image.asset('assets/images/Translator-amico.webp', fit: BoxFit.contain),
               ),
             ),
           ),

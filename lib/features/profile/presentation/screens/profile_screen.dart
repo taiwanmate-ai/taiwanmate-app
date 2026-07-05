@@ -6,11 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/providers/theme_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 // ignore: avoid_web_libraries_in_flutter
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../manual_payment_screen.dart';
+import 'package:chinesemate/core/state/user_state.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -204,8 +207,10 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() => _user = response.data);
+      UserState.updateVipStatus(_user?['subscription'] == 'vip');
     } catch (e) {
       setState(() => _user = {'email': 'user@gmail.com', 'full_name': 'Người dùng', 'streak_days': 0, 'total_xp': 0, 'subscription': 'free'});
+      UserState.updateVipStatus(false);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -366,7 +371,7 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
                 maxHeight: MediaQuery.of(context).size.height * 0.15,
               ),
               child: Image.asset(
-                'assets/images/Profile_pic-amico.png',
+                'assets/images/Profile_pic-amico.webp',
                 fit: BoxFit.contain,
               ),
             ),
@@ -809,11 +814,11 @@ class VipScreen extends StatelessWidget {
                   ),
                   // Rows
                   ...[
-                    ['Chat AI 小美', '10 lần/ngày', 'Không giới hạn'],
-                    ['Dịch văn bản', '20 lần/ngày', 'Không giới hạn'],
-                    ['Dịch ảnh & hợp đồng', '5 lần/ngày', 'Không giới hạn'],
-                    ['Dịch giọng nói', '3 lần/ngày', 'Không giới hạn'],
-                    ['AI Tools (15 công cụ)', '3 lần/ngày', 'Không giới hạn'],
+                    ['Chat AI 小美', '40 lần/ngày', 'Không giới hạn'],
+                    ['Dịch văn bản', '50 lần/ngày', 'Không giới hạn'],
+                    ['Dịch ảnh & hợp đồng', '15 lần/ngày', 'Không giới hạn'],
+                    ['Dịch giọng nói', '15 lần/ngày', 'Không giới hạn'],
+                    ['AI Tools (15 công cụ)', '15 lần/ngày', 'Không giới hạn'],
                     ['Phân tích hợp đồng AI', '❌', '✅ Chi tiết'],
                     ['Tư vấn du học A-Z', '❌', '✅ Đầy đủ'],
                     ['Lộ trình học tập VIP', '❌', '✅'],
@@ -884,7 +889,26 @@ class VipScreen extends StatelessWidget {
               // Nút gói tháng
 GestureDetector(
   onTap: () async {
-    PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1');
+    if (kIsWeb) {
+      PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1');
+    } else {
+      await PaymentService.purchaseAndroid(
+        plan: 'monthly',
+        onSuccess: () {
+          if (context.mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('🎉 Nâng cấp VIP thành công!'), backgroundColor: _DS.green),
+            );
+          }
+        },
+        onError: (msg) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          }
+        },
+      );
+    }
   },
   child: Container(
     width: double.infinity,
@@ -903,7 +927,26 @@ const SizedBox(height: 12),
 // Nút gói năm — nổi bật hơn
 GestureDetector(
   onTap: () async {
-    PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac');
+    if (kIsWeb) {
+      PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac');
+    } else {
+      await PaymentService.purchaseAndroid(
+        plan: 'yearly',
+        onSuccess: () {
+          if (context.mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('🎉 Nâng cấp VIP thành công!'), backgroundColor: _DS.green),
+            );
+          }
+        },
+        onError: (msg) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          }
+        },
+      );
+    }
   },
   child: Container(
     width: double.infinity,
@@ -918,11 +961,33 @@ GestureDetector(
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
   ),
 ),
+              const SizedBox(height: 16),
+              Row(children: const [
+                Expanded(child: Divider(color: Colors.white24)),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('hoặc', style: TextStyle(color: Colors.white38))),
+                Expanded(child: Divider(color: Colors.white24)),
+              ]),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen())),
+                child: Container(
+                  width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.qr_code_2_rounded, color: Colors.white70, size: 20),
+                    SizedBox(width: 8),
+                    Text('Chuyển khoản ngân hàng (QR)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                  ]),
+                ),
+              ),
               const SizedBox(height: 12),
 
               // Voucher 24h
               const _VoucherCountdown(),
-
               const SizedBox(height: 20),
 
               // Cam kết
@@ -934,6 +999,28 @@ GestureDetector(
               ]),
 
               const SizedBox(height: 24),
+              TextButton(
+                onPressed: () async {
+                  if (kIsWeb) return;
+                  await PaymentService.restorePurchases(
+                    onSuccess: () {
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('🎉 Đã khôi phục VIP thành công!'), backgroundColor: _DS.green),
+                        );
+                      }
+                    },
+                    onError: (msg) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                      }
+                    },
+                  );
+                },
+                child: const Text('Đã mua rồi? Khôi phục giao dịch', style: TextStyle(color: Colors.white54, fontSize: 13)),
+              ),
+              const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Để sau', style: TextStyle(color: Colors.white54)),
@@ -1038,6 +1125,7 @@ class _VoucherCountdownState extends State<_VoucherCountdown> {
   }
 }
  
+
 
 
 

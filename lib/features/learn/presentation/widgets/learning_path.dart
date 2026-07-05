@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════
 // LEARNING PATH WIDGET
 // File: lib/features/learn/presentation/widgets/learning_path.dart
 // Dùng chung cho HomeScreen và LearnScreen
