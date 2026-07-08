@@ -2,6 +2,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:chinesemate/core/services/payment_service.dart';
+import 'manual_payment_screen.dart';
 
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
@@ -15,19 +16,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
  Future<void> _subscribe() async {
     if (kIsWeb) {
-      setState(() => _loading = true);
-      try {
-        final url = _isYearly
-            ? 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac'
-            : 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1';
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
-      if (mounted) setState(() => _loading = false);
+      // TẠM: Lemon Squeezy còn ở Test mode, chưa duyệt Live.
+      // Chuyển sang QR thủ công đã hoạt động ổn định, tránh user thanh toán vào môi trường test.
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen()));
+      return;
     } else {
       setState(() => _loading = true);
       await PaymentService.purchaseAndroid(

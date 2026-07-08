@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chinesemate/core/services/payment_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:chinesemate/core/utils/web_utils.dart';
+import 'package:chinesemate/core/utils/image_resize.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -1742,13 +1743,15 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
   Future<void> _pickImage() async {
     final base64 = await webPickImage();
     if (base64 == null) return;
-    setState(() { _imageBase64 = base64; _result = ''; _explanation = ''; _extractedText = ''; });
+    final resized = resizeBase64Image(base64);
+    setState(() { _imageBase64 = resized; _result = ''; _explanation = ''; _extractedText = ''; });
   }
 
   Future<void> _captureImage() async {
     final base64 = await webCaptureImage();
     if (base64 == null) return;
-    setState(() { _imageBase64 = base64; _result = ''; _explanation = ''; _extractedText = ''; });
+    final resized = resizeBase64Image(base64);
+    setState(() { _imageBase64 = resized; _result = ''; _explanation = ''; _extractedText = ''; });
     _translate();
   }
 

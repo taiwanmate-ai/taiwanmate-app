@@ -22,20 +22,25 @@ void main() async {
 }
 
 void _setupProcessTextListener() {
-  // App đang chạy nền → Android bắn thẳng qua invokeMethod
   _processTextChannel.setMethodCallHandler((call) async {
     if (call.method == 'onProcessText') {
       final text = call.arguments as String?;
       if (text != null && text.isNotEmpty) await _routeToTranslate(text);
+    } else if (call.method == 'onOpenEmergency') {
+      appRouter.go('/emergency');
     }
     return null;
   });
 
-  // Cold start (app đang đóng, mở từ menu bôi đen) → chủ động hỏi lại sau frame đầu
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     try {
       final text = await _processTextChannel.invokeMethod<String>('getProcessText');
-      if (text != null && text.isNotEmpty) await _routeToTranslate(text);
+      if (text != null && text.isNotEmpty) {
+        await _routeToTranslate(text);
+        return;
+      }
+      final emergency = await _processTextChannel.invokeMethod<bool>('getPendingEmergency');
+      if (emergency == true) appRouter.go('/emergency');
     } catch (_) {}
   });
 }

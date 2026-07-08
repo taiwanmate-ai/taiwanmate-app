@@ -890,7 +890,8 @@ class VipScreen extends StatelessWidget {
 GestureDetector(
   onTap: () async {
     if (kIsWeb) {
-      PaymentService.openCheckout(plan: 'monthly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/33e90daf-ec9a-4ae7-88b9-5221d20c22d1');
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen()));
+      return;
     } else {
       await PaymentService.purchaseAndroid(
         plan: 'monthly',
@@ -928,7 +929,8 @@ const SizedBox(height: 12),
 GestureDetector(
   onTap: () async {
     if (kIsWeb) {
-      PaymentService.openCheckout(plan: 'yearly', fallbackUrl: 'https://taiwanmate-ai.lemonsqueezy.com/checkout/buy/f8fef26c-2235-4bf1-8e04-02252d8e9dac');
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen()));
+      return;
     } else {
       await PaymentService.purchaseAndroid(
         plan: 'yearly',

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'package:chinesemate/core/utils/web_utils.dart';
+import 'package:chinesemate/core/utils/image_resize.dart';
 import 'dart:async';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'package:chinesemate/core/state/incoming_text_state.dart';
@@ -233,19 +234,20 @@ class _TranslateScreenState extends State<TranslateScreen>
   Future<void> _pickImage() async {
     final base64 = await webPickImage();
     if (base64 == null) return;
+    final resized = resizeBase64Image(base64);
     setState(() {
-      _imageBase64 = base64;
+      _imageBase64 = resized;
       _imageResult = ''; _imageResultSimplified = ''; _imageResultEnglish = '';
       _imageResultVietnamese = ''; _imagePinyin = ''; _imageExplanation = ''; _extractedText = '';
     });
     _translateImage();
   }
-
   Future<void> _captureImage() async {
     final base64 = await webCaptureImage();
     if (base64 == null) return;
+    final resized = resizeBase64Image(base64);
     setState(() {
-      _imageBase64 = base64;
+      _imageBase64 = resized;
       _imageResult = ''; _imageResultSimplified = ''; _imageResultEnglish = '';
       _imageResultVietnamese = ''; _imagePinyin = ''; _imageExplanation = ''; _extractedText = '';
     });

@@ -9,18 +9,23 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.taiwanmate.chinesemate/process_text"
     private var methodChannel: MethodChannel? = null
     private var pendingText: String? = null
+    private var pendingEmergency: Boolean = false
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
-        // Flutter gọi hàm này lúc khởi động để lấy text (trường hợp app đang đóng, mở mới từ PROCESS_TEXT)
         methodChannel?.setMethodCallHandler { call, result ->
-            if (call.method == "getProcessText") {
-                result.success(pendingText)
-                pendingText = null
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "getProcessText" -> {
+                    result.success(pendingText)
+                    pendingText = null
+                }
+                "getPendingEmergency" -> {
+                    result.success(pendingEmergency)
+                    pendingEmergency = false
+                }
+                else -> result.notImplemented()
             }
         }
 
@@ -38,9 +43,13 @@ class MainActivity : FlutterActivity() {
             val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
             if (!text.isNullOrEmpty()) {
                 pendingText = text
-                // Trường hợp app đang chạy nền (singleTop) → bắn thẳng sang Flutter ngay
                 methodChannel?.invokeMethod("onProcessText", text)
             }
+        }
+
+        if (intent?.action == "OPEN_EMERGENCY") {
+            pendingEmergency = true
+            methodChannel?.invokeMethod("onOpenEmergency", null)
         }
     }
 }

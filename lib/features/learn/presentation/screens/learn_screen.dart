@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:chinesemate/features/learn/presentation/widgets/learning_path.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/journey.dart';
 import 'package:chinesemate/core/cache/app_cache.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/cat_test_tab.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ─── Design System ────────────────────────────────────────────
@@ -102,7 +103,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _tabController.addListener(() {
       if (_tabController.index != _currentTab && mounted) {
         setState(() => _currentTab = _tabController.index);
@@ -302,6 +303,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
                       LearningPathTab(lang: _lang, onStartLearn: () => _tabController.animateTo(0)),
                       JourneyTab(lang: _lang),
                       VocabularyListTab(storage: _storage, lang: _lang),
+                      const CatTestTab(),
                     ],
                   ),
           ),
@@ -614,6 +616,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
               Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🗺️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Lộ trình')])),
               Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎯', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Hành trình')])),
               Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📝', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Từ đã học')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🧪', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('CAT Test')])),
             ],
           ),
         ),

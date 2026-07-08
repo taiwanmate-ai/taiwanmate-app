@@ -14,6 +14,7 @@ import '../../shared/widgets/main_shell.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/tools/presentation/screens/tools_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import '../../features/community/presentation/screens/community_screen.dart';
@@ -30,6 +31,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
     GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
     GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
+    GoRoute(path: '/emergency', builder: (context, state) => const EmergencyPage()),
 
     // ── StatefulShellRoute: giữ state từng tab, không rebuild khi chuyển tab ──
     StatefulShellRoute.indexedStack(
