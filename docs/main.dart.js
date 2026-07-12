@@ -64773,20 +64773,24 @@ break}p.A(new A.aOl(p,A.b3P(o)))
 p.w7()
 case 1:return A.C(q,r)}})
 return A.D($async$GF,r)},
-w7(){var s=0,r=A.E(t.H),q,p=2,o=[],n=[],m=this,l,k,j,i,h,g,f,e,d,c,b,a
-var $async$w7=A.A(function(a0,a1){if(a0===1){o.push(a1)
+w7(){var s=0,r=A.E(t.H),q,p=2,o=[],n=[],m=this,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2
+var $async$w7=A.A(function(a3,a4){if(a3===1){o.push(a4)
 s=p}for(;;)switch(s){case 0:if(m.e==null){s=1
 break}m.A(new A.aOt(m))
 p=4
 s=7
 return A.t(B.Q.bQ(0,"access_token"),$async$w7)
-case 7:l=a1
+case 7:l=a4
 k=A.cB(A.eb("",B.cv,null,B.cv,B.ba))
-e=t.N
-d=t.z
+e=m.e
+d=m.gaGF()
+c=m.f
+if(c==="grammar")c="general"
+b=t.N
+a=t.z
 s=8
-return A.t(k.ev(u.G,A.a_(["image_base64",m.e,"target_lang","vi","context",m.gaGF(),"image_type",m.f],e,t.T),A.cC(A.a_(["Authorization","Bearer "+A.k(l)],e,d)),d),$async$w7)
-case 8:j=a1
+return A.t(k.ev(u.G,A.a_(["image_base64",e,"target_lang","vi","context",d,"image_type",c],b,t.T),A.cC(A.a_(["Authorization","Bearer "+A.k(l)],b,a)),a),$async$w7)
+case 8:j=a4
 m.A(new A.aOu(m,j))
 i=j.e.aUz(0,"x-quota-remaining")
 if(i!=null&&i!=="unlimited"){h=A.wJ(i,null)
@@ -64794,14 +64798,14 @@ if(h!=null&&m.c!=null)m.A(new A.aOv(m,h))}n.push(6)
 s=5
 break
 case 4:p=3
-a=o.pop()
-e=A.ag(a)
+a2=o.pop()
+e=A.ag(a2)
 if(e instanceof A.eq){g=e
 e=g.b
 if((e==null?null:e.c)===403){e=g.b
-if(e==null)b=null
+if(e==null)a1=null
 else{e=e.a
-b=e==null?null:J.h(e,"detail")}f=b
+a1=e==null?null:J.h(e,"detail")}f=a1
 if(t.f.b(f)&&J.c(J.h(f,"code"),"QUOTA_EXCEEDED")){if(m.c!=null){m.A(new A.aOw(m))
 m.PP()}n=[1]
 s=5
