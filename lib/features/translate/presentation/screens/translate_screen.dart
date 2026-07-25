@@ -56,6 +56,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _targetLang = 'zh-TW';
   int _selectedScript = 0;
   final List<Map<String, String>> _history = [];
+  bool _aiLearningLoading = false;
+  bool _aiLearningLoaded = false;
 
   String? _imageBase64;
   String _imageResult = '';
@@ -80,6 +82,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _voiceExplanation = '';
   String _voiceTargetLang = 'zh-TW';
   bool _isSpeaking = false;
+  bool _voiceAiLearningLoading = false;
+  bool _voiceAiLearningLoaded = false;
 
   int _selectedSituation = -1;
 
@@ -165,38 +169,25 @@ class _TranslateScreenState extends State<TranslateScreen>
       _result = ''; _resultSimplified = ''; _resultEnglish = '';
       _resultVietnamese = ''; _pinyin = ''; _explanation = '';
       _selectedScript = 0;
+      _aiLearningLoaded = false;
     });
     try {
       final token = await _storage.read(key: 'access_token');
       final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 60),
-        receiveTimeout: const Duration(seconds: 60),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
       ));
-      Response? response;
-      for (int attempt = 0; attempt < 2; attempt++) {
-        try {
-          response = await dio.post(
-            'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
-            data: {'text': text, 'target_lang': _targetLang},
-            options: Options(headers: {'Authorization': 'Bearer $token'}),
-          );
-          break;
-        } catch (e) {
-          if (attempt == 1) rethrow;
-          await Future.delayed(const Duration(seconds: 2));
-        }
-      }
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/fast',
+        data: {'text': text, 'target_lang': _targetLang},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
       setState(() {
-        _result = response!.data['translated'] ?? '';
-        _resultSimplified = response!.data['translated_simplified'] ?? '';
-        _resultEnglish = response!.data['translated_english'] ?? '';
-        _resultVietnamese = response!.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
-        _pinyin = response!.data['pinyin'] ?? '';
-        _explanation = response!.data['explanation'] ?? '';
+        _result = response.data['translated'] ?? '';
       });
       if (_result.isNotEmpty) {
         setState(() {
-          _history.insert(0, {'input': text, 'result': _result, 'pinyin': _pinyin});
+          _history.insert(0, {'input': text, 'result': _result, 'pinyin': ''});
           if (_history.length > 5) _history.removeLast();
         });
       }
@@ -204,9 +195,9 @@ class _TranslateScreenState extends State<TranslateScreen>
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
-          final limit = detail['limit'] ?? 20;
+          final limit = detail['limit'] ?? 100;
           setState(() => _result = '');
-          if (mounted) _showQuotaDialog('dịch văn bản', limit);
+          if (mounted) _showQuotaDialog('dịch nhanh', limit);
           return;
         }
       }
@@ -215,6 +206,51 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() => _result = 'Lỗi kết nối. Vui lòng thử lại.');
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// AI LEARNING (Phase 1) — CHỈ gọi khi user chủ động bấm, KHÔNG preload,
+  /// KHÔNG chạy ngầm. Tái dùng nguyên endpoint /translate/text cũ (GPT).
+  Future<void> _loadAiLearning(String text) async {
+    if (text.isEmpty || _aiLearningLoading) return;
+    setState(() => _aiLearningLoading = true);
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
+        data: {'text': text, 'target_lang': _targetLang},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      setState(() {
+        _resultSimplified = response.data['translated_simplified'] ?? '';
+        _resultEnglish = response.data['translated_english'] ?? '';
+        _resultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+        _pinyin = response.data['pinyin'] ?? '';
+        _explanation = response.data['explanation'] ?? '';
+        _aiLearningLoaded = true;
+      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 20;
+          if (mounted) _showQuotaDialog('học sâu', limit);
+          return;
+        }
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+      );
+    } finally {
+      if (mounted) setState(() => _aiLearningLoading = false);
     }
   }
 
@@ -337,11 +373,12 @@ class _TranslateScreenState extends State<TranslateScreen>
   }
 
   Future<void> _translateVoice(String audioBase64) async {
+    setState(() => _voiceAiLearningLoaded = false);
     try {
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice',
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice-fast',
         data: {
           'audio_base64': audioBase64,
           'target_lang': _voiceTargetLang,
@@ -352,17 +389,12 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() {
         _transcript = response.data['transcript'] ?? '';
         _voiceResult = response.data['translated'] ?? '';
-        _voiceResultSimplified = response.data['translated_simplified'] ?? '';
-        _voiceResultEnglish = response.data['translated_english'] ?? '';
-        _voiceResultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
-        _voicePinyin = response.data['pinyin'] ?? '';
-        _voiceExplanation = response.data['explanation'] ?? '';
       });
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
-          final limit = detail['limit'] ?? 3;
+          final limit = detail['limit'] ?? 100;
           setState(() => _voiceResult = '');
           if (mounted) _showQuotaDialog('dịch giọng nói', limit);
           return;
@@ -373,6 +405,35 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() => _voiceResult = 'Lỗi: $e');
     } finally {
       setState(() => _voiceLoading = false);
+    }
+  }
+
+  /// AI LEARNING cho tab Giọng nói — CHỈ khi user bấm, tái dùng /translate/text
+  Future<void> _loadVoiceAiLearning(String text) async {
+    if (text.isEmpty || _voiceAiLearningLoading) return;
+    setState(() => _voiceAiLearningLoading = true);
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
+        data: {'text': text, 'target_lang': _voiceTargetLang},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      setState(() {
+        _voiceResultSimplified = response.data['translated_simplified'] ?? '';
+        _voiceResultEnglish = response.data['translated_english'] ?? '';
+        _voiceResultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+        _voicePinyin = response.data['pinyin'] ?? '';
+        _voiceExplanation = response.data['explanation'] ?? '';
+        _voiceAiLearningLoaded = true;
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+      );
+    } finally {
+      if (mounted) setState(() => _voiceAiLearningLoading = false);
     }
   }
 
@@ -772,14 +833,17 @@ class _TranslateScreenState extends State<TranslateScreen>
         const SizedBox(height: 14),
 
         if (_result.isNotEmpty || _resultEnglish.isNotEmpty || _resultVietnamese.isNotEmpty)
-          _buildResultCard(
-            targetLang: _targetLang,
-            traditional: _result, simplified: _resultSimplified,
-            english: _resultEnglish, vietnamese: _resultVietnamese,
-            pinyin: _pinyin, explanation: _explanation,
-            chineseForSave: _sourceLang == 'zh-TW' ? _inputController.text : _result,
-            vietnameseForSave: _sourceLang == 'vi' ? _inputController.text : _resultVietnamese,
-          ),
+            _buildResultCard(
+              targetLang: _targetLang,
+              traditional: _result, simplified: _resultSimplified,
+              english: _resultEnglish, vietnamese: _resultVietnamese,
+              pinyin: _pinyin, explanation: _explanation,
+              chineseForSave: _sourceLang == 'zh-TW' ? _inputController.text : _result,
+              vietnameseForSave: _sourceLang == 'vi' ? _inputController.text : _resultVietnamese,
+              onLoadAiLearning: () => _loadAiLearning(_inputController.text.trim()),
+              aiLearningLoading: _aiLearningLoading,
+              aiLearningLoaded: _aiLearningLoaded,
+            ),
 
         if (_history.isNotEmpty) ...[
           const SizedBox(height: 20),
@@ -826,7 +890,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
+            child: SelectableText(
               _extractedText,
               style: const TextStyle(fontSize: 15, color: _DS.indigo, fontWeight: FontWeight.w700, height: 1.6, fontFamily: 'NotoSansTC'),
             ),
@@ -848,7 +912,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
+            child: SelectableText(
               _imagePinyin,
               style: const TextStyle(fontSize: 14, color: _DS.indigo, fontStyle: FontStyle.italic, height: 1.6),
             ),
@@ -883,7 +947,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
+            child: SelectableText(
               _imageResultVietnamese,
               style: const TextStyle(fontSize: 15, color: _DS.textDark, fontWeight: FontWeight.w500, height: 1.7),
             ),
@@ -906,7 +970,7 @@ class _TranslateScreenState extends State<TranslateScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(12)),
-                child: Text(
+                child: SelectableText(
                   _imageExplanation,
                   style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.6),
                 ),
@@ -1318,20 +1382,23 @@ class _TranslateScreenState extends State<TranslateScreen>
                 Text('Bạn đã nói:', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w700)),
               ]),
               const SizedBox(height: 8),
-              Text(_transcript, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _DS.textDark)),
+              SelectableText(_transcript, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _DS.textDark)),
             ]),
           ),
           const SizedBox(height: 14),
         ],
 
         if (_voiceResult.isNotEmpty || _voiceResultEnglish.isNotEmpty || _voiceResultVietnamese.isNotEmpty)
-          _buildResultCard(
-            targetLang: _voiceTargetLang,
-            traditional: _voiceResult, simplified: _voiceResultSimplified,
-            english: _voiceResultEnglish, vietnamese: _voiceResultVietnamese,
-            pinyin: _voicePinyin, explanation: _voiceExplanation,
-            chineseForSave: _voiceResult, vietnameseForSave: _transcript,
-          ),
+            _buildResultCard(
+              targetLang: _voiceTargetLang,
+              traditional: _voiceResult, simplified: _voiceResultSimplified,
+              english: _voiceResultEnglish, vietnamese: _voiceResultVietnamese,
+              pinyin: _voicePinyin, explanation: _voiceExplanation,
+              chineseForSave: _voiceResult, vietnameseForSave: _transcript,
+              onLoadAiLearning: () => _loadVoiceAiLearning(_transcript),
+              aiLearningLoading: _voiceAiLearningLoading,
+              aiLearningLoaded: _voiceAiLearningLoaded,
+            ),
       ]),
     );
   }
@@ -1408,6 +1475,9 @@ class _TranslateScreenState extends State<TranslateScreen>
     required String english, required String vietnamese,
     required String pinyin, required String explanation,
     String chineseForSave = '', String vietnameseForSave = '',
+    VoidCallback? onLoadAiLearning,
+    bool aiLearningLoading = false,
+    bool aiLearningLoaded = false,
   }) {
     final tabs = _getDisplayTabs(targetLang: targetLang, traditional: traditional, simplified: simplified, english: english, vietnamese: vietnamese);
     if (tabs.isEmpty) return const SizedBox.shrink();
@@ -1460,10 +1530,10 @@ class _TranslateScreenState extends State<TranslateScreen>
           padding: EdgeInsets.fromLTRB(16, tabs.length > 1 ? 0 : 16, 16, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (pinyin.isNotEmpty && isChinese) ...[
-              Text(pinyin, style: const TextStyle(fontSize: 13, color: _DS.indigo, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500)),
+              SelectableText(pinyin, style: const TextStyle(fontSize: 13, color: _DS.indigo, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
             ],
-            Text(
+            SelectableText(
               displayText.isNotEmpty ? displayText : 'Không có bản dịch',
               style: TextStyle(
                 fontSize: isChinese ? 32 : 22,
@@ -1478,12 +1548,26 @@ class _TranslateScreenState extends State<TranslateScreen>
               Container(
                 width: double.infinity, padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
-                child: Text(explanation, style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.5)),
+                child: SelectableText(explanation, style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.5)),
               ),
             ],
           ]),
         ),
 
+        if (displayText.isNotEmpty && !aiLearningLoaded && onLoadAiLearning != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: aiLearningLoading ? null : onLoadAiLearning,
+                icon: aiLearningLoading
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.school_rounded, size: 16),
+                label: Text(aiLearningLoading ? 'Đang tải...' : 'Giải thích thêm (pinyin, ngữ pháp...)'),
+              ),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
