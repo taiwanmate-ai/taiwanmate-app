@@ -182,12 +182,19 @@ class _TranslateScreenState extends State<TranslateScreen>
         data: {'text': text, 'target_lang': _targetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      final translatedText = response.data['translated'] ?? '';
       setState(() {
-        _result = response.data['translated'] ?? '';
+        if (_targetLang == 'en') {
+          _resultEnglish = translatedText;
+        } else if (_targetLang == 'vi') {
+          _resultVietnamese = translatedText;
+        } else {
+          _result = translatedText;
+        }
       });
-      if (_result.isNotEmpty) {
+      if (translatedText.isNotEmpty) {
         setState(() {
-          _history.insert(0, {'input': text, 'result': _result, 'pinyin': ''});
+          _history.insert(0, {'input': text, 'result': translatedText, 'pinyin': ''});
           if (_history.length > 5) _history.removeLast();
         });
       }
@@ -386,9 +393,16 @@ class _TranslateScreenState extends State<TranslateScreen>
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      final voiceTranslatedText = response.data['translated'] ?? '';
       setState(() {
         _transcript = response.data['transcript'] ?? '';
-        _voiceResult = response.data['translated'] ?? '';
+        if (_voiceTargetLang == 'en') {
+          _voiceResultEnglish = voiceTranslatedText;
+        } else if (_voiceTargetLang == 'vi') {
+          _voiceResultVietnamese = voiceTranslatedText;
+        } else {
+          _voiceResult = voiceTranslatedText;
+        }
       });
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
