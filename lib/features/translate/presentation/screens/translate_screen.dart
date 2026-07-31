@@ -1,8 +1,16 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:chinesemate/core/utils/ocr_utils.dart';
+import 'package:chinesemate/features/translate/models/ocr_region.dart';
+import 'package:chinesemate/features/translate/services/ocr_region_service.dart';
+import 'package:chinesemate/features/translate/widgets/ocr_overlay_widget.dart';
+import 'package:chinesemate/features/translate/utils/image_orientation_fix.dart';
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:chinesemate/core/utils/image_resize.dart';
 import 'dart:async';
@@ -39,7 +47,7 @@ class TranslateScreen extends StatefulWidget {
 
 class _TranslateScreenState extends State<TranslateScreen>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-      @override
+  @override
   bool get wantKeepAlive => true;
   late TabController _tabController;
   final _inputController = TextEditingController();
@@ -60,6 +68,15 @@ class _TranslateScreenState extends State<TranslateScreen>
   bool _aiLearningLoaded = false;
 
   String? _imageBase64;
+  final TextEditingController _ocrTextController = TextEditingController();
+  bool _showOcrEditor = false;
+  bool _ocrInProgress = false;
+  bool _showRegionOverlay = false;
+  Uint8List? _normalizedImageBytes;
+  Size? _normalizedImageSize;
+  List<OcrRegion> _ocrRegions = [];
+  Set<String> _selectedRegionIds = {};
+  static const _ocrRegionService = OcrRegionService();
   String _imageResult = '';
   String _imageResultSimplified = '';
   String _imageResultEnglish = '';
@@ -88,12 +105,56 @@ class _TranslateScreenState extends State<TranslateScreen>
   int _selectedSituation = -1;
 
   static const _situations = [
-    {'icon': '🏭', 'label': 'Tại xưởng', 'phrases': ['Tôi muốn xin phép nghỉ', 'Làm thêm giờ được không?', 'Lương tháng này khi nào nhận?']},
-    {'icon': '🏥', 'label': 'Bệnh viện', 'phrases': ['Tôi bị đau bụng', 'Tôi cần gặp bác sĩ', 'Thuốc này uống như thế nào?']},
-    {'icon': '📄', 'label': 'Hợp đồng', 'phrases': ['Điều khoản này nghĩa là gì?', 'Tôi có thể nghỉ phép không?', 'Phạt hợp đồng bao nhiêu?']},
-    {'icon': '🏠', 'label': 'Thuê nhà', 'phrases': ['Tiền cọc bao nhiêu?', 'Có được nấu ăn không?', 'Hợp đồng bao lâu?']},
-    {'icon': '🛒', 'label': 'Mua sắm', 'phrases': ['Cái này bao nhiêu tiền?', 'Có size lớn hơn không?', 'Tôi muốn đổi hàng']},
-    {'icon': '🚌', 'label': 'Di chuyển', 'phrases': ['Xe buýt số mấy?', 'Bến xe ở đâu?', 'Cho tôi xuống đây']},
+    {
+      'icon': '🏭',
+      'label': 'Tại xưởng',
+      'phrases': [
+        'Tôi muốn xin phép nghỉ',
+        'Làm thêm giờ được không?',
+        'Lương tháng này khi nào nhận?'
+      ]
+    },
+    {
+      'icon': '🏥',
+      'label': 'Bệnh viện',
+      'phrases': [
+        'Tôi bị đau bụng',
+        'Tôi cần gặp bác sĩ',
+        'Thuốc này uống như thế nào?'
+      ]
+    },
+    {
+      'icon': '📄',
+      'label': 'Hợp đồng',
+      'phrases': [
+        'Điều khoản này nghĩa là gì?',
+        'Tôi có thể nghỉ phép không?',
+        'Phạt hợp đồng bao nhiêu?'
+      ]
+    },
+    {
+      'icon': '🏠',
+      'label': 'Thuê nhà',
+      'phrases': [
+        'Tiền cọc bao nhiêu?',
+        'Có được nấu ăn không?',
+        'Hợp đồng bao lâu?'
+      ]
+    },
+    {
+      'icon': '🛒',
+      'label': 'Mua sắm',
+      'phrases': [
+        'Cái này bao nhiêu tiền?',
+        'Có size lớn hơn không?',
+        'Tôi muốn đổi hàng'
+      ]
+    },
+    {
+      'icon': '🚌',
+      'label': 'Di chuyển',
+      'phrases': ['Xe buýt số mấy?', 'Bến xe ở đâu?', 'Cho tôi xuống đây']
+    },
   ];
 
   static const _emergencyPhrases = [
@@ -148,15 +209,26 @@ class _TranslateScreenState extends State<TranslateScreen>
     switch (targetLang) {
       case 'zh-TW':
         return [
-          if (traditional.isNotEmpty) {'label': '繁 Phồn thể', 'value': traditional, 'lang': 'zh-TW'},
-          if (simplified.isNotEmpty) {'label': '简 Giản thể', 'value': simplified, 'lang': 'zh-CN'},
+          if (traditional.isNotEmpty)
+            {'label': '繁 Phồn thể', 'value': traditional, 'lang': 'zh-TW'},
+          if (simplified.isNotEmpty)
+            {'label': '简 Giản thể', 'value': simplified, 'lang': 'zh-CN'},
         ];
       case 'en':
-        return [if (english.isNotEmpty) {'label': '🇺🇸 English', 'value': english, 'lang': 'en'}];
+        return [
+          if (english.isNotEmpty)
+            {'label': '🇺🇸 English', 'value': english, 'lang': 'en'}
+        ];
       case 'vi':
-        return [if (vietnamese.isNotEmpty) {'label': '🇻🇳 Tiếng Việt', 'value': vietnamese, 'lang': 'vi'}];
+        return [
+          if (vietnamese.isNotEmpty)
+            {'label': '🇻🇳 Tiếng Việt', 'value': vietnamese, 'lang': 'vi'}
+        ];
       default:
-        return [if (traditional.isNotEmpty) {'label': '繁 Phồn thể', 'value': traditional, 'lang': 'zh-TW'}];
+        return [
+          if (traditional.isNotEmpty)
+            {'label': '繁 Phồn thể', 'value': traditional, 'lang': 'zh-TW'}
+        ];
     }
   }
 
@@ -166,8 +238,12 @@ class _TranslateScreenState extends State<TranslateScreen>
     if (overrideText != null) _inputController.text = overrideText;
     setState(() {
       _isLoading = true;
-      _result = ''; _resultSimplified = ''; _resultEnglish = '';
-      _resultVietnamese = ''; _pinyin = ''; _explanation = '';
+      _result = '';
+      _resultSimplified = '';
+      _resultEnglish = '';
+      _resultVietnamese = '';
+      _pinyin = '';
+      _explanation = '';
       _selectedScript = 0;
       _aiLearningLoaded = false;
     });
@@ -194,7 +270,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       });
       if (translatedText.isNotEmpty) {
         setState(() {
-          _history.insert(0, {'input': text, 'result': translatedText, 'pinyin': ''});
+          _history.insert(
+              0, {'input': text, 'result': translatedText, 'pinyin': ''});
           if (_history.length > 5) _history.removeLast();
         });
       }
@@ -235,7 +312,9 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() {
         _resultSimplified = response.data['translated_simplified'] ?? '';
         _resultEnglish = response.data['translated_english'] ?? '';
-        _resultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+        _resultVietnamese = response.data['translated_vietnamese'] ??
+            response.data['explanation'] ??
+            '';
         _pinyin = response.data['pinyin'] ?? '';
         _explanation = response.data['explanation'] ?? '';
         _aiLearningLoaded = true;
@@ -249,13 +328,15 @@ class _TranslateScreenState extends State<TranslateScreen>
           return;
         }
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+        );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+        );
     } finally {
       if (mounted) setState(() => _aiLearningLoading = false);
     }
@@ -269,8 +350,12 @@ class _TranslateScreenState extends State<TranslateScreen>
         _targetLang = temp;
       }
       _inputController.text = _result;
-      _result = ''; _resultSimplified = ''; _resultEnglish = '';
-      _resultVietnamese = ''; _pinyin = ''; _explanation = '';
+      _result = '';
+      _resultSimplified = '';
+      _resultEnglish = '';
+      _resultVietnamese = '';
+      _pinyin = '';
+      _explanation = '';
     });
   }
 
@@ -280,21 +365,218 @@ class _TranslateScreenState extends State<TranslateScreen>
     final resized = resizeBase64Image(base64);
     setState(() {
       _imageBase64 = resized;
-      _imageResult = ''; _imageResultSimplified = ''; _imageResultEnglish = '';
-      _imageResultVietnamese = ''; _imagePinyin = ''; _imageExplanation = ''; _extractedText = '';
+      _imageResult = '';
+      _imageResultSimplified = '';
+      _imageResultEnglish = '';
+      _imageResultVietnamese = '';
+      _imagePinyin = '';
+      _imageExplanation = '';
+      _extractedText = '';
+      _showOcrEditor = false;
     });
-    _translateImage();
+    await _tryOnDeviceOcrFirst(resized);
   }
+
   Future<void> _captureImage() async {
     final base64 = await webCaptureImage();
     if (base64 == null) return;
     final resized = resizeBase64Image(base64);
     setState(() {
       _imageBase64 = resized;
-      _imageResult = ''; _imageResultSimplified = ''; _imageResultEnglish = '';
-      _imageResultVietnamese = ''; _imagePinyin = ''; _imageExplanation = ''; _extractedText = '';
+      _imageResult = '';
+      _imageResultSimplified = '';
+      _imageResultEnglish = '';
+      _imageResultVietnamese = '';
+      _imagePinyin = '';
+      _imageExplanation = '';
+      _extractedText = '';
+      _showOcrEditor = false;
     });
-    _translateImage();
+    await _tryOnDeviceOcrFirst(resized);
+  }
+
+  /// Phase 2: Android dung ML Kit OCR truoc, cho user chinh sua text truoc
+  /// khi dich nhanh. Web/iOS (chua test duoc that) GIU NGUYEN luong cu 100%.
+  Future<void> _tryOnDeviceOcrFirst(String base64Image) async {
+    if (kIsWeb || !isOnDeviceOcrSupported) {
+      await _translateImage();
+      return;
+    }
+    setState(() => _ocrInProgress = true);
+    try {
+      final bytes = base64Decode(base64Image);
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(
+          '${tempDir.path}/ocr_temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(bytes);
+      final text = await recognizeTextOnDevice(tempFile.path);
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+
+      if (text == null || text.trim().isEmpty) {
+        setState(() => _ocrInProgress = false);
+        await _translateImage();
+        return;
+      }
+      setState(() {
+        _ocrTextController.text = text;
+        _showOcrEditor = true;
+        _ocrInProgress = false;
+      });
+    } catch (e) {
+      setState(() => _ocrInProgress = false);
+      await _translateImage();
+    }
+  }
+
+  /// Phase 3: quet theo VUNG, cho phep cham chon tung dong chu.
+  /// Doc lap hoan toan voi _tryOnDeviceOcrFirst (Phase 2 toan van).
+  Future<void> _tryRegionOcr() async {
+    if (_imageBase64 == null || kIsWeb || !isOnDeviceOcrSupported) return;
+    setState(() => _ocrInProgress = true);
+    try {
+      final originalBytes = base64Decode(_imageBase64!);
+      final normalized = normalizeOrientationForOverlay(originalBytes);
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(
+          '${tempDir.path}/ocr_region_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(normalized.bytes);
+      final rawRegions = await recognizeTextRegionsOnDevice(tempFile.path);
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+
+      if (rawRegions == null || rawRegions.isEmpty) {
+        setState(() => _ocrInProgress = false);
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không nhận diện được vùng chữ nào.')),
+          );
+        return;
+      }
+
+      final regions = rawRegions
+          .map((r) => OcrRegion(
+                id: '${r.blockIndex}_${r.lineIndex}',
+                text: r.text,
+                boundingBox: Rect.fromLTWH(r.left, r.top, r.width, r.height),
+                blockIndex: r.blockIndex,
+                lineIndex: r.lineIndex,
+              ))
+          .toList();
+
+      setState(() {
+        _normalizedImageBytes = normalized.bytes;
+        _normalizedImageSize = normalized.size;
+        _ocrRegions = _ocrRegionService.sortByReadingOrder(regions);
+        _selectedRegionIds = {};
+        _showRegionOverlay = true;
+        _showOcrEditor = false;
+        _ocrInProgress = false;
+      });
+    } catch (e) {
+      setState(() => _ocrInProgress = false);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Lỗi quét vùng chữ. Thử chế độ toàn văn thay thế.')),
+        );
+    }
+  }
+
+  void _confirmRegionSelection() {
+    final combined = _ocrRegionService.combineSelectedText(_ocrRegions, _selectedRegionIds);
+    setState(() {
+      _ocrTextController.text = combined;
+      _showRegionOverlay = false;
+      _showOcrEditor = true;
+      // Xoa ket qua dich CU (co the la cua ca doan van truoc do) de
+      // tranh hien nham — bat buoc bam "Dich nhanh" moi de co ket qua
+      // moi cho dung phan vua chon, khong con ket qua cu sot lai.
+      _imageResult = '';
+      _imageResultSimplified = '';
+      _imageResultEnglish = '';
+      _imageResultVietnamese = '';
+      _imagePinyin = '';
+      _imageExplanation = '';
+    });
+  }
+
+  /// Dich nhanh text OCR (da qua chinh sua) — tai dung /translate/fast Phase 1
+  Future<void> _translateOcrText() async {
+    final text = _ocrTextController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _imageLoading = true;
+      _imageResult = '';
+    });
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15)));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/fast',
+        data: {'text': text, 'target_lang': _imageTargetLang},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      setState(() {
+        _extractedText = text;
+        _imageResult = response.data['translated'] ?? '';
+      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          if (mounted) _showQuotaDialog('dịch nhanh', detail['limit'] ?? 100);
+          return;
+        }
+      }
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi kết nối. Vui lòng thử lại.')),
+        );
+    } finally {
+      setState(() => _imageLoading = false);
+    }
+  }
+
+  /// Phase 2: "Quet nang cao" — chi chay khi user bam, dung Cloud Vision
+  Future<void> _advancedScan() async {
+    if (_imageBase64 == null) return;
+    setState(() => _ocrInProgress = true);
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15)));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/ocr-advanced',
+        data: {'image_base64': _imageBase64},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final text = response.data['extracted_text'] ?? '';
+      setState(() {
+        if (text.isNotEmpty) _ocrTextController.text = text;
+        _showOcrEditor = true;
+      });
+      if (text.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Không nhận diện được văn bản. Thử lại hoặc chỉnh sửa thủ công.')),
+        );
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi quét nâng cao. Thử lại sau.')),
+        );
+    } finally {
+      setState(() => _ocrInProgress = false);
+    }
   }
 
   Future<void> _translateImage() async {
@@ -324,7 +606,11 @@ class _TranslateScreenState extends State<TranslateScreen>
       ));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
-        data: {'image_base64': _imageBase64, 'target_lang': _imageTargetLang, 'image_type': 'general'},
+        data: {
+          'image_base64': _imageBase64,
+          'target_lang': _imageTargetLang,
+          'image_type': 'general'
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() {
@@ -332,7 +618,9 @@ class _TranslateScreenState extends State<TranslateScreen>
         _imageResult = response.data['translated'] ?? '';
         _imageResultSimplified = response.data['translated_simplified'] ?? '';
         _imageResultEnglish = response.data['translated_english'] ?? '';
-        _imageResultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+        _imageResultVietnamese = response.data['translated_vietnamese'] ??
+            response.data['explanation'] ??
+            '';
         _imagePinyin = response.data['pinyin'] ?? '';
         _imageExplanation = response.data['explanation'] ?? '';
       });
@@ -347,7 +635,8 @@ class _TranslateScreenState extends State<TranslateScreen>
         }
       }
       if (e.type == DioExceptionType.receiveTimeout) {
-        setState(() => _imageResult = '⚠️ Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
+        setState(() => _imageResult =
+            '⚠️ Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
       } else {
         setState(() => _imageResult = '⚠️ Lỗi kết nối. Vui lòng thử lại.');
       }
@@ -362,28 +651,40 @@ class _TranslateScreenState extends State<TranslateScreen>
   Future<void> _startRecording() async {
     setState(() {
       _isRecording = true;
-      _transcript = ''; _voiceResult = ''; _voiceResultSimplified = '';
-      _voiceResultEnglish = ''; _voiceResultVietnamese = ''; _voicePinyin = ''; _voiceExplanation = '';
+      _transcript = '';
+      _voiceResult = '';
+      _voiceResultSimplified = '';
+      _voiceResultEnglish = '';
+      _voiceResultVietnamese = '';
+      _voicePinyin = '';
+      _voiceExplanation = '';
     });
     await webStartRecording(
       (audioBase64) => _translateVoice(audioBase64),
       (error) {
         setState(() => _isRecording = false);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error)));
       },
     );
   }
 
   Future<void> _stopRecording() async {
     webStopRecording();
-    setState(() { _isRecording = false; _voiceLoading = true; });
+    setState(() {
+      _isRecording = false;
+      _voiceLoading = true;
+    });
   }
 
   Future<void> _translateVoice(String audioBase64) async {
     setState(() => _voiceAiLearningLoaded = false);
     try {
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)));
+      final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30)));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice-fast',
         data: {
@@ -428,7 +729,9 @@ class _TranslateScreenState extends State<TranslateScreen>
     setState(() => _voiceAiLearningLoading = true);
     try {
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
+      final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60)));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
         data: {'text': text, 'target_lang': _voiceTargetLang},
@@ -437,47 +740,60 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() {
         _voiceResultSimplified = response.data['translated_simplified'] ?? '';
         _voiceResultEnglish = response.data['translated_english'] ?? '';
-        _voiceResultVietnamese = response.data['translated_vietnamese'] ?? response.data['explanation'] ?? '';
+        _voiceResultVietnamese = response.data['translated_vietnamese'] ??
+            response.data['explanation'] ??
+            '';
         _voicePinyin = response.data['pinyin'] ?? '';
         _voiceExplanation = response.data['explanation'] ?? '';
         _voiceAiLearningLoaded = true;
       });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+        );
     } finally {
       if (mounted) setState(() => _voiceAiLearningLoading = false);
     }
   }
 
-  Future<void> _saveVocabulary(String chinese, String pinyin, String vietnamese) async {
+  Future<void> _saveVocabulary(
+      String chinese, String pinyin, String vietnamese) async {
     try {
       final token = await _storage.read(key: 'access_token');
       final dio = Dio();
       await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary',
-        data: {'chinese': chinese, 'pinyin': pinyin, 'vietnamese': vietnamese, 'source': 'translate'},
+        data: {
+          'chinese': chinese,
+          'pinyin': pinyin,
+          'vietnamese': vietnamese,
+          'source': 'translate'
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✅ Đã lưu từ vựng!'),
-          backgroundColor: _DS.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Đã lưu từ vựng!'),
+            backgroundColor: _DS.green,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('❌ Từ này đã lưu rồi!'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('❌ Từ này đã lưu rồi!'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
     }
   }
 
@@ -492,29 +808,40 @@ class _TranslateScreenState extends State<TranslateScreen>
             const Text('🔒', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 12),
             Text('Hết lượt $featureName hôm nay',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            Text('Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
-                textAlign: TextAlign.center, style: const TextStyle(color: _DS.textGrey)),
+            Text(
+                'Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _DS.textGrey)),
             const SizedBox(height: 20),
             GestureDetector(
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const VipScreen()));
               },
               child: Container(
-                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                  gradient: const LinearGradient(
+                      colors: [_DS.indigo, _DS.indigoDark]),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('⭐ Nâng lên VIP — NT\$199/tháng · NT\$1,499/· tiết kiệm 37%',
+                child: const Text(
+                    '⭐ Nâng lên VIP — NT\$199/tháng · NT\$1,499/· tiết kiệm 37%',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
-            TextButton(onPressed: () => Navigator.pop(ctx),
-                child: const Text('Để sau', style: TextStyle(color: _DS.textGrey))),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Để sau',
+                    style: TextStyle(color: _DS.textGrey))),
           ]),
         ),
       ),
@@ -528,49 +855,64 @@ class _TranslateScreenState extends State<TranslateScreen>
       isScrollControlled: true,
       builder: (_) => Container(
         margin: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(24)),
+        decoration: BoxDecoration(
+            color: _DS.white, borderRadius: BorderRadius.circular(24)),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               color: _DS.red,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+              borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24), topRight: Radius.circular(24)),
             ),
             child: const Column(children: [
               Text('🆘', style: TextStyle(fontSize: 32)),
               SizedBox(height: 4),
-              Text('Câu khẩn cấp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white)),
-              Text('Tap để dịch và phát âm ngay', style: TextStyle(fontSize: 12, color: Colors.white70)),
+              Text('Câu khẩn cấp',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white)),
+              Text('Tap để dịch và phát âm ngay',
+                  style: TextStyle(fontSize: 12, color: Colors.white70)),
             ]),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: _emergencyPhrases.map((p) => GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _inputController.text = p['vi'] as String;
-                  _translate(overrideText: p['vi'] as String);
-                  _tabController.animateTo(0);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: _DS.redLight,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _DS.red.withOpacity(0.2)),
-                  ),
-                  child: Row(children: [
-                    Text(p['icon'] as String, style: const TextStyle(fontSize: 22)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(p['vi'] as String,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark))),
-                    const Icon(Icons.translate_rounded, size: 18, color: _DS.red),
-                  ]),
-                ),
-              )).toList(),
+              children: _emergencyPhrases
+                  .map((p) => GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _inputController.text = p['vi'] as String;
+                          _translate(overrideText: p['vi'] as String);
+                          _tabController.animateTo(0);
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: _DS.redLight,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _DS.red.withOpacity(0.2)),
+                          ),
+                          child: Row(children: [
+                            Text(p['icon'] as String,
+                                style: const TextStyle(fontSize: 22)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                                child: Text(p['vi'] as String,
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: _DS.textDark))),
+                            const Icon(Icons.translate_rounded,
+                                size: 18, color: _DS.red),
+                          ]),
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
           const SizedBox(height: 8),
@@ -598,9 +940,10 @@ class _TranslateScreenState extends State<TranslateScreen>
       // Dùng webPlayAudio (chạy được cả web lẫn Android), chờ đúng lúc phát xong thật
       await webPlayAudio(b64);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lỗi phát âm. Thử lại sau.')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi phát âm. Thử lại sau.')),
+        );
     } finally {
       if (mounted) setState(() => _isSpeaking = false);
     }
@@ -633,12 +976,17 @@ class _TranslateScreenState extends State<TranslateScreen>
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Row(children: [
             const Text('Dịch thuật',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _DS.textDark, letterSpacing: -0.5)),
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: _DS.textDark,
+                    letterSpacing: -0.5)),
             const Spacer(),
             GestureDetector(
               onTap: _showEmergencyDialog,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: _DS.redLight,
                   borderRadius: BorderRadius.circular(20),
@@ -647,18 +995,28 @@ class _TranslateScreenState extends State<TranslateScreen>
                 child: const Row(mainAxisSize: MainAxisSize.min, children: [
                   Text('🆘', style: TextStyle(fontSize: 13)),
                   SizedBox(width: 5),
-                  Text('Khẩn cấp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.red)),
+                  Text('Khẩn cấp',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _DS.red)),
                 ]),
               ),
             ),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                  color: _DS.indigoLight,
+                  borderRadius: BorderRadius.circular(20)),
               child: const Row(mainAxisSize: MainAxisSize.min, children: [
                 Text('🇻🇳', style: TextStyle(fontSize: 13)),
                 SizedBox(width: 4),
-                Text('⇄', style: TextStyle(fontSize: 11, color: _DS.indigo, fontWeight: FontWeight.w800)),
+                Text('⇄',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: _DS.indigo,
+                        fontWeight: FontWeight.w800)),
                 SizedBox(width: 4),
                 Text('🇹🇼', style: TextStyle(fontSize: 13)),
               ]),
@@ -683,18 +1041,28 @@ class _TranslateScreenState extends State<TranslateScreen>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected ? _DS.indigo : _DS.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: isSelected ? _DS.indigo : _DS.indigoLight),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                    border: Border.all(
+                        color: isSelected ? _DS.indigo : _DS.indigoLight),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2))
+                    ],
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(s['icon'] as String, style: const TextStyle(fontSize: 13)),
+                    Text(s['icon'] as String,
+                        style: const TextStyle(fontSize: 13)),
                     const SizedBox(width: 6),
                     Text(s['label'] as String,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                             color: isSelected ? Colors.white : _DS.textDark)),
                   ]),
                 ),
@@ -715,29 +1083,53 @@ class _TranslateScreenState extends State<TranslateScreen>
         decoration: BoxDecoration(
           color: _DS.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: TabBar(
           controller: _tabController,
           indicator: BoxDecoration(
             color: _DS.indigo,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+            boxShadow: [
+              BoxShadow(
+                  color: _DS.indigo.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3))
+            ],
           ),
           indicatorSize: TabBarIndicatorSize.tab,
           labelColor: Colors.white,
           unselectedLabelColor: _DS.textGrey,
-          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          labelStyle:
+              const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          unselectedLabelStyle:
+              const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           tabs: const [
-            Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.text_fields_rounded, size: 15), SizedBox(width: 5), Text('Văn bản'),
+            Tab(
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.text_fields_rounded, size: 15),
+              SizedBox(width: 5),
+              Text('Văn bản'),
             ])),
-            Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.image_rounded, size: 15), SizedBox(width: 5), Text('Ảnh'),
+            Tab(
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.image_rounded, size: 15),
+              SizedBox(width: 5),
+              Text('Ảnh'),
             ])),
-            Tab(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.mic_rounded, size: 15), SizedBox(width: 5), Text('Giọng nói'),
+            Tab(
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.mic_rounded, size: 15),
+              SizedBox(width: 5),
+              Text('Giọng nói'),
             ])),
           ],
         ),
@@ -762,29 +1154,35 @@ class _TranslateScreenState extends State<TranslateScreen>
                   maxWidth: MediaQuery.of(context).size.width * 0.70,
                   maxHeight: MediaQuery.of(context).size.height * 0.22,
                 ),
-                child: Image.asset('assets/images/Translator-amico.webp', fit: BoxFit.contain),
+                child: Image.asset('assets/images/Translator-amico.webp',
+                    fit: BoxFit.contain),
               ),
             ),
           ),
-
         _buildLangPills(),
         const SizedBox(height: 14),
-
         Container(
           decoration: BoxDecoration(
             color: _DS.white,
             borderRadius: BorderRadius.circular(_DS.radius),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3))
+            ],
           ),
           child: Column(children: [
             TextField(
               controller: _inputController,
-              style: const TextStyle(color: Colors.black, fontSize: 16, height: 1.5),
+              style: const TextStyle(
+                  color: Colors.black, fontSize: 16, height: 1.5),
               maxLines: 5,
               maxLength: maxChars,
               decoration: InputDecoration(
                 hintText: 'Nhập văn bản cần dịch...',
-                hintStyle: TextStyle(color: _DS.textGrey.withOpacity(0.6), fontSize: 15),
+                hintStyle: TextStyle(
+                    color: _DS.textGrey.withOpacity(0.6), fontSize: 15),
                 filled: true,
                 fillColor: Colors.white,
                 border: InputBorder.none,
@@ -796,39 +1194,65 @@ class _TranslateScreenState extends State<TranslateScreen>
               padding: const EdgeInsets.fromLTRB(16, 4, 12, 12),
               child: Row(children: [
                 Text('$charCount/$maxChars',
-                    style: TextStyle(fontSize: 11, color: isNearLimit ? Colors.red : _DS.textGrey, fontWeight: FontWeight.w500)),
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isNearLimit ? Colors.red : _DS.textGrey,
+                        fontWeight: FontWeight.w500)),
                 const Spacer(),
                 if (_inputController.text.isNotEmpty)
                   GestureDetector(
                     onTap: () {
                       _inputController.clear();
                       setState(() {
-                        _result = ''; _resultSimplified = ''; _resultEnglish = '';
-                        _resultVietnamese = ''; _pinyin = ''; _explanation = '';
+                        _result = '';
+                        _resultSimplified = '';
+                        _resultEnglish = '';
+                        _resultVietnamese = '';
+                        _pinyin = '';
+                        _explanation = '';
                       });
                     },
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.clear_rounded, size: 16, color: _DS.textGrey),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(Icons.clear_rounded,
+                          size: 16, color: _DS.textGrey),
                     ),
                   ),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _isLoading ? null : _translate,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                      gradient: const LinearGradient(
+                          colors: [_DS.indigo, _DS.indigoDark]),
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+                      boxShadow: [
+                        BoxShadow(
+                            color: _DS.indigo.withOpacity(0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3))
+                      ],
                     ),
                     child: _isLoading
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
                         : const Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.translate_rounded, size: 15, color: Colors.white),
+                            Icon(Icons.translate_rounded,
+                                size: 15, color: Colors.white),
                             SizedBox(width: 6),
-                            Text('Dịch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                            Text('Dịch',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
                           ]),
                   ),
                 ),
@@ -836,29 +1260,32 @@ class _TranslateScreenState extends State<TranslateScreen>
             ),
           ]),
         ),
-
         const SizedBox(height: 14),
-
         if (_selectedSituation >= 0)
           _buildSituationPhrases()
         else
           _buildQuickPhrases(),
-
         const SizedBox(height: 14),
-
-        if (_result.isNotEmpty || _resultEnglish.isNotEmpty || _resultVietnamese.isNotEmpty)
-            _buildResultCard(
-              targetLang: _targetLang,
-              traditional: _result, simplified: _resultSimplified,
-              english: _resultEnglish, vietnamese: _resultVietnamese,
-              pinyin: _pinyin, explanation: _explanation,
-              chineseForSave: _sourceLang == 'zh-TW' ? _inputController.text : _result,
-              vietnameseForSave: _sourceLang == 'vi' ? _inputController.text : _resultVietnamese,
-              onLoadAiLearning: () => _loadAiLearning(_inputController.text.trim()),
-              aiLearningLoading: _aiLearningLoading,
-              aiLearningLoaded: _aiLearningLoaded,
-            ),
-
+        if (_result.isNotEmpty ||
+            _resultEnglish.isNotEmpty ||
+            _resultVietnamese.isNotEmpty)
+          _buildResultCard(
+            targetLang: _targetLang,
+            traditional: _result,
+            simplified: _resultSimplified,
+            english: _resultEnglish,
+            vietnamese: _resultVietnamese,
+            pinyin: _pinyin,
+            explanation: _explanation,
+            chineseForSave:
+                _sourceLang == 'zh-TW' ? _inputController.text : _result,
+            vietnameseForSave:
+                _sourceLang == 'vi' ? _inputController.text : _resultVietnamese,
+            onLoadAiLearning: () =>
+                _loadAiLearning(_inputController.text.trim()),
+            aiLearningLoading: _aiLearningLoading,
+            aiLearningLoaded: _aiLearningLoaded,
+          ),
         if (_history.isNotEmpty) ...[
           const SizedBox(height: 20),
           _buildHistory(),
@@ -866,26 +1293,37 @@ class _TranslateScreenState extends State<TranslateScreen>
       ]),
     );
   }
+
   Widget _buildImageResultCard() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: _DS.white,
         borderRadius: BorderRadius.circular(_DS.radius),
-        boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: _DS.indigo.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4))
+        ],
         border: Border.all(color: _DS.indigoLight),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
         // ── 1. Văn bản gốc ────────────────────────────────
         if (_extractedText.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(20)),
-                child: const Text('📄 Văn bản gốc', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: _DS.bg, borderRadius: BorderRadius.circular(20)),
+                child: const Text('📄 Văn bản gốc',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.textGrey)),
               ),
               const Spacer(),
               GestureDetector(
@@ -894,11 +1332,13 @@ class _TranslateScreenState extends State<TranslateScreen>
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: const Text('Đã sao chép!'),
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     duration: const Duration(seconds: 1),
                   ));
                 },
-                child: const Icon(Icons.copy_rounded, size: 16, color: _DS.textGrey),
+                child: const Icon(Icons.copy_rounded,
+                    size: 16, color: _DS.textGrey),
               ),
             ]),
           ),
@@ -906,10 +1346,16 @@ class _TranslateScreenState extends State<TranslateScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SelectableText(
               _extractedText,
-              style: const TextStyle(fontSize: 15, color: _DS.indigo, fontWeight: FontWeight.w700, height: 1.6, fontFamily: 'NotoSansTC'),
+              style: const TextStyle(
+                  fontSize: 15,
+                  color: _DS.indigo,
+                  fontWeight: FontWeight.w700,
+                  height: 1.6,
+                  fontFamily: 'NotoSansTC'),
             ),
           ),
-          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+          const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
         // ── 2. Pinyin ─────────────────────────────────────
@@ -918,9 +1364,16 @@ class _TranslateScreenState extends State<TranslateScreen>
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(20)),
-                child: const Text('🔊 Phát âm (Pinyin)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: _DS.indigoLight,
+                    borderRadius: BorderRadius.circular(20)),
+                child: const Text('🔊 Phát âm (Pinyin)',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.indigo)),
               ),
             ]),
           ),
@@ -928,10 +1381,15 @@ class _TranslateScreenState extends State<TranslateScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SelectableText(
               _imagePinyin,
-              style: const TextStyle(fontSize: 14, color: _DS.indigo, fontStyle: FontStyle.italic, height: 1.6),
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: _DS.indigo,
+                  fontStyle: FontStyle.italic,
+                  height: 1.6),
             ),
           ),
-          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+          const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
         // ── 3. Nghĩa tiếng Việt ───────────────────────────
@@ -940,22 +1398,32 @@ class _TranslateScreenState extends State<TranslateScreen>
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _DS.greenLight, borderRadius: BorderRadius.circular(20)),
-                child: const Text('🇻🇳 Nghĩa tiếng Việt', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.green)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: _DS.greenLight,
+                    borderRadius: BorderRadius.circular(20)),
+                child: const Text('🇻🇳 Nghĩa tiếng Việt',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.green)),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: () {
-                  Clipboard.setData(ClipboardData(text: _imageResultVietnamese));
+                  Clipboard.setData(
+                      ClipboardData(text: _imageResultVietnamese));
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: const Text('Đã sao chép!'),
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     duration: const Duration(seconds: 1),
                   ));
                 },
-                child: const Icon(Icons.copy_rounded, size: 16, color: _DS.textGrey),
+                child: const Icon(Icons.copy_rounded,
+                    size: 16, color: _DS.textGrey),
               ),
             ]),
           ),
@@ -963,30 +1431,45 @@ class _TranslateScreenState extends State<TranslateScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: SelectableText(
               _imageResultVietnamese,
-              style: const TextStyle(fontSize: 15, color: _DS.textDark, fontWeight: FontWeight.w500, height: 1.7),
+              style: const TextStyle(
+                  fontSize: 15,
+                  color: _DS.textDark,
+                  fontWeight: FontWeight.w500,
+                  height: 1.7),
             ),
           ),
-          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+          const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
         // ── 4. Tóm tắt nội dung ───────────────────────────
         if (_imageExplanation.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _DS.yellowLight, borderRadius: BorderRadius.circular(20)),
-                child: const Text('💡 Tóm tắt nội dung', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.orange)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: _DS.yellowLight,
+                    borderRadius: BorderRadius.circular(20)),
+                child: const Text('💡 Tóm tắt nội dung',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.orange)),
               ),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                    color: _DS.bg, borderRadius: BorderRadius.circular(12)),
                 child: SelectableText(
                   _imageExplanation,
-                  style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.6),
+                  style: const TextStyle(
+                      fontSize: 13, color: _DS.textGrey, height: 1.6),
                 ),
               ),
             ]),
@@ -1001,24 +1484,29 @@ class _TranslateScreenState extends State<TranslateScreen>
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             if (_imageResult.isNotEmpty)
               _buildActionBtn(
-                icon: Icons.volume_up_rounded, label: 'Nghe',
+                icon: Icons.volume_up_rounded,
+                label: 'Nghe',
                 onTap: () => _speak(_imageResult, lang: 'zh-TW'),
               ),
             const SizedBox(width: 8),
             _buildActionBtn(
-              icon: Icons.copy_rounded, label: 'Sao chép tất cả',
+              icon: Icons.copy_rounded,
+              label: 'Sao chép tất cả',
               onTap: () {
                 final all = [
                   if (_extractedText.isNotEmpty) '📄 Gốc:\n$_extractedText',
                   if (_imagePinyin.isNotEmpty) '🔊 Pinyin:\n$_imagePinyin',
-                  if (_imageResultVietnamese.isNotEmpty) '🇻🇳 Việt:\n$_imageResultVietnamese',
-                  if (_imageExplanation.isNotEmpty) '💡 Tóm tắt:\n$_imageExplanation',
+                  if (_imageResultVietnamese.isNotEmpty)
+                    '🇻🇳 Việt:\n$_imageResultVietnamese',
+                  if (_imageExplanation.isNotEmpty)
+                    '💡 Tóm tắt:\n$_imageExplanation',
                 ].join('\n\n');
                 Clipboard.setData(ClipboardData(text: all));
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: const Text('Đã sao chép tất cả!'),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   duration: const Duration(seconds: 1),
                 ));
               },
@@ -1026,8 +1514,10 @@ class _TranslateScreenState extends State<TranslateScreen>
             if (_extractedText.isNotEmpty) ...[
               const SizedBox(width: 8),
               _buildActionBtn(
-                icon: Icons.bookmark_add_rounded, label: 'Lưu từ',
-                onTap: () => _saveVocabulary(_extractedText, _imagePinyin, _imageResultVietnamese),
+                icon: Icons.bookmark_add_rounded,
+                label: 'Lưu từ',
+                onTap: () => _saveVocabulary(
+                    _extractedText, _imagePinyin, _imageResultVietnamese),
                 isPrimary: true,
               ),
             ],
@@ -1045,29 +1535,43 @@ class _TranslateScreenState extends State<TranslateScreen>
         Text(s['icon'] as String, style: const TextStyle(fontSize: 16)),
         const SizedBox(width: 6),
         Text('Câu thường dùng — ${s['label']}',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _DS.textGrey)),
       ]),
       const SizedBox(height: 8),
       ...phrases.map((phrase) => GestureDetector(
-        onTap: () => _translate(overrideText: phrase),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: _DS.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _DS.indigoLight),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2))],
-          ),
-          child: Row(children: [
-            const Icon(Icons.translate_rounded, size: 15, color: _DS.indigo),
-            const SizedBox(width: 10),
-            Expanded(child: Text(phrase,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _DS.textDark))),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: _DS.indigo),
-          ]),
-        ),
-      )),
+            onTap: () => _translate(overrideText: phrase),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: _DS.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _DS.indigoLight),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2))
+                ],
+              ),
+              child: Row(children: [
+                const Icon(Icons.translate_rounded,
+                    size: 15, color: _DS.indigo),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text(phrase,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _DS.textDark))),
+                const Icon(Icons.arrow_forward_ios_rounded,
+                    size: 12, color: _DS.indigo),
+              ]),
+            ),
+          )),
     ]);
   }
 
@@ -1077,10 +1581,16 @@ class _TranslateScreenState extends State<TranslateScreen>
       decoration: BoxDecoration(
         color: _DS.white,
         borderRadius: BorderRadius.circular(_DS.radiusSm),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Row(children: [
-        Expanded(child: _buildLangPill(
+        Expanded(
+            child: _buildLangPill(
           langs: const [
             {'value': 'auto', 'label': '🔍 Tự động'},
             {'value': 'vi', 'label': '🇻🇳 Tiếng Việt'},
@@ -1095,11 +1605,14 @@ class _TranslateScreenState extends State<TranslateScreen>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 6),
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(color: _DS.indigoLight, shape: BoxShape.circle),
-            child: const Icon(Icons.swap_horiz_rounded, color: _DS.indigo, size: 20),
+            decoration: const BoxDecoration(
+                color: _DS.indigoLight, shape: BoxShape.circle),
+            child: const Icon(Icons.swap_horiz_rounded,
+                color: _DS.indigo, size: 20),
           ),
         ),
-        Expanded(child: _buildLangPill(
+        Expanded(
+            child: _buildLangPill(
           langs: const [
             {'value': 'zh-TW', 'label': '🇹🇼 Tiếng Trung'},
             {'value': 'vi', 'label': '🇻🇳 Tiếng Việt'},
@@ -1117,38 +1630,61 @@ class _TranslateScreenState extends State<TranslateScreen>
     required String selected,
     required Function(String) onChanged,
   }) {
-    final current = langs.firstWhere((l) => l['value'] == selected, orElse: () => langs.first);
+    final current = langs.firstWhere((l) => l['value'] == selected,
+        orElse: () => langs.first);
     return GestureDetector(
       onTap: () => showModalBottomSheet(
         context: context,
         backgroundColor: Colors.transparent,
         builder: (_) => Container(
           margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(24)),
+          decoration: BoxDecoration(
+              color: _DS.white, borderRadius: BorderRadius.circular(24)),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4,
-                decoration: BoxDecoration(color: _DS.textGrey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+            Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: _DS.textGrey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             ...langs.map((l) => ListTile(
-              title: Text(l['label']!,
-                  style: TextStyle(fontWeight: l['value'] == selected ? FontWeight.w800 : FontWeight.w500,
-                      color: l['value'] == selected ? _DS.indigo : _DS.textDark)),
-              trailing: l['value'] == selected ? const Icon(Icons.check_rounded, color: _DS.indigo) : null,
-              onTap: () { onChanged(l['value']!); Navigator.pop(context); },
-            )),
+                  title: Text(l['label']!,
+                      style: TextStyle(
+                          fontWeight: l['value'] == selected
+                              ? FontWeight.w800
+                              : FontWeight.w500,
+                          color: l['value'] == selected
+                              ? _DS.indigo
+                              : _DS.textDark)),
+                  trailing: l['value'] == selected
+                      ? const Icon(Icons.check_rounded, color: _DS.indigo)
+                      : null,
+                  onTap: () {
+                    onChanged(l['value']!);
+                    Navigator.pop(context);
+                  },
+                )),
             const SizedBox(height: 16),
           ]),
         ),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(color: _DS.indigoLight, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: _DS.indigoLight, borderRadius: BorderRadius.circular(10)),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Flexible(child: Text(current['label']!,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _DS.indigo),
-              overflow: TextOverflow.ellipsis)),
+          Flexible(
+              child: Text(current['label']!,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _DS.indigo),
+                  overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 4),
-          const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: _DS.indigo),
+          const Icon(Icons.keyboard_arrow_down_rounded,
+              size: 16, color: _DS.indigo),
         ]),
       ),
     );
@@ -1156,27 +1692,42 @@ class _TranslateScreenState extends State<TranslateScreen>
 
   Widget _buildQuickPhrases() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Câu hay dùng', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+      const Text('Câu hay dùng',
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
       const SizedBox(height: 8),
       Wrap(
-        spacing: 8, runSpacing: 8,
-        children: _quickPhrases.map((p) => GestureDetector(
-          onTap: () => _translate(overrideText: p['vi']),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: _DS.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _DS.indigoLight),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2))],
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(p['icon']!, style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
-              Text(p['vi']!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _DS.textDark)),
-            ]),
-          ),
-        )).toList(),
+        spacing: 8,
+        runSpacing: 8,
+        children: _quickPhrases
+            .map((p) => GestureDetector(
+                  onTap: () => _translate(overrideText: p['vi']),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _DS.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _DS.indigoLight),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2))
+                      ],
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(p['icon']!, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(p['vi']!,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _DS.textDark)),
+                    ]),
+                  ),
+                ))
+            .toList(),
       ),
     ]);
   }
@@ -1186,38 +1737,67 @@ class _TranslateScreenState extends State<TranslateScreen>
       Row(children: [
         const Icon(Icons.history_rounded, size: 16, color: _DS.textGrey),
         const SizedBox(width: 6),
-        const Text('Lịch sử dịch', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+        const Text('Lịch sử dịch',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _DS.textGrey)),
         const Spacer(),
         GestureDetector(
           onTap: () => setState(() => _history.clear()),
-          child: const Text('Xóa tất cả', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w600)),
+          child: const Text('Xóa tất cả',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: _DS.indigo,
+                  fontWeight: FontWeight.w600)),
         ),
       ]),
       const SizedBox(height: 10),
       ...(_history.map((h) => GestureDetector(
-        onTap: () => _translate(overrideText: h['input']),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _DS.white,
-            borderRadius: BorderRadius.circular(_DS.radiusSm),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
-          ),
-          child: Row(children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(h['input']!, style: const TextStyle(fontSize: 13, color: _DS.textGrey),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 3),
-              Text(h['result']!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _DS.textDark),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if ((h['pinyin'] ?? '').isNotEmpty)
-                Text(h['pinyin']!, style: const TextStyle(fontSize: 11, color: _DS.indigo, fontStyle: FontStyle.italic)),
-            ])),
-            const Icon(Icons.north_west_rounded, size: 16, color: _DS.textGrey),
-          ]),
-        ),
-      ))),
+            onTap: () => _translate(overrideText: h['input']),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _DS.white,
+                borderRadius: BorderRadius.circular(_DS.radiusSm),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2))
+                ],
+              ),
+              child: Row(children: [
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(h['input']!,
+                          style: const TextStyle(
+                              fontSize: 13, color: _DS.textGrey),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 3),
+                      Text(h['result']!,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _DS.textDark),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      if ((h['pinyin'] ?? '').isNotEmpty)
+                        Text(h['pinyin']!,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: _DS.indigo,
+                                fontStyle: FontStyle.italic)),
+                    ])),
+                const Icon(Icons.north_west_rounded,
+                    size: 16, color: _DS.textGrey),
+              ]),
+            ),
+          ))),
     ]);
   }
 
@@ -1230,60 +1810,102 @@ class _TranslateScreenState extends State<TranslateScreen>
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF1A1A4E), _DS.indigo]),
+            gradient:
+                const LinearGradient(colors: [Color(0xFF1A1A4E), _DS.indigo]),
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Row(children: [
             Text('📄', style: TextStyle(fontSize: 24)),
             SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Contract Scanner', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
-              Text('AI tự động highlight điều khoản nguy hiểm', style: TextStyle(fontSize: 11, color: Colors.white70)),
-            ])),
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white54),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text('Contract Scanner',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                  Text('AI tự động highlight điều khoản nguy hiểm',
+                      style: TextStyle(fontSize: 11, color: Colors.white70)),
+                ])),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 14, color: Colors.white54),
           ]),
         ),
 
-        _buildSingleLangSelector(value: _imageTargetLang, onChanged: (v) => setState(() => _imageTargetLang = v)),
+        _buildSingleLangSelector(
+            value: _imageTargetLang,
+            onChanged: (v) => setState(() => _imageTargetLang = v)),
         const SizedBox(height: 14),
 
         GestureDetector(
           onTap: _pickImage,
           child: Container(
-            width: double.infinity, height: 200,
+            width: double.infinity,
+            height: 200,
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(_DS.radius),
               border: Border.all(
-                color: _imageBase64 != null ? _DS.indigo.withOpacity(0.5) : _DS.indigoLight,
+                color: _imageBase64 != null
+                    ? _DS.indigo.withOpacity(0.5)
+                    : _DS.indigoLight,
                 width: _imageBase64 != null ? 2 : 1,
               ),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3))
+              ],
             ),
             child: _imageBase64 != null
-                ? ClipRRect(borderRadius: BorderRadius.circular(19),
-                    child: Image.memory(base64Decode(_imageBase64!), fit: BoxFit.contain))
-                : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Container(
-                      width: 64, height: 64,
-                      decoration: const BoxDecoration(color: _DS.indigoLight, shape: BoxShape.circle),
-                      child: const Icon(Icons.add_photo_alternate_rounded, size: 32, color: _DS.indigo),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Nhấn để chọn ảnh', style: TextStyle(fontWeight: FontWeight.w700, color: _DS.textDark)),
-                    const SizedBox(height: 4),
-                    Text('Hỗ trợ: JPG, PNG, WEBP', style: TextStyle(fontSize: 12, color: _DS.textGrey.withOpacity(0.7))),
-                  ]),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(19),
+                    child: Image.memory(base64Decode(_imageBase64!),
+                        fit: BoxFit.contain))
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: const BoxDecoration(
+                              color: _DS.indigoLight, shape: BoxShape.circle),
+                          child: const Icon(Icons.add_photo_alternate_rounded,
+                              size: 32, color: _DS.indigo),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Nhấn để chọn ảnh',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: _DS.textDark)),
+                        const SizedBox(height: 4),
+                        Text('Hỗ trợ: JPG, PNG, WEBP',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: _DS.textGrey.withOpacity(0.7))),
+                      ]),
           ),
         ),
         const SizedBox(height: 14),
 
         Row(children: [
-          Expanded(child: _buildOutlineBtn(label: 'Thư viện', icon: Icons.photo_library_rounded, onTap: _pickImage)),
+          Expanded(
+              child: _buildOutlineBtn(
+                  label: 'Thư viện',
+                  icon: Icons.photo_library_rounded,
+                  onTap: _pickImage)),
           const SizedBox(width: 8),
-          Expanded(child: _buildOutlineBtn(label: 'Chụp ảnh', icon: Icons.camera_alt_rounded, onTap: _captureImage)),
+          Expanded(
+              child: _buildOutlineBtn(
+                  label: 'Chụp ảnh',
+                  icon: Icons.camera_alt_rounded,
+                  onTap: _captureImage)),
           const SizedBox(width: 8),
-          Expanded(child: _buildGradientBtn(
+          Expanded(
+              child: _buildGradientBtn(
             label: _imageLoading ? 'Đang dịch...' : 'Dịch ảnh',
             icon: Icons.translate_rounded,
             loading: _imageLoading,
@@ -1295,33 +1917,160 @@ class _TranslateScreenState extends State<TranslateScreen>
         Container(
           margin: const EdgeInsets.only(top: 14),
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: _DS.blueLight, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+              color: _DS.blueLight, borderRadius: BorderRadius.circular(12)),
           child: const Row(children: [
             Text('💡', style: TextStyle(fontSize: 14)),
             SizedBox(width: 8),
-            Expanded(child: Text('Mẹo: Chụp thẳng, đủ sáng, chữ rõ nét → dịch nhanh & chính xác hơn',
-                style: TextStyle(fontSize: 11, color: _DS.blue, fontWeight: FontWeight.w600))),
+            Expanded(
+                child: Text(
+                    'Mẹo: Chụp thẳng, đủ sáng, chữ rõ nét → dịch nhanh & chính xác hơn',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: _DS.blue,
+                        fontWeight: FontWeight.w600))),
           ]),
         ),
+
+        if (_ocrInProgress)
+          const Padding(
+            padding: EdgeInsets.only(top: 14),
+            child: LinearProgressIndicator(color: _DS.indigo),
+          ),
+
+        if (_showOcrEditor) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: _DS.white,
+                borderRadius: BorderRadius.circular(_DS.radius)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Văn bản nhận diện (có thể chỉnh sửa):',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _DS.textGrey)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _ocrTextController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.all(10),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                    child: _buildGradientBtn(
+                  label: 'Dịch nhanh',
+                  icon: Icons.bolt_rounded,
+                  loading: _imageLoading,
+                  enabled: _ocrTextController.text.trim().isNotEmpty,
+                  onTap: _translateOcrText,
+                )),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _ocrInProgress ? null : _advancedScan,
+                  icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
+                  label: const Text('Quét nâng cao'),
+                ),
+              ]),
+              if (isOnDeviceOcrSupported && !kIsWeb) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: _ocrInProgress ? null : _tryRegionOcr,
+                    icon: const Icon(Icons.crop_free_rounded, size: 16),
+                    label: const Text('Chọn từng vùng chữ trên ảnh'),
+                  ),
+                ),
+              ],
+            ]),
+          ),
+        ],
+
+        if (_showRegionOverlay &&
+            _normalizedImageBytes != null &&
+            _normalizedImageSize != null) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: _DS.white,
+                borderRadius: BorderRadius.circular(_DS.radius)),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Chạm để chọn/bỏ chọn từng dòng chữ:',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _DS.textGrey)),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 300,
+                child: OcrOverlayWidget(
+                  imageBytes: _normalizedImageBytes!,
+                  imageSize: _normalizedImageSize!,
+                  regions: _ocrRegions,
+                  selectedIds: _selectedRegionIds,
+                  onSelectionChanged: (ids) =>
+                      setState(() => _selectedRegionIds = ids),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                    child: _buildGradientBtn(
+                  label: 'Xác nhận ${_selectedRegionIds.length} vùng đã chọn',
+                  icon: Icons.check_rounded,
+                  loading: false,
+                  enabled: _selectedRegionIds.isNotEmpty,
+                  onTap: _confirmRegionSelection,
+                )),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => setState(() {
+                    _showRegionOverlay = false;
+                    _showOcrEditor = true;
+                  }),
+                  child: const Text('Quay lại toàn văn'),
+                ),
+              ]),
+            ]),
+          ),
+        ],
 
         const SizedBox(height: 14),
 
         if (_imageLoading)
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radius)),
+            decoration: BoxDecoration(
+                color: _DS.white,
+                borderRadius: BorderRadius.circular(_DS.radius)),
             child: Column(children: [
-              const CircularProgressIndicator(color: _DS.indigo, strokeWidth: 3),
+              const CircularProgressIndicator(
+                  color: _DS.indigo, strokeWidth: 3),
               const SizedBox(height: 16),
               Text(_imageLoadingMsg,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _DS.textGrey)),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _DS.textGrey)),
               const SizedBox(height: 6),
               const Text('Hợp đồng dài có thể mất 20-30 giây',
                   style: TextStyle(fontSize: 12, color: _DS.textGrey)),
             ]),
           ),
 
-        if (_imageResult.isNotEmpty || _imageResultVietnamese.isNotEmpty || _imageResultEnglish.isNotEmpty)
+        if (_imageResult.isNotEmpty ||
+            _imageResultVietnamese.isNotEmpty ||
+            _imageResultEnglish.isNotEmpty)
           _buildImageResultCard(),
       ]),
     );
@@ -1331,11 +2080,13 @@ class _TranslateScreenState extends State<TranslateScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
-        _buildSingleLangSelector(value: _voiceTargetLang, onChanged: (v) => setState(() => _voiceTargetLang = v)),
+        _buildSingleLangSelector(
+            value: _voiceTargetLang,
+            onChanged: (v) => setState(() => _voiceTargetLang = v)),
         const SizedBox(height: 48),
-
         SizedBox(
-          width: 180, height: 180,
+          width: 180,
+          height: 180,
           child: Stack(alignment: Alignment.center, children: [
             if (_isRecording) ...[
               _PulseRing(size: 160, color: Colors.red, opacity: 0.1),
@@ -1343,96 +2094,150 @@ class _TranslateScreenState extends State<TranslateScreen>
               _PulseRing(size: 120, color: Colors.red, opacity: 0.2),
             ],
             GestureDetector(
-              onTap: _voiceLoading ? null : (_isRecording ? _stopRecording : _startRecording),
+              onTap: _voiceLoading
+                  ? null
+                  : (_isRecording ? _stopRecording : _startRecording),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: _isRecording ? 100 : 84,
                 height: _isRecording ? 100 : 84,
                 decoration: BoxDecoration(
                   gradient: _isRecording
-                      ? const LinearGradient(colors: [Colors.red, Color(0xFFB71C1C)], begin: Alignment.topLeft, end: Alignment.bottomRight)
-                      : const LinearGradient(colors: [_DS.indigo, _DS.indigoDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                      ? const LinearGradient(
+                          colors: [Colors.red, Color(0xFFB71C1C)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight)
+                      : const LinearGradient(
+                          colors: [_DS.indigo, _DS.indigoDark],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight),
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(
-                    color: (_isRecording ? Colors.red : _DS.indigo).withOpacity(0.45),
-                    blurRadius: _isRecording ? 30 : 16,
-                    spreadRadius: _isRecording ? 4 : 0,
-                    offset: const Offset(0, 6),
-                  )],
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isRecording ? Colors.red : _DS.indigo)
+                          .withOpacity(0.45),
+                      blurRadius: _isRecording ? 30 : 16,
+                      spreadRadius: _isRecording ? 4 : 0,
+                      offset: const Offset(0, 6),
+                    )
+                  ],
                 ),
                 child: _voiceLoading
-                    ? const Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)))
-                    : Icon(_isRecording ? Icons.stop_rounded : Icons.mic_rounded, size: 42, color: Colors.white),
+                    ? const Center(
+                        child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2.5)))
+                    : Icon(
+                        _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                        size: 42,
+                        color: Colors.white),
               ),
             ),
           ]),
         ),
-
         const SizedBox(height: 20),
         Text(
-          _isRecording ? '● Đang ghi âm...' : (_voiceLoading ? 'Đang xử lý...' : 'Nhấn để bắt đầu'),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+          _isRecording
+              ? '● Đang ghi âm...'
+              : (_voiceLoading ? 'Đang xử lý...' : 'Nhấn để bắt đầu'),
+          style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: _isRecording ? Colors.red : _DS.textGrey),
         ),
         if (_isRecording) ...[
           const SizedBox(height: 6),
-          Text('Nhấn lại để dừng và dịch', style: TextStyle(fontSize: 12, color: Colors.red.withOpacity(0.7))),
+          Text('Nhấn lại để dừng và dịch',
+              style:
+                  TextStyle(fontSize: 12, color: Colors.red.withOpacity(0.7))),
         ],
-
         const SizedBox(height: 32),
-
         if (_transcript.isNotEmpty) ...[
           Container(
-            width: double.infinity, padding: const EdgeInsets.all(16),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: _DS.white,
               borderRadius: BorderRadius.circular(_DS.radius),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3))
+              ],
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Row(children: [
-                Icon(Icons.record_voice_over_rounded, size: 15, color: _DS.indigo),
+                Icon(Icons.record_voice_over_rounded,
+                    size: 15, color: _DS.indigo),
                 SizedBox(width: 6),
-                Text('Bạn đã nói:', style: TextStyle(fontSize: 12, color: _DS.indigo, fontWeight: FontWeight.w700)),
+                Text('Bạn đã nói:',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: _DS.indigo,
+                        fontWeight: FontWeight.w700)),
               ]),
               const SizedBox(height: 8),
-              SelectableText(_transcript, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _DS.textDark)),
+              SelectableText(_transcript,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _DS.textDark)),
             ]),
           ),
           const SizedBox(height: 14),
         ],
-
-        if (_voiceResult.isNotEmpty || _voiceResultEnglish.isNotEmpty || _voiceResultVietnamese.isNotEmpty)
-            _buildResultCard(
-              targetLang: _voiceTargetLang,
-              traditional: _voiceResult, simplified: _voiceResultSimplified,
-              english: _voiceResultEnglish, vietnamese: _voiceResultVietnamese,
-              pinyin: _voicePinyin, explanation: _voiceExplanation,
-              chineseForSave: _voiceResult, vietnameseForSave: _transcript,
-              onLoadAiLearning: () => _loadVoiceAiLearning(_transcript),
-              aiLearningLoading: _voiceAiLearningLoading,
-              aiLearningLoaded: _voiceAiLearningLoaded,
-            ),
+        if (_voiceResult.isNotEmpty ||
+            _voiceResultEnglish.isNotEmpty ||
+            _voiceResultVietnamese.isNotEmpty)
+          _buildResultCard(
+            targetLang: _voiceTargetLang,
+            traditional: _voiceResult,
+            simplified: _voiceResultSimplified,
+            english: _voiceResultEnglish,
+            vietnamese: _voiceResultVietnamese,
+            pinyin: _voicePinyin,
+            explanation: _voiceExplanation,
+            chineseForSave: _voiceResult,
+            vietnameseForSave: _transcript,
+            onLoadAiLearning: () => _loadVoiceAiLearning(_transcript),
+            aiLearningLoading: _voiceAiLearningLoading,
+            aiLearningLoaded: _voiceAiLearningLoaded,
+          ),
       ]),
     );
   }
 
-  Widget _buildSingleLangSelector({required String value, required Function(String) onChanged}) {
+  Widget _buildSingleLangSelector(
+      {required String value, required Function(String) onChanged}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
         color: _DS.white,
         borderRadius: BorderRadius.circular(_DS.radiusSm),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value, isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _DS.indigo),
+          value: value,
+          isExpanded: true,
+          icon:
+              const Icon(Icons.keyboard_arrow_down_rounded, color: _DS.indigo),
           items: const [
-            DropdownMenuItem(value: 'zh-TW', child: Text('🇹🇼 Dịch sang Tiếng Trung')),
-            DropdownMenuItem(value: 'vi', child: Text('🇻🇳 Dịch sang Tiếng Việt')),
-            DropdownMenuItem(value: 'en', child: Text('🇺🇸 Dịch sang Tiếng Anh')),
+            DropdownMenuItem(
+                value: 'zh-TW', child: Text('🇹🇼 Dịch sang Tiếng Trung')),
+            DropdownMenuItem(
+                value: 'vi', child: Text('🇻🇳 Dịch sang Tiếng Việt')),
+            DropdownMenuItem(
+                value: 'en', child: Text('🇺🇸 Dịch sang Tiếng Anh')),
           ],
           onChanged: (v) => onChanged(v!),
         ),
@@ -1440,7 +2245,10 @@ class _TranslateScreenState extends State<TranslateScreen>
     );
   }
 
-  Widget _buildOutlineBtn({required String label, required IconData icon, required VoidCallback onTap}) {
+  Widget _buildOutlineBtn(
+      {required String label,
+      required IconData icon,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1449,18 +2257,32 @@ class _TranslateScreenState extends State<TranslateScreen>
           color: _DS.white,
           borderRadius: BorderRadius.circular(_DS.radiusSm),
           border: Border.all(color: _DS.indigoLight),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(icon, size: 18, color: _DS.indigo),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: _DS.textDark, fontSize: 13)),
+          Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: _DS.textDark,
+                  fontSize: 13)),
         ]),
       ),
     );
   }
 
-  Widget _buildGradientBtn({required String label, required IconData icon, required bool loading, required bool enabled, required VoidCallback onTap}) {
+  Widget _buildGradientBtn(
+      {required String label,
+      required IconData icon,
+      required bool loading,
+      required bool enabled,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: enabled && !loading ? onTap : null,
       child: Container(
@@ -1468,16 +2290,32 @@ class _TranslateScreenState extends State<TranslateScreen>
         decoration: BoxDecoration(
           gradient: enabled
               ? const LinearGradient(colors: [_DS.indigo, _DS.indigoDark])
-              : LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade200]),
+              : LinearGradient(
+                  colors: [Colors.grey.shade300, Colors.grey.shade200]),
           borderRadius: BorderRadius.circular(_DS.radiusSm),
-          boxShadow: enabled ? [BoxShadow(color: _DS.indigo.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))] : [],
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                      color: _DS.indigo.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3))
+                ]
+              : [],
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           loading
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
               : Icon(icon, size: 18, color: Colors.white),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
         ]),
       ),
     );
@@ -1485,15 +2323,24 @@ class _TranslateScreenState extends State<TranslateScreen>
 
   Widget _buildResultCard({
     required String targetLang,
-    required String traditional, required String simplified,
-    required String english, required String vietnamese,
-    required String pinyin, required String explanation,
-    String chineseForSave = '', String vietnameseForSave = '',
+    required String traditional,
+    required String simplified,
+    required String english,
+    required String vietnamese,
+    required String pinyin,
+    required String explanation,
+    String chineseForSave = '',
+    String vietnameseForSave = '',
     VoidCallback? onLoadAiLearning,
     bool aiLearningLoading = false,
     bool aiLearningLoaded = false,
   }) {
-    final tabs = _getDisplayTabs(targetLang: targetLang, traditional: traditional, simplified: simplified, english: english, vietnamese: vietnamese);
+    final tabs = _getDisplayTabs(
+        targetLang: targetLang,
+        traditional: traditional,
+        simplified: simplified,
+        english: english,
+        vietnamese: vietnamese);
     if (tabs.isEmpty) return const SizedBox.shrink();
 
     final safeIndex = _selectedScript.clamp(0, tabs.length - 1);
@@ -1507,7 +2354,12 @@ class _TranslateScreenState extends State<TranslateScreen>
       decoration: BoxDecoration(
         color: _DS.white,
         borderRadius: BorderRadius.circular(_DS.radius),
-        boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: _DS.indigo.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4))
+        ],
         border: Border.all(color: _DS.indigoLight),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1515,7 +2367,8 @@ class _TranslateScreenState extends State<TranslateScreen>
           Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: _DS.bg, borderRadius: BorderRadius.circular(10)),
             child: Row(
               children: tabs.asMap().entries.map((entry) {
                 final i = entry.key;
@@ -1530,8 +2383,11 @@ class _TranslateScreenState extends State<TranslateScreen>
                         color: isSelected ? _DS.indigo : null,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(tabs[i]['label'] ?? '', textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                      child: Text(tabs[i]['label'] ?? '',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                               color: isSelected ? Colors.white : _DS.textGrey)),
                     ),
                   ),
@@ -1539,12 +2395,17 @@ class _TranslateScreenState extends State<TranslateScreen>
               }).toList(),
             ),
           ),
-
         Padding(
           padding: EdgeInsets.fromLTRB(16, tabs.length > 1 ? 0 : 16, 16, 0),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (pinyin.isNotEmpty && isChinese) ...[
-              SelectableText(pinyin, style: const TextStyle(fontSize: 13, color: _DS.indigo, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500)),
+              SelectableText(pinyin,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: _DS.indigo,
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
             ],
             SelectableText(
@@ -1560,15 +2421,20 @@ class _TranslateScreenState extends State<TranslateScreen>
             if (explanation.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(
-                width: double.infinity, padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
-                child: SelectableText(explanation, style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.5)),
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+                child: SelectableText(explanation,
+                    style: const TextStyle(
+                        fontSize: 13, color: _DS.textGrey, height: 1.5)),
               ),
             ],
           ]),
         ),
-
-        if (displayText.isNotEmpty && !aiLearningLoaded && onLoadAiLearning != null)
+        if (displayText.isNotEmpty &&
+            !aiLearningLoaded &&
+            onLoadAiLearning != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: SizedBox(
@@ -1576,9 +2442,14 @@ class _TranslateScreenState extends State<TranslateScreen>
               child: OutlinedButton.icon(
                 onPressed: aiLearningLoading ? null : onLoadAiLearning,
                 icon: aiLearningLoading
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.school_rounded, size: 16),
-                label: Text(aiLearningLoading ? 'Đang tải...' : 'Giải thích thêm (pinyin, ngữ pháp...)'),
+                label: Text(aiLearningLoading
+                    ? 'Đang tải...'
+                    : 'Giải thích thêm (pinyin, ngữ pháp...)'),
               ),
             ),
           ),
@@ -1586,17 +2457,21 @@ class _TranslateScreenState extends State<TranslateScreen>
           padding: const EdgeInsets.all(12),
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             if (displayText.isNotEmpty)
-              _buildActionBtn(icon: Icons.volume_up_rounded, label: 'Nghe',
+              _buildActionBtn(
+                  icon: Icons.volume_up_rounded,
+                  label: 'Nghe',
                   onTap: () => _speak(displayText, lang: displayLang)),
             const SizedBox(width: 8),
             _buildActionBtn(
-              icon: Icons.copy_rounded, label: 'Sao chép',
+              icon: Icons.copy_rounded,
+              label: 'Sao chép',
               onTap: () {
                 Clipboard.setData(ClipboardData(text: displayText));
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: const Text('Đã sao chép!'),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   duration: const Duration(seconds: 1),
                 ));
               },
@@ -1604,10 +2479,14 @@ class _TranslateScreenState extends State<TranslateScreen>
             if (isChinese) ...[
               const SizedBox(width: 8),
               _buildActionBtn(
-                icon: Icons.bookmark_add_rounded, label: 'Lưu từ',
+                icon: Icons.bookmark_add_rounded,
+                label: 'Lưu từ',
                 onTap: () => _saveVocabulary(
-                  chineseForSave.isNotEmpty ? chineseForSave : traditional, pinyin,
-                  vietnameseForSave.isNotEmpty ? vietnameseForSave : explanation,
+                  chineseForSave.isNotEmpty ? chineseForSave : traditional,
+                  pinyin,
+                  vietnameseForSave.isNotEmpty
+                      ? vietnameseForSave
+                      : explanation,
                 ),
                 isPrimary: true,
               ),
@@ -1618,7 +2497,11 @@ class _TranslateScreenState extends State<TranslateScreen>
     );
   }
 
-  Widget _buildActionBtn({required IconData icon, required String label, required VoidCallback onTap, bool isPrimary = false}) {
+  Widget _buildActionBtn(
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+      bool isPrimary = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1630,8 +2513,11 @@ class _TranslateScreenState extends State<TranslateScreen>
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 16, color: isPrimary ? _DS.indigo : _DS.textGrey),
           const SizedBox(width: 5),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-              color: isPrimary ? _DS.indigo : _DS.textGrey)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isPrimary ? _DS.indigo : _DS.textGrey)),
         ]),
       ),
     );
@@ -1642,13 +2528,15 @@ class _PulseRing extends StatefulWidget {
   final double size;
   final Color color;
   final double opacity;
-  const _PulseRing({required this.size, required this.color, required this.opacity});
+  const _PulseRing(
+      {required this.size, required this.color, required this.opacity});
 
   @override
   State<_PulseRing> createState() => _PulseRingState();
 }
 
-class _PulseRingState extends State<_PulseRing> with SingleTickerProviderStateMixin {
+class _PulseRingState extends State<_PulseRing>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _scale;
   late Animation<double> _fade;
@@ -1656,13 +2544,20 @@ class _PulseRingState extends State<_PulseRing> with SingleTickerProviderStateMi
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(duration: const Duration(milliseconds: 1500), vsync: this)..repeat();
-    _scale = Tween<double>(begin: 0.8, end: 1.3).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    _fade = Tween<double>(begin: widget.opacity, end: 0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl = AnimationController(
+        duration: const Duration(milliseconds: 1500), vsync: this)
+      ..repeat();
+    _scale = Tween<double>(begin: 0.8, end: 1.3)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _fade = Tween<double>(begin: widget.opacity, end: 0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1671,7 +2566,8 @@ class _PulseRingState extends State<_PulseRing> with SingleTickerProviderStateMi
       builder: (_, __) => Transform.scale(
         scale: _scale.value,
         child: Container(
-          width: widget.size, height: widget.size,
+          width: widget.size,
+          height: widget.size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: widget.color.withOpacity(_fade.value),

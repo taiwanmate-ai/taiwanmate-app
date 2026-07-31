@@ -34,15 +34,33 @@ Future<String?> webCaptureImage() async {
 
 final AudioRecorder _recorder = AudioRecorder();
 String? _recordingPath;
+void Function(String)? _onRecordData;
+void Function(String)? _onRecordError;
 
-Future<void> webStartRecording(
+// ─── State guard dùng chung cho cả ghi âm thường và tự-dừng-khi-im-lặng ───
+bool _isRecording = false;
+bool _isStopping = false;
+bool _hasDetectedSpeech = false;
+DateTime? _silenceStart;
+DateTime? _recordingStartedAt;
+StreamSubscription<Amplitude>? _amplitudeSub;
+Timer? _maxDurationTimer;
+
+const Duration _kSilenceDuration = Duration(milliseconds: 2500);
+const Duration _kInitialGracePeriod = Duration(milliseconds: 1800);
+const Duration _kMaxRecordingDuration = Duration(seconds: 45);
+
+/// Khoi tao va bat dau ghi am — dung chung cho ca webStartRecording va
+/// webStartRecordingAutoStop, tranh 2 implementation ghi am khac nhau.
+/// Tra ve true neu bat dau ghi thanh cong.
+Future<bool> _startRecordingInternal(
   void Function(String audioBase64) onData,
   void Function(String error) onError,
 ) async {
   try {
     if (!await _recorder.hasPermission()) {
       onError('Vui lòng cấp quyền microphone để ghi âm.');
-      return;
+      return false;
     }
     final dir = await getTemporaryDirectory();
     // Dùng opus/webm để khớp định dạng backend đang xử lý cứng (.webm)
@@ -53,17 +71,94 @@ Future<void> webStartRecording(
     );
     _onRecordData = onData;
     _onRecordError = onError;
+    _isRecording = true;
+    _isStopping = false;
+    _hasDetectedSpeech = false;
+    _silenceStart = null;
+    _recordingStartedAt = DateTime.now();
+    return true;
   } catch (e) {
     onError('Lỗi microphone: $e');
+    return false;
   }
 }
 
-void Function(String)? _onRecordData;
-void Function(String)? _onRecordError;
+Future<void> webStartRecording(
+  void Function(String audioBase64) onData,
+  void Function(String error) onError,
+) async {
+  await _startRecordingInternal(onData, onError);
+}
+
+/// Ghi am voi tu-dong-dung-khi-im-lang. TAI SU DUNG dung logic khoi tao
+/// cua _startRecordingInternal — khong tao them 1 luong ghi am khac.
+/// Chi khac o cho: theo doi them onAmplitudeChanged() de tu goi webStopRecording().
+Future<void> webStartRecordingAutoStop(
+  void Function(String audioBase64) onData,
+  void Function(String error) onError, {
+  double silenceThresholdDb = -35.0,
+  Duration silenceDuration = _kSilenceDuration,
+}) async {
+  final started = await _startRecordingInternal(onData, onError);
+  if (!started) return;
+
+ await _amplitudeSub?.cancel();
+  _amplitudeSub = _recorder.onAmplitudeChanged(const Duration(milliseconds: 200)).listen(
+    (amp) {
+      if (!_isRecording || _isStopping) return;
+
+      final now = DateTime.now();
+      final elapsedSinceStart = now.difference(_recordingStartedAt!);
+
+    // Chua het initialGracePeriod -> chua xet gi ca, tranh dung ngay khi vua mo mic
+    if (elapsedSinceStart < _kInitialGracePeriod) return;
+
+    if (amp.current > silenceThresholdDb) {
+      // Co tieng noi -> danh dau da phat hien speech, reset dem im lang
+      _hasDetectedSpeech = true;
+      _silenceStart = null;
+    } else {
+        // Im lang -> CHI bat dau dem neu da tung phat hien speech truoc do
+        if (!_hasDetectedSpeech) return;
+        _silenceStart ??= now;
+        if (now.difference(_silenceStart!) >= silenceDuration) {
+          webStopRecording();
+        }
+      }
+    },
+    onError: (_) {
+      // Loi doc amplitude khong duoc lam vo ghi am chinh — im lang bo qua
+    },
+  );
+  // Luoi an toan tuyet doi: du khong phat hien duoc im lang, van tu dung sau maxRecordingDuration
+  _maxDurationTimer?.cancel();
+  _maxDurationTimer = Timer(_kMaxRecordingDuration, () {
+    if (_isRecording && !_isStopping) {
+      webStopRecording();
+    }
+  });
+}
+
+Future<void> _cleanupAutoStopResources() async {
+  await _amplitudeSub?.cancel();
+  _amplitudeSub = null;
+  _maxDurationTimer?.cancel();
+  _maxDurationTimer = null;
+  _hasDetectedSpeech = false;
+  _silenceStart = null;
+  _recordingStartedAt = null;
+}
 
 void webStopRecording() async {
+  // Chan goi stop() 2 lan du bam tay, timer im lang, hay loi cung xay ra
+  if (_isStopping || !_isRecording) return;
+  _isStopping = true;
+
+  await _cleanupAutoStopResources();
+
   try {
     final path = await _recorder.stop();
+    _isRecording = false;
     if (path == null) {
       _onRecordError?.call('Không ghi được âm thanh.');
       return;
@@ -74,7 +169,10 @@ void webStopRecording() async {
     // Dọn file tạm
     File(path).delete().catchError((_) => File(path));
   } catch (e) {
+    _isRecording = false;
     _onRecordError?.call('Lỗi đọc dữ liệu âm thanh: $e');
+  } finally {
+    _isStopping = false;
   }
 }
 void webEval(String js) {}

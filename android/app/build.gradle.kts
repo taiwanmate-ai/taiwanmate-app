@@ -41,6 +41,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -53,4 +57,11 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // ML Kit chi tu dong bao gom Latin script — Chinese phai khai bao
+    // thu cong nhu day, khong the dua vao -keep ProGuard de giai quyet
+    // vi day la thieu dependency that, khong phai bi R8 xoa nham.
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 }

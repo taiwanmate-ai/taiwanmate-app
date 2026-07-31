@@ -7,6 +7,7 @@ import 'dart:math' as math;
 // ignore: avoid_web_libraries_in_flutter
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:chinesemate/features/profile/paywall_screen.dart';
+import 'package:chinesemate/features/tools/presentation/screens/grammar_tool_screen.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -45,10 +46,10 @@ class Boss {
 }
 
 class Phrase {
-  final String text, meaning, pinyin;
-  Phrase({required this.text, required this.meaning, required this.pinyin});
+  final String id, text, meaning, pinyin;
+  Phrase({required this.id, required this.text, required this.meaning, required this.pinyin});
   factory Phrase.fromJson(Map<String, dynamic> j) =>
-      Phrase(text: j['text'], meaning: j['meaning'], pinyin: j['pinyin']);
+      Phrase(id: j['id'] ?? '', text: j['text'], meaning: j['meaning'], pinyin: j['pinyin']);
 }
 
 // ─── Score Result ─────────────────────────────────────────────
@@ -116,9 +117,22 @@ class _LiveChatScreenState extends State<LiveChatScreen> with AutomaticKeepAlive
     }
   }
 
-  void _startBattle(Boss boss) {
+  Future<void> _startBattle(Boss boss) async {
+    Boss battleBoss = boss;
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/pronunciation/boss/${boss.id}/battle',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      battleBoss = Boss.fromJson(res.data);
+    } catch (_) {
+      // Nếu lỗi, dùng tạm boss gốc (5 câu đầu) để không chặn user chơi
+    }
+    if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => _BattleScreen(boss: boss, storage: _storage),
+      builder: (_) => _BattleScreen(boss: battleBoss, storage: _storage),
     ));
   }
 
@@ -297,6 +311,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
   bool _battleFinished = false;
   final List<ScoreResult> _results = [];
   late DateTime _startTime;
+  Map<String, dynamic>? _nextAction;
 
   late AnimationController _bossHpCtrl;
   late Animation<double> _bossHpAnim;
@@ -355,6 +370,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
         'https://taiwanmate-backend-production.up.railway.app/api/v1/pronunciation/score',
         data: {
           'audio_base64': audioBase64,
+          'phrase_id': phrase.id,
           'phrase_text': phrase.text,
           'phrase_pinyin': phrase.pinyin,
           'phrase_meaning': phrase.meaning,
@@ -436,6 +452,21 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+    } catch (e) {}
+    _loadNextAction();
+  }
+
+  Future<void> _loadNextAction() async {
+    try {
+      final token = await widget.storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/mastery/next-action',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted && res.data['has_suggestion'] == true) {
+        setState(() => _nextAction = res.data);
+      }
     } catch (e) {}
   }
 
@@ -687,7 +718,39 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
       ),
     );
   }
+  Future<void> _handleNextActionTap(BuildContext context) async {
+    final action = _nextAction;
+    if (action == null) return;
 
+    if (action['feature_type'] == 'grammar_tool') {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => GrammarToolScreen(initialQuery: action['reference_id'] as String?),
+      ));
+      return;
+    }
+
+    if (action['feature_type'] == 'boss_arena') {
+      final bossId = int.tryParse(action['reference_id']?.toString() ?? '');
+      if (bossId == null) return;
+      try {
+        final token = await widget.storage.read(key: 'access_token');
+        final dio = Dio();
+        final res = await dio.get(
+          'https://taiwanmate-backend-production.up.railway.app/api/v1/pronunciation/boss/$bossId/battle',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        final targetBoss = Boss.fromJson(res.data);
+        if (!context.mounted) return;
+        Navigator.pushReplacement(context, MaterialPageRoute(
+          builder: (_) => _BattleScreen(boss: targetBoss, storage: widget.storage),
+        ));
+      } catch (e) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không tải được Boss này, thử lại nhé!')),
+        );
+      }
+    }
+  }
   Widget _buildResult() {
     final avgScore = _results.isEmpty ? 0 : _results.map((r) => r.score).reduce((a, b) => a + b) ~/ _results.length;
     final emoji = avgScore >= 85 ? '🏆' : avgScore >= 65 ? '💪' : '📚';
@@ -724,7 +787,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
             ]),
             const SizedBox(height: 10),
             Row(children: [
-              Expanded(child: _StatBox(label: '⭐ Perfect', value: '$_perfectCount/5', color: _DS.green)),
+              Expanded(child: _StatBox(label: '⭐ Perfect', value: '$_perfectCount/${widget.boss.phrases.length}', color: _DS.green)),
               const SizedBox(width: 10),
               Expanded(child: _StatBox(label: '📊 Đúng', value: '${_results.where((r) => r.isCorrect).length}/${_results.length}', color: _DS.indigo)),
             ]),
@@ -758,6 +821,32 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
               );
             }),
             const SizedBox(height: 20),
+
+            if (_nextAction != null) ...[
+              GestureDetector(
+                onTap: () => _handleNextActionTap(context),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.35), blurRadius: 14, offset: const Offset(0, 5))],
+                  ),
+                  child: Row(children: [
+                    const Text('🎯', style: TextStyle(fontSize: 26)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Bước tiếp theo cô đề xuất', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text(_nextAction!['cta_text'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                    ])),
+                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                  ]),
+                ),
+              ),
+            ],
 
             // Buttons
             GestureDetector(

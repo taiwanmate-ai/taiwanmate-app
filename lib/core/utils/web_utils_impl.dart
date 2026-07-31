@@ -104,6 +104,18 @@ void webStopRecording() {
   }
 }
 
+/// TAM THOI: web chua co VAD that (Buoc B chua lam). Goi lai webStartRecording
+/// thuong de bien dich duoc tren web — auto-stop CHUA hoat dong tren web,
+/// chi hoat dong tren mobile qua web_utils_stub.dart.
+Future<void> webStartRecordingAutoStop(
+  void Function(String audioBase64) onData,
+  void Function(String error) onError, {
+  double silenceThresholdDb = -35.0,
+  Duration silenceDuration = const Duration(milliseconds: 2500),
+}) async {
+  await webStartRecording(onData, onError);
+}
+
 void webEval(String jsCode) {
   js.context.callMethod('eval', [jsCode]);
 }

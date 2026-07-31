@@ -18,6 +18,7 @@ import '../../features/tools/presentation/screens/tools_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import '../../features/community/presentation/screens/community_screen.dart';
+import '../../features/learn_v2/presentation/screens/learning_hub_screen_v2.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -32,6 +33,8 @@ final appRouter = GoRouter(
     GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
     GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
     GoRoute(path: '/emergency', builder: (context, state) => const EmergencyPage()),
+    // Route tam thoi de test learn_v2 (Tab Hoc moi) - KHONG thay the /learn cu.
+    GoRoute(path: '/learn-v2', builder: (context, state) => const LearningHubScreenV2()),
 
     // ── StatefulShellRoute: giữ state từng tab, không rebuild khi chuyển tab ──
     StatefulShellRoute.indexedStack(

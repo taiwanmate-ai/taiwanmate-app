@@ -7,11 +7,18 @@ import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'dart:convert';
-import 'package:chinesemate/features/learn/presentation/widgets/learning_path.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/journey.dart';
 import 'package:chinesemate/core/cache/app_cache.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chinesemate/core/providers/hanzi_mode_provider.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/vocab_detail_screen.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/my_mistakes_screen.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/cat_test_tab.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/curriculum_tab.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/learn_hub_tab.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/quick_review_screen.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/mastery_profile_tab.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -35,6 +42,10 @@ class _DS {
   static const radiusSm = 14.0;
 }
 
+// ─── CAT Test gate ────────────────────────────────────────────
+// Trạng thái cổng CAT Test bắt buộc trước khi vào Learning Hub.
+enum _CatGateStatus { checking, needsCat, hubUnlocked, error, testTypeUnavailable }
+
 // ─── Topic data ───────────────────────────────────────────────
 const _topics = [
   {'label': 'Công việc', 'icon': '💼', 'color': 0xFF2979FF},
@@ -48,19 +59,23 @@ const _topics = [
 // ═══════════════════════════════════════════════════════════════
 // LEARN SCREEN
 // ═══════════════════════════════════════════════════════════════
-class LearnScreen extends StatefulWidget {
+class LearnScreen extends ConsumerStatefulWidget {
   const LearnScreen({super.key});
   @override
-  State<LearnScreen> createState() => _LearnScreenState();
+  ConsumerState<LearnScreen> createState() => _LearnScreenState();
 }
 
-class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
   late TabController _tabController;
   final _storage = const FlutterSecureStorage();
   List<Map<String, dynamic>> _vocabulary = [];
   bool _isLoading = true;
+  final Map<String, String> _hanziCache = {};
+  bool _streakAtRisk = false;
+  int _freezeCount = 0;
+  bool _isVip = false;
   String _lang = 'zh';
   int _dailyGoal = 20;
   int _dailyDone = 0;
@@ -69,8 +84,9 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   // Thu gọn header
   int _currentTab = 0;
   bool _headerCollapsed = false;
-  bool get _isExerciseTab =>
-      _currentTab == 0 || _currentTab == 1 || _currentTab == 2 || _currentTab == 3;
+
+  // CAT Test gate — bắt buộc trước khi vào Learning Hub
+  _CatGateStatus _catGateStatus = _CatGateStatus.checking;
 
   // Mood selector
   int _selectedMood = -1;
@@ -103,7 +119,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (_tabController.index != _currentTab && mounted) {
         setState(() => _currentTab = _tabController.index);
@@ -111,6 +127,52 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
     });
     _loadDailyVocabulary();
     _loadCalendarData();
+    _checkStreakStatus();
+    _checkCatGateStatus();
+    ref.listenManual(hanziModeProvider, (previous, next) {
+      if (previous != next) _refreshHanziCache();
+    });
+  }
+
+  // ── CAT TEST GATE ─────────────────────────────────────────
+  // Map ngôn ngữ đang học (_lang) sang test_type của CAT đầu vào.
+  String get _requiredCatTestType => _lang == 'en' ? 'english' : 'tocfl';
+
+  Future<void> _checkCatGateStatus() async {
+    if (mounted) setState(() => _catGateStatus = _CatGateStatus.checking);
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+
+      // Nguồn sự thật duy nhất cho việc ngân hàng câu hỏi đã đủ hay chưa — KHÔNG tự giữ
+      // hằng số readiness riêng ở Flutter, luôn hỏi backend (GET /cat-test/availability).
+      final availabilityRes = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/cat-test/availability',
+        queryParameters: {'test_type': _requiredCatTestType},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (availabilityRes.data['available'] != true) {
+        if (mounted) setState(() => _catGateStatus = _CatGateStatus.testTypeUnavailable);
+        return;
+      }
+
+      final statusRes = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/cat-test/status',
+        queryParameters: {'test_type': _requiredCatTestType},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final completed = statusRes.data['completed'] == true;
+      if (mounted) {
+        setState(() => _catGateStatus = completed ? _CatGateStatus.hubUnlocked : _CatGateStatus.needsCat);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _catGateStatus = _CatGateStatus.error);
+    }
+  }
+
+  void _onCatCompleted() {
+    if (_catGateStatus == _CatGateStatus.hubUnlocked) return;
+    setState(() => _catGateStatus = _CatGateStatus.hubUnlocked);
   }
 
   @override
@@ -131,12 +193,30 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
       _reviewDue = reviewCount;
       _totalWords = _vocabulary.length;
     });
+    await _refreshHanziCache();
   } catch (_) {
     if (mounted) setState(() => _vocabulary = _sampleWords);
+    await _refreshHanziCache();
   } finally {
     if (mounted) setState(() => _isLoading = false);
   }
 }
+
+  Future<void> _refreshHanziCache() async {
+    final mode = ref.read(hanziModeProvider);
+    _hanziCache.clear();
+    if (mode == HanziMode.traditional) {
+      if (mounted) setState(() {});
+      return;
+    }
+    for (final w in _vocabulary) {
+      final original = w['chinese'] ?? w['word'] ?? '';
+      if (original.isEmpty) continue;
+      final converted = await convertHanzi(original, mode);
+      _hanziCache[original] = converted;
+    }
+    if (mounted) setState(() {});
+  }
 
   Future<void> _updateSRS(String vocabularyId, bool known) async {
     if (vocabularyId.isEmpty) return;
@@ -160,6 +240,42 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
       _calendarData[i] = (i % 3 == 0) ? 1.0 : (i % 3 == 1) ? 0.6 : 0.3;
     }
   }
+  Future<void> _checkStreakStatus() async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me/streak-status',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted) setState(() {
+        _streakAtRisk = res.data['is_at_risk'] == true;
+        _freezeCount = (res.data['freeze_count'] as num?)?.toInt() ?? 0;
+        _isVip = res.data['is_vip'] == true;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _useStreakFreeze() async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me/use-freeze',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted) {
+        setState(() { _streakAtRisk = false; _freezeCount--; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('🧊 Đã đóng băng streak! Học hôm nay để tiếp tục nhé.'), backgroundColor: Color(0xFF2979FF)),
+        );
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không dùng được lượt đóng băng. Thử lại!')),
+      );
+    }
+  }
 
   void _startSurvivalMode() {
     setState(() {
@@ -177,8 +293,14 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
         _showSurvivalResult();
       }
     });
-    _tabController.animateTo(1); // Quiz tab
+   Navigator.push(context, MaterialPageRoute(builder: (_) => QuickReviewScreen(
+      vocabulary: _vocabulary, lang: _lang, getWord: _getWord, getPinyin: _getPinyin,
+      getMeaning: _getMeaning, getExample: _getExample, getVocabId: _getVocabId,
+      isReview: _isReview, getSrsLevel: _getSrsLevel, onStudied: _onStudied, onUpdateSRS: _updateSRS,
+      initialTabIndex: 1,
+    )));
   }
+  
 
   void _showSurvivalResult() {
     showDialog(
@@ -234,7 +356,8 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
 
   String _getWord(Map<String, dynamic> w) {
     if (_lang == 'en') return w['english'] ?? w['word'] ?? w['chinese'] ?? '';
-    return w['chinese'] ?? w['word'] ?? '';
+    final original = w['chinese'] ?? w['word'] ?? '';
+    return _hanziCache[original] ?? original;
   }
 
   String _getPinyin(Map<String, dynamic> w) {
@@ -256,15 +379,97 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    // Cổng CAT Test bắt buộc — chặn Learning Hub cho tới khi biết chắc trạng thái,
+    // để tránh nhấp nháy Learning Hub trước khi xác định user đã hoàn thành CAT hay chưa.
+    if (_catGateStatus == _CatGateStatus.checking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF0F4FF),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF5B5FEF))),
+      );
+    }
+    if (_catGateStatus == _CatGateStatus.error) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4FF),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.error_outline_rounded, size: 44, color: _DS.red),
+              const SizedBox(height: 12),
+              const Text('Không kiểm tra được trạng thái CAT Test.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark)),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: _checkCatGateStatus,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(color: _DS.blue, borderRadius: BorderRadius.circular(14)),
+                  child: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+    if (_catGateStatus == _CatGateStatus.testTypeUnavailable) {
+      // Có thể do ngân hàng câu hỏi (Reading) chưa đủ HOẶC (từ PROMPT 8.1) do audio Listening
+      // chưa có bản thu thật (chỉ mới tiếng bíp fixture) — backend chỉ trả available=true khi CẢ
+      // Reading lẫn Listening đều sẵn sàng. Hiện tại điều này có thể xảy ra ở CẢ tiếng Trung lẫn
+      // tiếng Anh cùng lúc, nên không còn gợi ý "chuyển sang tiếng Trung" (không chắc còn dùng
+      // được) — chỉ còn nút thử lại chung.
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4FF),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('🚧', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 12),
+              const Text('CAT đầu vào đang được hoàn thiện',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.textDark)),
+              const SizedBox(height: 8),
+              const Text(
+                  'Phần Đọc hiểu hoặc Nghe hiểu của bài kiểm tra chưa sẵn sàng (đang hoàn thiện âm thanh). Vui lòng quay lại sau nhé!',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: _DS.textGrey)),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: _checkCatGateStatus,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(color: _DS.blue, borderRadius: BorderRadius.circular(14)),
+                  child: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+    if (_catGateStatus == _CatGateStatus.needsCat) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4FF),
+        body: SafeArea(child: CatTestTab(
+          onCompleted: _onCatCompleted,
+          isRequiredPlacement: true,
+          requiredTestType: _requiredCatTestType,
+        )),
+      );
+    }
+
+    // _CatGateStatus.hubUnlocked — Learning Hub với đúng 4 tab
     final bool tall = MediaQuery.of(context).size.height > 700;
-    final bool showDashboard = !_isExerciseTab && !_headerCollapsed;
+    final bool showDashboard = !_headerCollapsed;
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: SafeArea(
         child: Column(children: [
           _buildHeader(),
           if (showDashboard && tall) _buildMeiMessage(),
-          if (showDashboard && tall) _buildMoodSelector(),
+          if (_streakAtRisk) _buildStreakFreezeBanner(),
           if (showDashboard) _buildDailyRing(),
           _buildTabBar(),
           Expanded(
@@ -273,37 +478,13 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      _vocabulary.isEmpty ? _buildEmpty() : FlashcardTab(
-                        vocabulary: _vocabulary, lang: _lang,
-                        getWord: _getWord, getPinyin: _getPinyin,
-                        getMeaning: _getMeaning, getExample: _getExample,
-                        getVocabId: _getVocabId, isReview: _isReview,
-                        getSrsLevel: _getSrsLevel,
-                        onStudied: _onStudied, onUpdateSRS: _updateSRS,
-                      ),
-                      _vocabulary.isEmpty ? _buildEmpty() : QuizTab(
-                        vocabulary: _vocabulary, lang: _lang,
-                        getWord: _getWord, getPinyin: _getPinyin, getMeaning: _getMeaning,
-                        getVocabId: _getVocabId, onUpdateSRS: _updateSRS,
-                        onXpEarned: (xp) => _onStudied(),
-                      ),
-                      _vocabulary.isEmpty ? _buildEmpty() : ListenChooseTab(
-                        vocabulary: _vocabulary, lang: _lang,
-                        getWord: _getWord, getPinyin: _getPinyin, getMeaning: _getMeaning,
-                        getVocabId: _getVocabId, onUpdateSRS: _updateSRS,
-                        onXpEarned: (xp) => _onStudied(),
-                      ),
-                      _vocabulary.isEmpty ? _buildEmpty() : FillBlankTab(
-                        vocabulary: _vocabulary, lang: _lang,
-                        getWord: _getWord, getPinyin: _getPinyin,
-                        getMeaning: _getMeaning, getExample: _getExample,
-                        getVocabId: _getVocabId, onUpdateSRS: _updateSRS,
-                        onXpEarned: (xp) => _onStudied(),
-                      ),
-                      LearningPathTab(lang: _lang, onStartLearn: () => _tabController.animateTo(0)),
-                      JourneyTab(lang: _lang),
-                      VocabularyListTab(storage: _storage, lang: _lang),
-                      const CatTestTab(),
+                      LearnHubTab(lang: _lang),
+                      Column(children: [
+                        _buildQuickAccessRow(),
+                        Expanded(child: VocabularyListTab(storage: _storage, lang: _lang)),
+                      ]),
+                      _buildMockExamPlaceholder(),
+                      const MasteryProfileTab(),
                     ],
                   ),
           ),
@@ -311,6 +492,21 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
       ),
     );
   }
+
+  // ── THI THỬ (placeholder — chưa triển khai chức năng) ─────
+  Widget _buildMockExamPlaceholder() => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Text('📝', style: TextStyle(fontSize: 56)),
+        const SizedBox(height: 16),
+        const Text('Thi thử', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _DS.textDark)),
+        const SizedBox(height: 8),
+        const Text('Tính năng đang được xây dựng — sắp ra mắt!',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: _DS.textGrey)),
+      ]),
+    ),
+  );
 
   // ── HEADER ────────────────────────────────────────────────
   Widget _buildHeader() {
@@ -366,7 +562,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               GestureDetector(
-                onTap: () { if (_lang != 'zh') { setState(() => _lang = 'zh'); _loadDailyVocabulary(); } },
+                onTap: () { if (_lang != 'zh') { setState(() => _lang = 'zh'); _loadDailyVocabulary(); _checkCatGateStatus(); } },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -380,7 +576,7 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
                 ),
               ),
               GestureDetector(
-                onTap: () { if (_lang != 'en') { setState(() => _lang = 'en'); _loadDailyVocabulary(); } },
+                onTap: () { if (_lang != 'en') { setState(() => _lang = 'en'); _loadDailyVocabulary(); _checkCatGateStatus(); } },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -609,50 +805,123 @@ class _LearnScreenState extends State<LearnScreen> with TickerProviderStateMixin
             unselectedLabelColor: const Color(0xFF8A8FA3),
             labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             tabs: const [
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🃏', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Flashcard')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('⚡', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Quiz')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎧', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Nghe')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('✍️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Điền từ')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🗺️', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Lộ trình')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🎯', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Hành trình')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📝', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Từ đã học')])),
-              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('🧪', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('CAT Test')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📚', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Lộ trình')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📖', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Từ vựng')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📝', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Thi thử')])),
+              Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Text('📊', style: TextStyle(fontSize: 13)), SizedBox(width: 4), Text('Năng lực')])),
             ],
           ),
         ),
       ),
       // Nút thu gọn — chỉ hiện ở 3 tab thường (tab tự ẩn thì không cần)
-      if (!_isExerciseTab) ...[
-        const SizedBox(width: 8),
-        GestureDetector(
-          onTap: () => setState(() => _headerCollapsed = !_headerCollapsed),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: _headerCollapsed ? const Color(0xFF5B5FEF) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      const SizedBox(width: 8),
+      GestureDetector(
+        onTap: () => setState(() => _headerCollapsed = !_headerCollapsed),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: _headerCollapsed ? const Color(0xFF5B5FEF) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(
+              _headerCollapsed ? Icons.unfold_more_rounded : Icons.unfold_less_rounded,
+              size: 15,
+              color: _headerCollapsed ? Colors.white : const Color(0xFF5B5FEF),
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(
-                _headerCollapsed ? Icons.unfold_more_rounded : Icons.unfold_less_rounded,
-                size: 15,
+            const SizedBox(width: 4),
+            Text(
+              _headerCollapsed ? 'Mở' : 'Thu gọn',
+              style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700,
                 color: _headerCollapsed ? Colors.white : const Color(0xFF5B5FEF),
               ),
-              const SizedBox(width: 4),
-              Text(
-                _headerCollapsed ? 'Mở' : 'Thu gọn',
-                style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700,
-                  color: _headerCollapsed ? Colors.white : const Color(0xFF5B5FEF),
-                ),
-              ),
-            ]),
-          ),
+            ),
+          ]),
         ),
-      ],
+      ),
     ]),
   );
+
+  // ── QUICK REVIEW BANNER (mở Flashcard/Quiz/Nghe/Điền từ) ──
+ // ── QUICK ACCESS ROW (gọn, chiếm ít không gian hơn 2 banner cũ) ──
+  Widget _buildQuickAccessRow() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+    child: Row(children: [
+      Expanded(child: _buildCompactAccessBtn(
+        emoji: '🔄', label: 'Ôn tập nhanh',
+        gradient: const [Color(0xFF5B5FEF), Color(0xFF3B3FA8)],
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => QuickReviewScreen(
+          vocabulary: _vocabulary, lang: _lang, getWord: _getWord, getPinyin: _getPinyin,
+          getMeaning: _getMeaning, getExample: _getExample, getVocabId: _getVocabId,
+          isReview: _isReview, getSrsLevel: _getSrsLevel, onStudied: _onStudied, onUpdateSRS: _updateSRS,
+        ))),
+      )),
+      const SizedBox(width: 8),
+      Expanded(child: _buildCompactAccessBtn(
+        emoji: '🎯', label: 'Lỗi của tôi',
+        gradient: const [Color(0xFFFF3D57), Color(0xFFD32F3F)],
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyMistakesScreen())),
+      )),
+    ]),
+  );
+
+  Widget _buildCompactAccessBtn({required String emoji, required String label, required List<Color> gradient, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: gradient),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: gradient[0].withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(emoji, style: const TextStyle(fontSize: 15)),
+          const SizedBox(width: 6),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white))),
+        ]),
+      ),
+    );
+  }
+  // ── EMPTY STATE ───────────────────────────────────────────
+  // ── STREAK FREEZE BANNER ──────────────────────────────────
+  Widget _buildStreakFreezeBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF2979FF), Color(0xFF1565C0)]),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: const Color(0xFF2979FF).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: Row(children: [
+          const Text('⚠️🔥', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Streak sắp mất!', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+            Text(
+              _isVip
+                  ? (_freezeCount > 0 ? 'Dùng đóng băng để giữ streak, hoặc học ngay hôm nay' : 'Đã hết lượt đóng băng tháng này — học ngay để giữ streak!')
+                  : 'Học ngay hôm nay để giữ streak nhé!',
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
+          ])),
+          if (_isVip && _freezeCount > 0) GestureDetector(
+            onTap: _useStreakFreeze,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              child: Text('🧊 Dùng ($_freezeCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF2979FF))),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 
   // ── EMPTY STATE ───────────────────────────────────────────
   Widget _buildEmpty() {
@@ -726,11 +995,13 @@ class FlashcardTab extends StatefulWidget {
   final int Function(Map<String, dynamic>) getSrsLevel;
   final VoidCallback onStudied;
   final Future<void> Function(String, bool) onUpdateSRS;
+  final VoidCallback? onComplete;
 
   const FlashcardTab({super.key, required this.vocabulary,required this.lang, required this.getWord,
       required this.getPinyin, required this.getMeaning, required this.getExample,
       required this.getVocabId, required this.isReview, required this.getSrsLevel,
-      required this.onStudied, required this.onUpdateSRS});
+      required this.onStudied, required this.onUpdateSRS, this.onComplete});
+
 
   @override
   State<FlashcardTab> createState() => _FlashcardTabState();
@@ -785,12 +1056,17 @@ class _FlashcardTabState extends State<FlashcardTab> with TickerProviderStateMix
     }
     if (isKnown == true) _known.add(_currentIndex);
     else if (isKnown == false) _unknown.add(_currentIndex);
+
+    final isLastCard = _currentIndex == widget.vocabulary.length - 1;
+
     setState(() {
       _currentIndex = (_currentIndex + 1) % widget.vocabulary.length;
       _isFlipped = false;
       _flipCtrl.reset();
       _dragOffset = Offset.zero;
     });
+
+    if (isLastCard) widget.onComplete?.call();
   }
 
   void _goPrev() {
@@ -1116,10 +1392,11 @@ class QuizTab extends StatefulWidget {
   final String Function(Map<String, dynamic>) getVocabId;
   final Future<void> Function(String, bool) onUpdateSRS;
   final Function(int) onXpEarned;
+  final VoidCallback? onFinished;
 
   const QuizTab({super.key, required this.vocabulary, required this.lang, required this.getWord,
       required this.getPinyin, required this.getMeaning, required this.getVocabId,
-      required this.onUpdateSRS, required this.onXpEarned});
+      required this.onUpdateSRS, required this.onXpEarned, this.onFinished});
   @override
   State<QuizTab> createState() => _QuizTabState();
 }
@@ -1258,7 +1535,10 @@ class _QuizTabState extends State<QuizTab> with TickerProviderStateMixin {
 
   void _next() {
     _hiddenOptions = {};
-    if (_currentIndex + 1 >= _shuffled.length) { setState(() => _finished = true); }
+    if (_currentIndex + 1 >= _shuffled.length) {
+      setState(() => _finished = true);
+      widget.onFinished?.call();
+    }
     else { setState(() { _currentIndex++; _selectedAnswer = null; _answered = false; }); _startTimer(); }
   }
 
@@ -1593,10 +1873,11 @@ class ListenChooseTab extends StatefulWidget {
   final String Function(Map<String, dynamic>) getVocabId;
   final Future<void> Function(String, bool) onUpdateSRS;
   final Function(int) onXpEarned;
+  final VoidCallback? onFinished;
 
   const ListenChooseTab({super.key, required this.vocabulary, required this.lang, required this.getWord,
       required this.getPinyin, required this.getMeaning, required this.getVocabId,
-      required this.onUpdateSRS, required this.onXpEarned});
+      required this.onUpdateSRS, required this.onXpEarned, this.onFinished});
 
   @override
   State<ListenChooseTab> createState() => _ListenChooseTabState();
@@ -1691,7 +1972,11 @@ class _ListenChooseTabState extends State<ListenChooseTab> with SingleTickerProv
   }
 
   void _next() {
-    if (_currentIndex + 1 >= _shuffled.length) { setState(() => _finished = true); return; }
+    if (_currentIndex + 1 >= _shuffled.length) {
+      setState(() => _finished = true);
+      widget.onFinished?.call();
+      return;
+    }
     setState(() {
       _currentIndex++; _selectedAnswer = null; _answered = false; _hasPlayed = false;
     });
@@ -1931,10 +2216,11 @@ class FillBlankTab extends StatefulWidget {
   final String Function(Map<String, dynamic>) getVocabId;
   final Future<void> Function(String, bool) onUpdateSRS;
   final Function(int) onXpEarned;
+  final VoidCallback? onFinished;
 
   const FillBlankTab({super.key, required this.vocabulary, required this.lang, required this.getWord,
       required this.getPinyin, required this.getMeaning, required this.getExample,
-      required this.getVocabId, required this.onUpdateSRS, required this.onXpEarned});
+      required this.getVocabId, required this.onUpdateSRS, required this.onXpEarned, this.onFinished});
 
   @override
   State<FillBlankTab> createState() => _FillBlankTabState();
@@ -2073,6 +2359,7 @@ class _FillBlankTabState extends State<FillBlankTab> {
   void _next() {
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _finished = true);
+      widget.onFinished?.call();
       return;
     }
     setState(() { _currentRound++; _answered = false; });
@@ -2476,7 +2763,8 @@ class _VocabularyListTabState extends State<VocabularyListTab>
     final query = _searchCtrl.text.toLowerCase();
     setState(() {
       _filtered = _allWords.where((w) {
-        final matchLevel = _filterLevel == 'Tất cả' || w['tocfl_level'] == _filterLevel;
+        final currentLevel = widget.lang == 'en' ? w['cefr_level'] : w['tocfl_level'];
+        final matchLevel = _filterLevel == 'Tất cả' || currentLevel == _filterLevel;
         final matchSearch = query.isEmpty ||
             (w['chinese'] ?? '').toLowerCase().contains(query) ||
             (w['english'] ?? '').toLowerCase().contains(query) ||
@@ -2575,7 +2863,31 @@ class _VocabularyListTabState extends State<VocabularyListTab>
                       final w = _filtered[i];
                       final srs = _getSrsLevel(w);
                       final level = w['tocfl_level']?.toString() ?? '';
-                      return Container(
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (_) => VocabDetailScreen(
+                            word: w,
+                            lang: widget.lang,
+                            onSpeak: (text) async {
+                              try {
+                                final token = await widget.storage.read(key: 'access_token');
+                                final dio = Dio(BaseOptions(
+                                  connectTimeout: const Duration(seconds: 30),
+                                  receiveTimeout: const Duration(seconds: 30),
+                                  responseType: ResponseType.bytes,
+                                ));
+                                final response = await dio.post(
+                                  'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts',
+                                  data: {'text': text, 'lang': widget.lang == 'en' ? 'en-US' : 'zh-TW', 'slow': true},
+                                  options: Options(headers: {'Authorization': 'Bearer $token'}),
+                                );
+                                final b64 = base64Encode(response.data as List<int>);
+                                await webPlayAudio(b64);
+                              } catch (_) {}
+                            },
+                          ),
+                        )),
+                        child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -2642,7 +2954,7 @@ class _VocabularyListTabState extends State<VocabularyListTab>
                             ))),
                           ]),
                         ]),
-                      );
+                      ));
                     },
                   ),
       ),

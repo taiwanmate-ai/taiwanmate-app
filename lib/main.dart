@@ -65,7 +65,7 @@ class ChineseMateApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(themeState.primaryColor),
       darkTheme: AppTheme.darkTheme(themeState.primaryColor),
-      themeMode: themeState.themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: appRouter,
     );
   }

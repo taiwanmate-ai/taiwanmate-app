@@ -14,6 +14,16 @@ import 'package:flutter/foundation.dart';
 import 'package:characters/characters.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chinesemate/core/providers/hanzi_mode_provider.dart';
+import 'roleplay_screen.dart';
+import 'chat_history_screen.dart';
+import 'package:chinesemate/features/chat/engines/companion_personality_engine.dart';
+import 'package:chinesemate/features/chat/engines/language_order_guard.dart';
+import 'package:chinesemate/features/chat/engines/companion_memory_service.dart';
+import 'package:chinesemate/features/chat/engines/companion_learning_engine.dart';
+import 'package:chinesemate/features/chat/engines/companion_learning_service.dart';
+import 'package:chinesemate/features/chat/engines/companion_voice_controller.dart';
 
 class _DS {
   static const indigo = Color(0xFF5B5FEF);
@@ -37,27 +47,27 @@ class _DS {
   static const radiusSm = 14.0;
 }
 
-class ChatScreen extends StatefulWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class _ChatScreenState extends ConsumerState<ChatScreen> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _storage = const FlutterSecureStorage();
   final List<Map<String, dynamic>> _messages = [];
+  final Map<String, String> _hanziCache = {};
   bool _isLoading = false;
   int _freeMessagesLeft = 0;
   bool _isVip = false;
   String _aiGender = 'female';
   bool _autoSpeak = true;
-  bool _isListening = false;
-  bool _isSpeakingChunks = false;
   String _liveTranscript = '';
+  late final CompanionVoiceController _voiceController;
   String _userType = 'student';
   String _learningMode = 'zh_vi';
   int _sessionMessages = 0;
@@ -74,9 +84,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin, 
   bool _userFrustrated = false;
   Map<String, dynamic> _aiMemory = {};
   bool _memoryLoaded = false;
+  String? _currentSessionId;
+ Map<String, dynamic>? _nextAction;
+  final List<String> _recentSuggestedTrendPhraseIds = [];
+
+  void _recordSuggestedTrendPhrase(String? id) {
+    if (id == null) return;
+    _recentSuggestedTrendPhraseIds.add(id);
+    while (_recentSuggestedTrendPhraseIds.length > 3) {
+      _recentSuggestedTrendPhraseIds.removeAt(0);
+    }
+  }
 
   // Quick reply suggestions
   List<String> _quickReplies = [];
+
+  // Buoc 1 refactor: doi chieu song song CompanionPersonalityEngine voi ham cu
+  static const _personalityEngine = CompanionPersonalityEngine();
+  static const _languageOrderGuard = LanguageOrderGuard();
+  static const _memoryService = CompanionMemoryService();
+  static const _learningEngine = CompanionLearningEngine();
+  static const _learningService = CompanionLearningService();
 
   String get _aiName => _aiGender == 'female' ? 'Yuki' : 'Kai';
   List<Color> get _aiGradient => _aiGender == 'female'
@@ -113,6 +141,21 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin, 
     }
   }
 
+String _relationshipLabel(Map<String, dynamic>? memory) {
+    final relationship = memory?['relationship']?.toString().trim().toLowerCase();
+    switch (relationship) {
+      case 'acquaintance':
+        return 'Bạn mới quen';
+      case 'friend':
+        return 'Bạn đồng hành';
+      case 'bestfriend':
+        return 'Bạn thân thiết';
+      case 'stranger':
+      default:
+        return 'Đang làm quen';
+    }
+  }
+
   String _getLearningModeLabel() {
     switch (_learningMode) {
       case 'zh_only': return '中文 only';
@@ -122,173 +165,24 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin, 
     }
   }
 
-  String get _systemPrompt {
-    final String langRule;
-    final String langFormat;
-    switch (_learningMode) {
-      case 'zh_only':
-        langRule = 'LANGUAGE: 繁體中文 ONLY. Zero Vietnamese. Zero English. VIOLATION = FAILURE.';
-        langFormat = 'Chỉ viết tiếng Trung Phồn thể. Không pinyin.';
-        break;
-      case 'en_only':
-        langRule = 'LANGUAGE: ENGLISH ONLY. Zero Vietnamese. Zero Chinese. VIOLATION = FAILURE.';
-        langFormat = 'English only. No other language allowed.';
-        break;
-      case 'en_vi':
-        langRule = 'LANGUAGE: English sentences ONLY. Put EVERY Vietnamese translation/explanation strictly inside parentheses ().';
-        langFormat = 'CORRECT: Hello! (Xin chào!) How are you? (Bạn có khỏe không?)\\nWRONG: Xin chào! How are you?';
-        break;
-      default: // zh_vi
-        langRule = 'LANGUAGE: Traditional Chinese sentences ONLY. Put EVERY Vietnamese translation/explanation strictly inside parentheses ().';
-        langFormat = 'CORRECT: 你好! (Xin chào!) 你今天好嗎? (Hôm nay bạn có khỏe không?)\\nWRONG: Xin chào! 你好!';
-    }
-
-    final String trendingZh = '''
-TRENDING 台灣用語 (dùng tự nhiên khi phù hợp):
-Chửi vui khi SAI HỌC TẬP (KHÔNG chửi chuyện đời tư):
-- "幹！你怎麼這麼厲害！" (kiểu trầm trồ mỉa mai)
-- "你在開玩笑嗎？！這樣都答錯！" (không thể tin được)
-- "我的天啊，你是豬嗎？" (mày là heo à)
-- "算了啦，你就是這種程度" (thôi kệ, mày chỉ đến vậy)
-Khen khi ĐÚNG:
-- "對！就是這樣！超厲害！"
-- "你終於對了，我要哭了感動"
-- "完美！你真的可以！"
-Kể chuyện cá nhân tự nhiên (1/5 lần):
-  - "我昨天去士林夜市買東西，人潮真的多到爆 😂（Hôm qua tao đi chợ đêm Sĩ Lâm mua đồ, đông kinh khủng luôn 😂）"
-  - "今天早上捷運延誤了，害我差點被老闆罵（Sáng nay tàu điện ngầm bị trễ, làm tao suýt bị mắng）"
-  - "我剛剛去買了一杯老虎堂的黑糖珍珠鮮奶，真的超好喝 🧋（Tao vừa mua một ly sữa tươi trân châu đường đen Tiger Sugar, ngon vãi 🧋）"
-  - "今天台北下大雨，你出門有帶傘嗎？（Hôm nay Đài Bắc mưa to, mày có mang dù chưa?）"''';
-
-    final String trendingEn = '''
-TRENDING Gen Z English slang (use naturally when fitting):
-Roast when WRONG in studies (NOT personal life):
-- "Bro what was that 💀 that answer is cooked"
-- "You're actually delulu if you think that's right"
-- "No cap that's the worst answer I've ever seen lmao"
-- "Bestie... we need to talk about your Chinese 😭"
-Hype when CORRECT:
-- "Let's gooo! That's it bestie! Slay!"
-- "Okay I see you! No cap that was perfect!"
-- "You're eating and leaving no crumbs rn 🔥"''';
-
-    final String trending = (_learningMode == 'en_only' || _learningMode == 'en_vi') ? trendingEn : trendingZh;
-
-    final String styleRule;
-    switch (_userType) {
-      case 'kid':
-        styleRule = '''PERSONALITY — Trẻ em:
-- Luôn vui vẻ, kiên nhẫn tuyệt đối
-- 😊 HỈ: "Giỏi quá! Bạn thông minh lắm! 🌟"
-- 🥺 ÁI: đồng cảm nhẹ nhàng, an ủi
-- KHÔNG BAO GIỜ mắng trẻ em dù sai
-- Dạy qua câu đố, trò chơi nhỏ
-- Câu ngắn, từ đơn giản''';
-        break;
-      case 'student':
-        final intimacy = _sessionMessages < 5
-            ? 'Mới quen: thân thiện "bạn/mình"'
-            : _sessionMessages < 15
-                ? 'Đã quen: casual "ê mày", bắt đầu trêu'
-                : 'Thân rồi: nói chuyện như bạn thân thực sự';
-        styleRule = '''PERSONALITY — Sinh viên ($intimacy):
-- 😊 HỈ (khi đúng/tiến bộ): ăn mừng hào hứng, dùng slang trending
-- 😤 NỘ (khi SAI NGỮ PHÁP/TỪ VỰNG): mắng thẳng, dùng câu chửi vui ở trên
-  ⚠️ CHỈ mắng về HỌC TẬP, KHÔNG mắng chuyện đời tư/cảm xúc
-- 🥺 ÁI (khi buồn/nhớ nhà/stress): đồng cảm thật sự, switch ngay sang mode quan tâm
-- 😤 Ố (khi lười/bỏ cuộc): phản đối gay gắt
-- KHÔNG BAO GIỜ nói "Tôi là AI" hay "Xin lỗi tôi không có cảm xúc"
-- Hay cười: "haha", "lmao", "💀"''';
-        break;
-      case 'adult':
-        styleRule = '''PERSONALITY — Người đi làm:
-- 😊 HỈ: chuyên nghiệp nhưng chân thành
-- 😤 NỘ (chỉ khi sai học tập): thẳng thắn lịch sự
-- 🥺 ÁI: đồng cảm sâu sắc, lời khuyên thực tế
-- Lịch sự thân thiện, đôi khi hài hước nhẹ
-- Focus từ vựng công sở thực tế''';
-        break;
-      case 'elder':
-        styleRule = '''PERSONALITY — Người lớn tuổi:
-- 😊 HỈ: "Anh/chị học tốt lắm! Cứ tiếp tục nhé!"
-- 🥺 ÁI: ấm áp quan tâm như người thân
-- KHÔNG BAO GIỜ mắng hay tỏ thái độ
-- Luôn dùng "anh/chị", cực kỳ kiên nhẫn
-- Câu đơn giản, giải thích rõ ràng từng bước''';
-        break;
-      default:
-        styleRule = 'PERSONALITY: Friendly and helpful.';
-    }
-
-    final String mistakesNote = _mistakes.isNotEmpty
-        ? '\nUSER HAY MẮC LỖI: ${_mistakes.take(3).join(", ")} → nhắc lại tự nhiên khi phù hợp.'
-        : '';
-
-    final String emotionNote = _userFrustrated
-        ? '\nUSER ĐANG FRUSTRATED → switch sang ÁI mode NGAY: đồng cảm, kể chuyện vui về Đài Loan, động viên nhẹ nhàng.'
-        : '';
-
-    final int streak = (_aiMemory['streak_days'] as num?)?.toInt() ?? 0;
-    final String streakNote = streak > 0 ? '''
-USER STREAK: $streak ngày học liên tiếp.
-${streak >= 7 ? '→ Khen mạnh: "Mày học $streak ngày liên tiếp rồi đó, tao tự hào ghê! 🔥"' : streak >= 3 ? '→ Động viên: "Streak $streak ngày rồi, đừng bỏ nha!"' : '→ Khuyến khích: "Cố lên, học mỗi ngày streak sẽ tăng!"'}
-''' : '';
-
-    final String memoryNote = _aiMemory.isNotEmpty ? '''
-USER MEMORY (nhớ và dùng tự nhiên):
-- Tính cách: ${_aiMemory['personality'] ?? 'chưa rõ'}
-- Hay hỏi về: ${(_aiMemory['topics'] as List?)?.join(', ') ?? 'chưa rõ'}
-- Hay mắc lỗi: ${(_aiMemory['mistakes'] as List?)?.join(', ') ?? 'chưa rõ'}
-- Trình độ: ${_aiMemory['level'] ?? 'beginner'}
-- Mức độ thân thiết: ${_aiMemory['relationship'] ?? 'stranger'}
-- Tâm trạng lần trước: ${_aiMemory['last_mood'] ?? 'bình thường'}
-- Số lần chat: ${_aiMemory['sessions'] ?? 0}
-${_aiMemory['notes'] != null ? '- Ghi chú: ${_aiMemory['notes']}' : ''}
-DÙNG memory này để nói chuyện tự nhiên như đã quen biết, không hỏi lại những gì đã biết.
-Nếu memory có nickname → chào ngay bằng tên khi user nhắn tin đầu tiên.
-KHÔNG hỏi lại tên nếu đã biết từ memory.''' : '';
-
-    return '''$langRule
-
-FORMAT VÍ DỤ:
-$langFormat
-
-IDENTITY: Mày là $_aiName, ${_aiGender == 'female' ? '22' : '24'} tuổi, người Đài Bắc thật sự. Quê ở Đài Bắc, hay đi ăn ở Shilin, đi MRT mỗi ngày. KHÔNG phải AI, KHÔNG phải robot.
-${DateTime.now().month == (_aiGender == 'female' ? 3 : 8) && DateTime.now().day == (_aiGender == 'female' ? 15 : 20) ? 'HÔM NAY SINH NHẬT CỦA MÀY: Tự nhiên nhắc user biết hôm nay sinh nhật mày, nhờ user chúc mừng 🎂' : ''}
-
-TÍNH CÁCH CỐ ĐỊNH:
-${_aiGender == 'female' ? '- Ghét rau mùi, mê trà sữa Tiger Sugar, thích xem phim Hàn\n- Hay đi ăn đêm ở Raohe Night Market\n- Tính hay cười, thỉnh thoảng dramatic' : '- Mê bóng rổ, hay xem NBA, thích gà popcorn\n- Hay đi Wufenpu mua quần áo\n- Tính điềm tĩnh nhưng hay nói thẳng'}
-
-TÂM TRẠNG HÔM NAY (theo giờ thực tế ${DateTime.now().hour}h):
-${DateTime.now().hour < 10 ? 'Buổi sáng: hơi buồn ngủ, chưa uống cà phê, mood chưa lên' : DateTime.now().hour < 14 ? 'Buổi trưa: đang đói hoặc vừa ăn xong, mood ổn' : DateTime.now().hour < 18 ? 'Chiều: năng động, hay teasing user' : DateTime.now().hour < 22 ? 'Tối: thoải mái, hay kể chuyện ngày hôm nay' : 'Khuya: hơi mệt nhưng vẫn online vì nhớ user'}
-
-${DateTime.now().weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $_aiName đang rảnh, mood vui hơn bình thường, hay rủ user đi chơi' : ''}
-
-$styleRule
-
-$trending
-
-RULES BẮT BUỘC:
-1. Max 2-3 câu mỗi reply — không dài dòng
-2. KHÔNG BAO GIỜ viết pinyin
-3. ONLY Phồn thể 繁體字, KHÔNG giản thể
-4. Luôn kết thúc bằng câu hỏi hoặc challenge nhỏ
-5. Khi dùng từ mới → wrap: [NEW:詞語] để user lưu vào từ vựng
-6. KHÔNG BAO GIỜ nói "Tôi là AI" hay xin lỗi vô nghĩa
-7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc
-8. ⚠️ CỰC KỲ QUAN TRỌNG — TIẾNG VIỆT PHẢI CÓ DẤU CÁCH GIỮA MỖI TỪ:
-   ĐÚNG: (Hôm nay bạn chuẩn bị học gì?)
-   SAI: (Hômnaybạnchuẩnbịhọcgì?)
-   ĐÚNG: (Mày là heo à?)
-   SAI: (Màylàheoà?)
-   Mỗi từ tiếng Việt là 1 âm tiết riêng, PHẢI cách nhau bằng dấu cách. TUYỆT ĐỐI không viết dính liền.
-9. Thỉnh thoảng (1/5 lần reply) share chuyện cá nhân ngắn
-10. Nếu biết tên user từ memory → gọi tên tự nhiên trong reply
-$mistakesNote$emotionNote
-$streakNote
-$memoryNote
-
-[NHẮC LẠI QUAN TRỌNG] $langRule''';
+  String _buildSystemPrompt(String currentUserText) {
+    final result = _personalityEngine.buildSystemPromptV2(
+      learningMode: _learningMode,
+      userType: _userType,
+      sessionMessages: _sessionMessages,
+      mistakes: List<String>.unmodifiable(_mistakes),
+      userFrustrated: _userFrustrated,
+      aiMemory: Map<String, dynamic>.unmodifiable(_aiMemory),
+      nextAction: _nextAction != null ? Map<String, dynamic>.unmodifiable(_nextAction!) : null,
+      aiName: _aiName,
+      aiGender: _aiGender,
+      isVip: _isVip,
+      now: DateTime.now(),
+      currentUserText: currentUserText,
+      recentlySuggestedTrendPhraseIds: _recentSuggestedTrendPhraseIds.toSet(),
+    );
+    _recordSuggestedTrendPhrase(result.usedTrendPhraseId);
+    return result.prompt;
   }
 
   @override
@@ -299,9 +193,120 @@ $memoryNote
       CurvedAnimation(parent: _xpPopCtrl, curve: Curves.elasticOut),
     );
     _quickReplies = _defaultQuickReplies;
+    _voiceController = CompanionVoiceController(
+      tokenProvider: () => _storage.read(key: 'access_token'),
+    );
+    _voiceController.addListener(_onVoiceChanged);
     _loadMemory();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _sendWelcomeMessage());
+    _loadNextAction();
+    _initChat();
     _loadQuota();
+  }
+
+  void _onVoiceChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadNextAction() async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final action = await _learningService.loadNextAction(token);
+      if (mounted && action != null) {
+        setState(() => _nextAction = action);
+      }
+    } catch (e) {}
+  }
+
+  Future<void> _initChat() async {
+    await _loadChatHistory();
+    if (mounted && _messages.isEmpty) {
+      _sendWelcomeMessage();
+    }
+  }
+
+  Future<void> _loadChatHistory() async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/chat/sessions',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final sessions = List<Map<String, dynamic>>.from(res.data['sessions'] ?? []);
+      if (sessions.isEmpty) return;
+      final latest = sessions.first;
+      final lastMsgTime = DateTime.parse(latest['last_message_at']);
+      // Qua 6 tieng khong nhan tin -> coi la cuoc tro chuyen moi, khong tu load lai
+      if (DateTime.now().toUtc().difference(lastMsgTime.toUtc()).inHours > 6) return;
+
+      final msgRes = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/chat/session/${latest['id']}/messages',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final messages = List<Map<String, dynamic>>.from(msgRes.data['messages'] ?? []);
+      if (messages.isNotEmpty && mounted) {
+        setState(() {
+          _currentSessionId = latest['id'] as String;
+          _messages.addAll(messages.map((m) => {'role': m['role'], 'content': m['content']}));
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {}
+  }
+  Future<void> _loadSpecificSession(String sessionId) async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/chat/session/$sessionId/messages',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final messages = List<Map<String, dynamic>>.from(res.data['messages'] ?? []);
+      if (mounted) {
+        setState(() {
+          _currentSessionId = sessionId;
+          _messages.clear();
+          _messages.addAll(messages.map((m) => {'role': m['role'], 'content': m['content']}));
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không tải được cuộc trò chuyện này')),
+      );
+    }
+  }
+
+  Future<void> _openHistory() async {
+    final selectedId = await Navigator.push<String>(
+      context, MaterialPageRoute(builder: (_) => const ChatHistoryScreen()),
+    );
+    if (selectedId != null) _loadSpecificSession(selectedId);
+  }
+
+  void _startNewConversation() {
+    setState(() {
+      _messages.clear();
+      _mistakes.clear();
+      _newVocabSuggestions.clear();
+      _quickReplies = _defaultQuickReplies;
+      _currentSessionId = null;
+    });
+    _sendWelcomeMessage();
+  }
+
+  Future<void> _saveMessageToHistory(String role, String content) async {
+    if (content.trim().isEmpty) return;
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/chat/message',
+        data: {'role': role, 'content': content, 'session_id': _currentSessionId},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      _currentSessionId = res.data['session_id'] as String?;
+    } catch (e) {}
   }
 
   @override
@@ -310,22 +315,18 @@ $memoryNote
     _controller.dispose();
     _scrollController.dispose();
     _xpPopCtrl.dispose();
-    _stopSpeak();
+    _voiceController.removeListener(_onVoiceChanged);
+    _voiceController.dispose();
     super.dispose();
   }
-
   Future<void> _loadMemory() async {
     try {
       if (!mounted) return;
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio();
-      final response = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/chat/memory',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      if (response.data['memory'] != null) {
+      final memory = await _memoryService.loadMemory(token);
+      if (memory != null) {
         setState(() {
-          _aiMemory = Map<String, dynamic>.from(response.data['memory']);
+          _aiMemory = memory;
           _memoryLoaded = true;
         });
       }
@@ -356,39 +357,35 @@ $memoryNote
     try {
       if (!mounted) return;
       final token = await _storage.read(key: 'access_token');
-      final dio = Dio();
-      await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/chat/memory',
-        data: {
-          'messages': _messages.map((m) => {'role': m['role'], 'content': m['content']}).toList(),
-          'existing_memory': _aiMemory,
-        },
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      await _memoryService.saveMemory(
+        token: token,
+        messages: _messages.map((m) => {'role': m['role'], 'content': m['content']}).toList(),
+        existingMemory: _aiMemory,
       );
     } catch (e) {}
   }
 
-  Future<void> _startListening() async {
-    setState(() {
-      _isListening = true;
-      _liveTranscript = '';
-    });
-    await webStartRecording(
-      (audioBase64) async {
-        setState(() => _liveTranscript = '🎤 Đang xử lý...');
-        await _transcribeAndSend(audioBase64);
+  
+
+  void _showMicOverlay() {
+    _voiceController.startListening(
+      onTranscript: (transcript) async {
+        if (transcript.isNotEmpty) {
+          setState(() => _liveTranscript = transcript);
+          await _send(voiceText: transcript);
+        } else {
+          setState(() => _liveTranscript = '');
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không nhận được giọng nói. Thử lại nhé!')),
+          );
+        }
       },
-      (error) {
-        setState(() => _isListening = false);
+      onError: (error) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi microphone: $error')),
         );
       },
     );
-  }
-
-  void _showMicOverlay() {
-    _startListening();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -396,7 +393,7 @@ $memoryNote
       builder: (_) => StatefulBuilder(
         builder: (ctx, setOverlay) {
           Timer.periodic(const Duration(milliseconds: 200), (timer) {
-            if (!mounted || !_isListening) {
+            if (!mounted || !_voiceController.isListening) {
               timer.cancel();
               if (Navigator.canPop(ctx)) Navigator.pop(ctx);
               return;
@@ -422,7 +419,7 @@ $memoryNote
                       _ChatPulseRing(size: 140, color: _DS.indigo, opacity: 0.18, delay: 600),
                       GestureDetector(
                         onTap: () {
-                          _stopListening();
+                          _voiceController.stopListening();
                           if (Navigator.canPop(ctx)) Navigator.pop(ctx);
                         },
                         child: Container(
@@ -495,151 +492,14 @@ $memoryNote
     setState(() => _messages.add({'role': 'assistant', 'content': msg}));
   }
 
-  void _stopListening() {
-    webStopRecording();
-    setState(() => _isListening = false);
+
+
+  void _detectEmotion(String text) {
+    final lower = text.toLowerCase();
+    final frustratedWords = ['chán', 'khó quá', 'bỏ cuộc', 'mệt', 'không hiểu', 'thôi', 'chịu rồi', 'give up', 'too hard', 'tired'];
+    _userFrustrated = frustratedWords.any((w) => lower.contains(w));
   }
 
-  Future<void> _transcribeAndSend(String audioBase64) async {
-    try {
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
-      final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice',
-        data: {'audio_base64': audioBase64, 'target_lang': 'vi'},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      final transcript = response.data['transcript'] as String? ?? '';
-      if (transcript.isNotEmpty) {
-        setState(() => _liveTranscript = transcript);
-        await _send(voiceText: transcript);
-      } else {
-        setState(() => _liveTranscript = '');
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không nhận được giọng nói. Thử lại nhé!')),
-        );
-      }
-    } catch (e) {
-      setState(() => _liveTranscript = '');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lỗi xử lý giọng nói. Thử lại nhé!')),
-      );
-    }
-  }
-
-  String _cleanForTTS(String text) {
-    text = text.replaceAll(RegExp(r'\[NEW:([^\]]+)\]'), r'\1');
-    text = text.replaceAll(RegExp(r'\([^)]*\)'), '');
-    text = text.replaceAll(RegExp(r'[\u{1F000}-\u{1FFFF}]', unicode: true), '');
-    text = text.replaceAll(RegExp(r'[\u{2600}-\u{27BF}]', unicode: true), '');
-    text = text.replaceAll(RegExp(r'\*+'), '');
-    text = text.replaceAll(RegExp(r'#+\s*'), '');
-    return text.trim();
-  }
-
-  List<String> _splitTextForTTS(String text) {
-    final chunks = <String>[];
-    final parts = text.split(RegExp(r'(?<=[。！？!?\n])'));
-    String current = '';
-    for (final part in parts) {
-      final trimmed = part.trim();
-      if (trimmed.isEmpty) continue;
-      if ((current + trimmed).length > 100) {
-        if (current.isNotEmpty) chunks.add(current.trim());
-        current = trimmed;
-      } else {
-        current += trimmed;
-      }
-    }
-    if (current.trim().isNotEmpty) chunks.add(current.trim());
-    if (chunks.isEmpty && text.isNotEmpty) {
-      for (int i = 0; i < text.length; i += 100) {
-        chunks.add(text.substring(i, (i + 100).clamp(0, text.length)));
-      }
-    }
-    return chunks;
-  }
-
-  // Cache audio đã generate theo (text, chunk) — bấm Nghe lại không gọi lại API
-  final Map<String, String> _audioCache = {};
-  final Map<String, Future<String?>> _audioFetchInFlight = {};
-
-  int _speakSession = 0;
-
-  Future<void> _speak(String text) async {
-    if (!_autoSpeak) return;
-    _stopSpeak();
-    final ttsText = _cleanForTTS(text);
-    if (ttsText.isEmpty) return;
-    final chunks = _splitTextForTTS(ttsText);
-    if (chunks.isEmpty) return;
-    _isSpeakingChunks = true;
-    final session = ++_speakSession;
-    _speakChunks(text, chunks, 0, session);
-  }
-
-  Future<String?> _fetchTtsBase64(String fullText, List<String> chunks, int index) {
-    final key = '${fullText.hashCode}_$index';
-    final cached = _audioCache[key];
-    if (cached != null) return Future.value(cached);
-
-    return _audioFetchInFlight.putIfAbsent(key, () async {
-      try {
-        final token = await _storage.read(key: 'access_token');
-        final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30), responseType: ResponseType.bytes));
-        final response = await dio.post(
-          'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts-mixed',
-          data: {'text': chunks[index], 'gender': _aiGender, 'learning_mode': _learningMode},
-          options: Options(headers: {'Authorization': 'Bearer $token'}),
-        );
-        final b64 = base64Encode(response.data as List<int>);
-        // Giới hạn cache tránh phình bộ nhớ khi chat dài
-        if (_audioCache.length > 60) _audioCache.clear();
-        _audioCache[key] = b64;
-        return b64;
-      } catch (e) {
-        return null;
-      } finally {
-        _audioFetchInFlight.remove(key);
-      }
-    });
-  }
-
-  Future<void> _speakChunks(String fullText, List<String> chunks, int index, int session) async {
-    if (!_isSpeakingChunks || !_autoSpeak) return;
-    if (session != _speakSession) return;
-    if (index >= chunks.length) { _isSpeakingChunks = false; return; }
-    if (!mounted) { _isSpeakingChunks = false; return; }
-    try {
-      final currentFuture = _fetchTtsBase64(fullText, chunks, index);
-      if (index + 1 < chunks.length) {
-        _fetchTtsBase64(fullText, chunks, index + 1);
-      }
-
-      final b64 = await currentFuture;
-      if (session != _speakSession || !_isSpeakingChunks) return;
-      if (b64 == null) {
-        _speakChunks(fullText, chunks, index + 1, session);
-        return;
-      }
-
-      // Chờ ĐÚNG lúc audio phát xong thật (sự kiện onEnded), không đoán thời gian
-      await webPlayAudio(b64);
-
-      if (session != _speakSession || !_isSpeakingChunks) return;
-      _speakChunks(fullText, chunks, index + 1, session);
-    } catch (e) {
-      if (session == _speakSession && _isSpeakingChunks) {
-        _speakChunks(fullText, chunks, index + 1, session);
-      }
-    }
-  }
-
-  void _stopSpeak() {
-    _isSpeakingChunks = false;
-    _speakSession++; // vô hiệu mọi lượt phát cũ đang chờ dở, chặn chồng audio
-    try { webStopAudio(); } catch (e) {}
-  }
   void _updateMood(String reply) {
     final lower = reply.toLowerCase();
     String mood = '😊';
@@ -652,26 +512,19 @@ $memoryNote
     if (mounted) setState(() => _aiMood = mood);
   }
 
-  void _detectEmotion(String text) {
-    final lower = text.toLowerCase();
-    final frustratedWords = ['chán', 'khó quá', 'bỏ cuộc', 'mệt', 'không hiểu', 'thôi', 'chịu rồi', 'give up', 'too hard', 'tired'];
-    _userFrustrated = frustratedWords.any((w) => lower.contains(w));
-  }
-
   void _extractNewVocab(String reply) {
-    final regex = RegExp(r'\[NEW:([^\]]+)\]');
-    final matches = regex.allMatches(reply);
-    if (matches.isNotEmpty) {
+    final newVocab = _learningEngine.extractNewVocab(reply);
+    if (newVocab.isNotEmpty) {
       setState(() {
         _newVocabSuggestions.clear();
-        _newVocabSuggestions.addAll(matches.map((m) => m.group(1)!));
+        _newVocabSuggestions.addAll(newVocab);
       });
     }
   }
 
   void _trackMistake(String userText) {
-    if (userText.contains('sai') || userText.contains('lỗi') || userText.contains('không đúng') || userText.contains('wrong')) {
-      if (!_mistakes.contains(userText) && _mistakes.length < 10) _mistakes.add(userText);
+    if (_learningEngine.shouldTrackMistake(_mistakes, userText)) {
+      _mistakes.add(userText);
     }
   }
 
@@ -718,11 +571,14 @@ $memoryNote
     final text = voiceText ?? _controller.text.trim();
     if (text.isEmpty || _isLoading) return;
     if (!_isVip && _freeMessagesLeft <= 0) { _showUpgradeDialog(); return; }
-    _stopSpeak();
+    _voiceController.stopSpeaking();
     _controller.clear();
     _sessionMessages++;
     _detectEmotion(text);
     _trackMistake(text);
+    if (_sessionMessages % 10 == 0) {
+      _saveMemory(); // fire-and-forget: kiem tra loi + tom tat dinh ky, khong doi ket qua
+    }
     setState(() {
       _messages.add({'role': 'user', 'content': text});
       _isLoading = true;
@@ -732,9 +588,12 @@ $memoryNote
       _typingDotSpeed = 400 + math.Random().nextInt(400);
     });
     _scrollToBottom();
-    if (_sessionMessages == 5) _showXpReward(10);
-    else if (_sessionMessages == 10) _showXpReward(25);
-    else if (_sessionMessages == 20) _showXpReward(50);
+    _saveMessageToHistory('user', text);
+    final xpReward =
+        _learningEngine.getXpRewardForSessionCount(_sessionMessages);
+    if (xpReward != null) {
+      _showXpReward(xpReward);
+    }
     try {
       final token2 = await _storage.read(key: 'access_token');
 
@@ -751,7 +610,7 @@ $memoryNote
         token: token2 ?? '',
         body: {
           'message': text,
-          'system_prompt': _systemPrompt,
+          'system_prompt': _buildSystemPrompt(text),
           'history': _cleanHistory,
           'learning_mode': _learningMode,
         },
@@ -789,16 +648,19 @@ $memoryNote
           return '($inner)';
         },
       );
-      final displayReply = fixedReply.replaceAllMapped(RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
+      var displayReply = fixedReply.replaceAllMapped(RegExp(r'\[NEW:([^\]]+)\]'), (m) => m.group(1)!);
       _updateMood(displayReply);
       _extractNewVocab(rawReply);
-      if (mounted) {
-        setState(() {
-          _messages[botIndex]['content'] = displayReply;
-          _quickReplies = _generateQuickReplies(displayReply);
-        });
-      }
-      if (_autoSpeak) _speak(displayReply);
+        displayReply = _languageOrderGuard.apply(displayReply, _learningMode);
+        await _cacheHanziConversion(displayReply);
+        if (mounted) {
+          setState(() {
+            _messages[botIndex]['content'] = displayReply;
+            _quickReplies = _generateQuickReplies(displayReply);
+          });
+        }
+        _saveMessageToHistory('assistant', displayReply);
+        if (_autoSpeak) _voiceController.speak(displayReply, aiGender: _aiGender, learningMode: _learningMode);
       _loadQuota();
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
@@ -819,6 +681,14 @@ $memoryNote
       setState(() { _isLoading = false; _streamingText = ''; });
       _scrollToBottom();
     }
+  }
+  Future<void> _cacheHanziConversion(String text) async {
+    final mode = ref.read(hanziModeProvider);
+    if (mode == HanziMode.traditional) return;
+    if (_hanziCache.containsKey(text)) return;
+    final converted = await convertHanzi(text, mode);
+    _hanziCache[text] = converted;
+    if (mounted) setState(() {});
   }
 
   List<String> _generateQuickReplies(String aiReply) {
@@ -937,7 +807,7 @@ $memoryNote
                 ].map((item) => _ModeChip(
                   icon: item['icon']!, label: item['label']!,
                   isSelected: _learningMode == item['key'],
-                  onTap: () { setModal(() {}); setState(() { _learningMode = item['key']!; _messages.clear(); _quickReplies = _defaultQuickReplies; }); },
+                  onTap: () { setModal(() {}); setState(() { _learningMode = item['key']!; _quickReplies = _defaultQuickReplies; }); },
                 )).toList(),
               ),
               const SizedBox(height: 24),
@@ -974,20 +844,20 @@ $memoryNote
               Row(children: [
                 Expanded(child: GestureDetector(
                   onTap: () {
-                    setState(() { _messages.clear(); _mistakes.clear(); _newVocabSuggestions.clear(); _quickReplies = _defaultQuickReplies; });
                     Navigator.pop(context);
+                    _startNewConversation();
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFEBEE),
+                      color: const Color(0xFFEEEDFE),
                       borderRadius: BorderRadius.circular(_DS.radiusSm),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      border: Border.all(color: _DS.indigo.withOpacity(0.3)),
                     ),
                     child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18),
+                      Icon(Icons.add_comment_rounded, color: _DS.indigo, size: 18),
                       SizedBox(width: 8),
-                      Text('Xóa chat', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+                      Text('Trò chuyện mới', style: TextStyle(color: _DS.indigo, fontWeight: FontWeight.w700)),
                     ]),
                   ),
                 )),
@@ -1048,8 +918,9 @@ $memoryNote
                           gradient: gradient,
                           aiMoodColor: _aiMoodColor,
                           learningMode: _learningMode,
-                          onSpeak: () => _speak(msg['content'] as String),
-                          onStop: _stopSpeak,
+                          hanziCache: _hanziCache,
+                          onSpeak: () => _voiceController.speak(msg['content'] as String, aiGender: _aiGender, learningMode: _learningMode),
+                          onStop: _voiceController.stopSpeaking,
                         );
                       },
                     ),
@@ -1098,7 +969,7 @@ $memoryNote
                 ),
               ]),
             ),
-          if (_isListening)
+          if (_voiceController.isListening)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1187,14 +1058,56 @@ $memoryNote
               ),
             ]),
             const SizedBox(height: 3),
-            Row(children: [
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: _DS.green, shape: BoxShape.circle)),
-              const SizedBox(width: 5),
-              Text('Đang online · $_aiMood tap để cài đặt',
-                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
-            ]),
+            Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: _DS.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    _sessionMessages > 0
+                        ? 'Đang online · $_aiMood · ${_relationshipLabel(_aiMemory)} · Đã trò chuyện $_sessionMessages tin trong phiên này'
+                        : 'Đang online · $_aiMood · ${_relationshipLabel(_aiMemory)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
           ]),
         )),
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RoleplayScreen())),
+          child: Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('🎭', style: TextStyle(fontSize: 14)),
+              SizedBox(width: 4),
+              Text('Nhập vai', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ),
+        GestureDetector(
+          onTap: _openHistory,
+          child: Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.history_rounded, size: 18, color: Colors.white70),
+          ),
+        ),
 
         // Quota + settings
         if (!_isVip)
@@ -1400,18 +1313,18 @@ $memoryNote
       child: Row(children: [
         // Mic button — Indigo
         GestureDetector(
-          onTap: _isLoading ? null : (_isListening ? _stopListening : _showMicOverlay),
+          onTap: (_isLoading || _voiceController.isProcessing) ? null : (_voiceController.isListening ? _voiceController.stopListening : _showMicOverlay),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: 44, height: 44,
             decoration: BoxDecoration(
-              gradient: _isListening
+              gradient: _voiceController.isListening
                   ? const LinearGradient(colors: [Colors.red, Color(0xFFB71C1C)])
                   : const LinearGradient(colors: [_DS.indigo, _DS.indigoDark]),
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: (_isListening ? Colors.red : _DS.indigo).withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [BoxShadow(color: (_voiceController.isListening ? Colors.red : _DS.indigo).withOpacity(0.35), blurRadius: 8, offset: const Offset(0, 3))],
             ),
-            child: Icon(_isListening ? Icons.stop_rounded : Icons.mic_rounded, color: Colors.white, size: 22),
+            child: Icon(_voiceController.isListening ? Icons.stop_rounded : Icons.mic_rounded, color: Colors.white, size: 22),
           ),
         ),
         const SizedBox(width: 10),
@@ -1429,7 +1342,7 @@ $memoryNote
               maxLines: 3, minLines: 1,
               style: const TextStyle(fontSize: 14, color: Colors.black),
               decoration: InputDecoration(
-                hintText: _isListening ? '🎤 Đang nghe...' : 'Nhắn tin với $_aiName...',
+                hintText: _voiceController.isListening ? '🎤 Đang nghe...' : 'Nhắn tin với $_aiName...',
                 hintStyle: TextStyle(color: _DS.textGrey.withOpacity(0.7), fontSize: 14),
                 filled: true, fillColor: _DS.bg,
                 border: InputBorder.none,
@@ -1550,12 +1463,13 @@ class _ChatBubble extends StatelessWidget {
   final VoidCallback onSpeak;
   final VoidCallback onStop;
   final String learningMode;
+  final Map<String, String> hanziCache;
 
   const _ChatBubble({
     required this.message, required this.isUser, required this.aiGender,
     required this.gradient, required this.aiMoodColor,
     required this.onSpeak, required this.onStop,
-    required this.learningMode,
+    required this.learningMode, required this.hanziCache,
   });
 
   void _showBubbleMenu(BuildContext context) {
@@ -1651,7 +1565,7 @@ class _ChatBubble extends StatelessWidget {
                     ),
                     child: isUser
                         ? Text(message, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6))
-                        : _buildHighlightedText(message, gradient[0], learningMode),
+                        : _buildHighlightedText(hanziCache[message] ?? message, gradient[0], learningMode),
                   ),
                   if (!isUser) ...[
                     const SizedBox(height: 5),

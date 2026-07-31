@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/providers/hanzi_mode_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 // ignore: avoid_web_libraries_in_flutter
 import 'package:chinesemate/core/utils/web_utils.dart';
@@ -561,6 +562,7 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
 
   Widget _buildSettingsTab() {
     final themeState = ref.watch(themeProvider);
+    final hanziMode = ref.watch(hanziModeProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -595,60 +597,60 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
         ],
 
         // Theme colors
-        const Text('Màu chủ đạo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.textGrey)),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
-          child: Wrap(spacing: 10, runSpacing: 10,
-            children: themeColors.map((tc) {
-              final color = tc['color'] as Color;
-              final isSelected = themeState.primaryColor.value == color.value;
-              return GestureDetector(
-                onTap: () => ref.read(themeProvider.notifier).setColor(color),
-                child: AnimatedContainer(duration: const Duration(milliseconds: 200),
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: color, shape: BoxShape.circle,
-                        border: Border.all(color: isSelected ? Colors.white : Colors.transparent, width: 3),
-                        boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.6), blurRadius: 10)] : []),
-                    child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 14),
+        
 
         // Dark mode
+        
+        // Hanzi mode — Phồn/Giản thể
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
           child: Row(children: [
-            const Icon(Icons.dark_mode_rounded, color: _DS.textGrey),
+            const Icon(Icons.translate_rounded, color: _DS.textGrey),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Giao diện tối', style: TextStyle(fontWeight: FontWeight.w600, color: _DS.textDark))),
-            Switch(value: themeState.themeMode == ThemeMode.dark, activeColor: _DS.orange,
-                onChanged: (v) => ref.read(themeProvider.notifier).setThemeMode(v ? ThemeMode.dark : ThemeMode.light)),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Kiểu chữ Hán', style: TextStyle(fontWeight: FontWeight.w600, color: _DS.textDark)),
+              Text('Áp dụng cho toàn bộ app', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
+            ])),
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                GestureDetector(
+                  onTap: () => ref.read(hanziModeProvider.notifier).setMode(HanziMode.traditional),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: hanziMode == HanziMode.traditional ? _DS.orange : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('繁 Phồn', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                        color: hanziMode == HanziMode.traditional ? Colors.white : _DS.textGrey)),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => ref.read(hanziModeProvider.notifier).setMode(HanziMode.simplified),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: hanziMode == HanziMode.simplified ? _DS.orange : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('简 Giản', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                        color: hanziMode == HanziMode.simplified ? Colors.white : _DS.textGrey)),
+                  ),
+                ),
+              ]),
+            ),
           ]),
         ),
         const SizedBox(height: 14),
 
         // Notifications
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]),
-          child: Row(children: [
-            const Icon(Icons.notifications_rounded, color: _DS.textGrey),
-            const SizedBox(width: 12),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Nhắc nhở học tập', style: TextStyle(fontWeight: FontWeight.w600, color: _DS.textDark)),
-              Text('Nhắc lúc 8h tối mỗi ngày', style: TextStyle(fontSize: 11, color: _DS.textGrey)),
-            ])),
-            Switch(value: true, activeColor: _DS.orange, onChanged: (_) {}),
-          ]),
-        ),
+        
       ]),
     );
   }
@@ -814,15 +816,24 @@ class VipScreen extends StatelessWidget {
                   ),
                   // Rows
                   ...[
-                    ['Chat AI 小美', '40 lần/ngày', 'Không giới hạn'],
-                    ['Dịch văn bản', '50 lần/ngày', 'Không giới hạn'],
-                    ['Dịch ảnh & hợp đồng', '15 lần/ngày', 'Không giới hạn'],
-                    ['Dịch giọng nói', '15 lần/ngày', 'Không giới hạn'],
-                    ['AI Tools (15 công cụ)', '15 lần/ngày', 'Không giới hạn'],
+                    ['Chat AI 小美', '5 lần/ngày', 'Không giới hạn'],
+                    ['Dịch văn bản', '5 lần/ngày', 'Không giới hạn'],
+                    ['Dịch ảnh & hợp đồng', '2 lần/ngày', 'Không giới hạn'],
+                    ['Dịch giọng nói', '3 lần/ngày', 'Không giới hạn'],
+                    ['AI Tools (15 công cụ)', '3 lần/ngày', 'Không giới hạn'],
+                    ['Luyện phát âm (Đấu Trường)', '10 lần/ngày', 'Không giới hạn · 20 câu/boss'],
+                    ['Nghe phát âm (TTS)', '10 lần/ngày', 'Không giới hạn'],
+                    ['Điền từ (Fill blank)', '5 lần/ngày', 'Không giới hạn'],
+                    ['Phân tích ngữ pháp từ ảnh', '❌', '✅'],
+                    ['Luyện viết nét chữ Hán', '❌', '✅'],
+                    ['Streak Freeze (giữ chuỗi ngày)', '❌', '✅ 2 lượt/tháng'],
+                    ['AI Chat kiểu Socrates', '❌', '✅ Hỏi ngược kiểm tra hiểu bài'],
+                    ['Nhập vai luyện tình huống thật', '❌', '✅ 4 kịch bản'],
                     ['Phân tích hợp đồng AI', '❌', '✅ Chi tiết'],
                     ['Tư vấn du học A-Z', '❌', '✅ Đầy đủ'],
                     ['Lộ trình học tập VIP', '❌', '✅'],
                     ['Học từ vựng/Quiz', '✅', '✅'],
+                    ['"Lỗi của tôi" (SRS từ AI Chat)', '✅', '✅'],
                   ].asMap().entries.map((e) {
                     final i = e.key;
                     final row = e.value;

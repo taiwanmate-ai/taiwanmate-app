@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
+import 'grammar_tool_screen.dart';
 
 class _DS {
   static const indigo = Color(0xFF5B5FEF);
@@ -286,7 +287,10 @@ class _ToolsScreenState extends State<ToolsScreen> with AutomaticKeepAliveClient
         ),
       ),
     );
+    
   }
+  
+  
 
   // ── HEADER ────────────────────────────────────────────────
   Widget _buildHeader() {
@@ -811,6 +815,8 @@ class _ToolCard extends StatelessWidget {
       onTap: () {
         if (tool.key == 'image_translate') {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const ImageTranslatePage()));
+        } else if (tool.key == 'grammar') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => GrammarToolScreen()));
         } else {
           Navigator.push(context, MaterialPageRoute(builder: (_) => AiToolPage(tool: tool)));
         }
@@ -993,7 +999,7 @@ class _JobSearchPageState extends State<JobSearchPage> with SingleTickerProvider
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _storage = const FlutterSecureStorage();
-  final List<Map<String, String>> _messages = [];
+  final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
   bool _isVip = false;
   int _freeAiLeft = 10;
@@ -1342,7 +1348,7 @@ class _AiToolPageState extends State<AiToolPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _storage = const FlutterSecureStorage();
-  final List<Map<String, String>> _messages = [];
+ final List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
   bool _showCompletion = false;
   bool _showXp = false;
@@ -1370,7 +1376,7 @@ class _AiToolPageState extends State<AiToolPage> {
     final text = override ?? _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    setState(() { _messages.add({'role': 'user', 'content': text}); _isLoading = true; _showCompletion = false; });
+    setState(() { _messages.add({'role': 'user', 'main': text}); _isLoading = true; _showCompletion = false; });
     _scrollToBottom();
     try {
       final token = await _storage.read(key: 'access_token');
@@ -1381,7 +1387,17 @@ class _AiToolPageState extends State<AiToolPage> {
             'system_prompt': (_isVip && widget.tool.systemVip != null) ? widget.tool.systemVip! : widget.tool.system},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      setState(() { _messages.add({'role': 'assistant', 'content': response.data['result'] as String? ?? ''}); _showCompletion = true; });
+      setState(() {
+        _messages.add({
+          'role': 'assistant',
+          'main': response.data['main'] ?? '',
+          'detail': response.data['detail'] ?? '',
+          'steps': List<String>.from(response.data['steps'] ?? []),
+          'examples': List<String>.from(response.data['examples'] ?? []),
+          'warning': response.data['warning'] ?? '',
+        });
+        _showCompletion = true;
+      });
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
@@ -1390,9 +1406,9 @@ class _AiToolPageState extends State<AiToolPage> {
           return;
         }
       }
-      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
+      setState(() => _messages.add({'role': 'assistant', 'main': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
     } catch (e) {
-      setState(() => _messages.add({'role': 'assistant', 'content': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
+      setState(() => _messages.add({'role': 'assistant', 'main': '⚠️ Lỗi kết nối. Vui lòng thử lại.'}));
     } finally {
       setState(() => _isLoading = false);
       _scrollToBottom();
@@ -1496,7 +1512,7 @@ class _AiToolPageState extends State<AiToolPage> {
                     if (_showCompletion && !_isLoading && i == _messages.length) return _buildCompletion();
                     if (i >= _messages.length) return const SizedBox.shrink();
                     final msg = _messages[i];
-                    return _ToolChatBubble(message: msg['content']!, isUser: msg['role'] == 'user', tool: widget.tool);
+                    return _ToolChatBubble(msg: msg, isUser: msg['role'] == 'user', tool: widget.tool);
                   }),
         ),
         _buildInputBar(),
@@ -1624,10 +1640,10 @@ class _AiToolPageState extends State<AiToolPage> {
 
 // ─── Tool Chat Bubble ─────────────────────────────────────────
 class _ToolChatBubble extends StatelessWidget {
-  final String message;
+  final Map<String, dynamic> msg;
   final bool isUser;
   final _ToolConfig tool;
-  const _ToolChatBubble({required this.message, required this.isUser, required this.tool});
+  const _ToolChatBubble({required this.msg, required this.isUser, required this.tool});
 
   Widget _buildHighlight(String text, Color color) {
     final spans = <TextSpan>[];
@@ -1643,36 +1659,114 @@ class _ToolChatBubble extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 14),
-    child: Row(
-      mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (!isUser) ...[
+  Widget build(BuildContext context) {
+    if (isUser) {
+      final text = msg['main'] as String? ?? '';
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Flexible(child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: tool.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18), topRight: Radius.circular(18),
+                  bottomLeft: Radius.circular(18), bottomRight: Radius.circular(4),
+                ),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+              ),
+              child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6)),
+            )),
+            const SizedBox(width: 8),
+          ],
+        ),
+      );
+    }
+
+    // AI trả lời — dạng thẻ có cấu trúc
+    final main = msg['main'] as String? ?? '';
+    final detail = msg['detail'] as String? ?? '';
+    final steps = (msg['steps'] as List?)?.cast<String>() ?? [];
+    final examples = (msg['examples'] as List?)?.cast<String>() ?? [];
+    final warning = msg['warning'] as String? ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
           Container(width: 36, height: 36, decoration: BoxDecoration(gradient: LinearGradient(colors: tool.gradient), shape: BoxShape.circle),
               child: Center(child: Text(tool.emoji, style: const TextStyle(fontSize: 18)))),
           const SizedBox(width: 8),
-        ],
-        Flexible(child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: isUser ? LinearGradient(colors: tool.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
-            color: isUser ? null : _DS.white,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(18), topRight: const Radius.circular(18),
-              bottomLeft: Radius.circular(isUser ? 18 : 4), bottomRight: Radius.circular(isUser ? 4 : 18),
+          Flexible(child: Container(
+            decoration: BoxDecoration(
+              color: _DS.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18), topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4), bottomRight: Radius.circular(18),
+              ),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
             ),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          child: isUser ? Text(message, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.6)) : _buildHighlight(message, tool.gradient[0]),
-        )),
-        if (isUser) const SizedBox(width: 8),
-      ],
-    ),
-  );
-}
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _buildHighlight(main, tool.gradient[0]),
 
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(detail, style: const TextStyle(fontSize: 13, color: _DS.textGrey, height: 1.5)),
+                ],
+
+                if (steps.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...steps.asMap().entries.map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Container(
+                        width: 20, height: 20, margin: const EdgeInsets.only(top: 1),
+                        decoration: BoxDecoration(color: tool.gradient[0].withOpacity(0.15), shape: BoxShape.circle),
+                        child: Center(child: Text('${e.key + 1}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: tool.gradient[0]))),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(e.value, style: const TextStyle(fontSize: 13, color: _DS.textDark, height: 1.5))),
+                    ]),
+                  )),
+                ],
+
+                if (examples.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...examples.map((ex) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(8)),
+                    child: _buildHighlight(ex, tool.gradient[0]),
+                  )),
+                ],
+
+                if (warning.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0EE), borderRadius: BorderRadius.circular(8),
+                      border: const Border(left: BorderSide(color: Color(0xFFFF3D57), width: 3)),
+                    ),
+                    child: Text('⚠️ $warning', style: const TextStyle(fontSize: 12.5, color: Color(0xFF8A2E26), height: 1.5)),
+                  ),
+                ],
+              ]),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
 // ─── Typing dot ───────────────────────────────────────────────
 class _Dot extends StatefulWidget {
   final int delay;
@@ -1720,6 +1814,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
   String _result = '';
   String _explanation = '';
   String _extractedText = '';
+  Map<String, dynamic>? _grammarData;
   bool _isLoading = false;
   bool _isVip = false;
   int _freeLeft = 3;
@@ -1729,6 +1824,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
     {'key': 'contract', 'emoji': '📋', 'label': 'Hợp đồng'},
     {'key': 'menu', 'emoji': '🍜', 'label': 'Menu'},
     {'key': 'sign', 'emoji': '🪧', 'label': 'Biển báo'},
+    {'key': 'grammar', 'emoji': '📖', 'label': 'Ngữ pháp'},
   ];
 
   String get _systemContext {
@@ -1736,6 +1832,7 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
       case 'contract': return 'Đây là hợp đồng lao động. Hãy: 1) Dịch toàn bộ nội dung, 2) Giải thích các điều khoản quan trọng, 3) Cảnh báo điều khoản bất lợi nếu có.';
       case 'menu': return 'Đây là menu nhà hàng. Hãy: 1) Dịch tên món ăn, 2) Mô tả nguyên liệu chính, 3) Gợi ý món phù hợp người Việt.';
       case 'sign': return 'Đây là biển báo/thông báo. Hãy dịch chính xác và giải thích ý nghĩa thực tế.';
+      case 'grammar': return 'Dịch toàn bộ văn bản trong ảnh và giải thích ngắn gọn.';
       default: return 'Dịch toàn bộ văn bản trong ảnh và giải thích ngắn gọn.';
     }
   }
@@ -1744,26 +1841,26 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
     final base64 = await webPickImage();
     if (base64 == null) return;
     final resized = resizeBase64Image(base64);
-    setState(() { _imageBase64 = resized; _result = ''; _explanation = ''; _extractedText = ''; });
+    setState(() { _imageBase64 = resized; _result = ''; _explanation = ''; _extractedText = ''; _grammarData = null; });
   }
 
   Future<void> _captureImage() async {
     final base64 = await webCaptureImage();
     if (base64 == null) return;
     final resized = resizeBase64Image(base64);
-    setState(() { _imageBase64 = resized; _result = ''; _explanation = ''; _extractedText = ''; });
+    setState(() { _imageBase64 = resized; _result = ''; _explanation = ''; _extractedText = ''; _grammarData = null; });
     _translate();
   }
 
   Future<void> _translate() async {
     if (_imageBase64 == null) return;
-    setState(() { _isLoading = true; _result = ''; _explanation = ''; _extractedText = ''; });
+    setState(() { _isLoading = true; _result = ''; _explanation = ''; _extractedText = ''; _grammarData = null; });
     try {
       final token = await _storage.read(key: 'access_token');
       final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 60), receiveTimeout: const Duration(seconds: 60)));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
-        data: {'image_base64': _imageBase64, 'target_lang': 'vi', 'context': _systemContext, 'image_type': _imageType},
+        data: {'image_base64': _imageBase64, 'target_lang': 'vi', 'context': _systemContext, 'image_type': _imageType == 'grammar' ? 'general' : _imageType},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       setState(() {
@@ -1781,7 +1878,10 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
-          if (mounted) { setState(() => _freeLeft = 0); _showVipDialog(); }
+          if (mounted) {
+            setState(() { _freeLeft = 0; _result = '⚠️ Bạn đã dùng hết lượt dịch ảnh miễn phí hôm nay!'; });
+            _showVipDialog();
+          }
           return;
         }
       }
@@ -1790,8 +1890,168 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
       setState(() => _result = '⚠️ Lỗi kết nối. Thử lại nhé!');
     } finally {
       setState(() => _isLoading = false);
+    } }
+List<String> _splitIntoSentences(String text) {
+    final regex = RegExp(r'[^。！？.!?]+[。！？.!?]?');
+    return regex.allMatches(text)
+        .map((m) => m.group(0)?.trim() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }    
+    Future<void> _analyzeSelectedText(String selectedText) async {
+    if (selectedText.trim().isEmpty) return;
+    setState(() { _isLoading = true; _grammarData = null; });
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)));
+      final response = await dio.post(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/grammar-text',
+        data: {'text': selectedText.trim()},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      setState(() => _grammarData = Map<String, dynamic>.from(response.data));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Không phân tích được câu này. Thử lại nhé!')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+    Widget _buildGrammarCard() {
+    final d = _grammarData!;
+    final sentence = d['sentence'] as String? ?? '';
+    final hasError = d['has_error'] == true;
+    final correctedSentence = d['corrected_sentence'] as String? ?? '';
+    final errorExplanation = d['error_explanation'] as String? ?? '';
+    final pinyin = d['pinyin'] as String? ?? '';
+    final meaning = d['meaning'] as String? ?? '';
+    final structure = (d['structure'] as List?) ?? [];
+    final grammarPoints = (d['grammar_points'] as List?) ?? [];
+    final vocabBreakdown = (d['vocab_breakdown'] as List?) ?? [];
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _DS.white, borderRadius: BorderRadius.circular(_DS.radius),
+        border: Border.all(color: _DS.indigoLight),
+        boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Câu gốc + nghĩa
+        // Câu gốc + nghĩa (đổi màu nếu có lỗi)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: hasError
+                ? const LinearGradient(colors: [Color(0xFFFF3D57), Color(0xFFD32F3F)])
+                : const LinearGradient(colors: [_DS.indigo, Color(0xFF3B3FA8)]),
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (hasError) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                child: const Text('⚠️ CÓ LỖI NGỮ PHÁP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+              ),
+              const SizedBox(height: 8),
+              Text(sentence, style: const TextStyle(fontSize: 15, color: Colors.white70, decoration: TextDecoration.lineThrough, fontFamily: 'NotoSansTC')),
+              const SizedBox(height: 4),
+              const Row(children: [Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.white), SizedBox(width: 4), Text('Sửa đúng:', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700))]),
+              const SizedBox(height: 4),
+              Text(correctedSentence, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'NotoSansTC')),
+              if (errorExplanation.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Text(errorExplanation, style: const TextStyle(fontSize: 12.5, color: Colors.white, height: 1.4)),
+                ),
+              ],
+            ] else
+              Text(sentence, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'NotoSansTC')),
+            if (pinyin.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(pinyin, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.white70)),
+            ],
+            const SizedBox(height: 8),
+            Text(meaning, style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+            if (structure.isNotEmpty) ...[
+              const Text('CẤU TRÚC CÂU', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
+              const SizedBox(height: 8),
+              ...structure.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: _DS.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text(s['role'] ?? '', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(s['part'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _DS.textDark, fontFamily: 'NotoSansTC')),
+                    Text(s['meaning'] ?? '', style: const TextStyle(fontSize: 11.5, color: _DS.textGrey)),
+                  ])),
+                ]),
+              )),
+              const SizedBox(height: 12),
+            ],
+
+            if (grammarPoints.isNotEmpty) ...[
+              const Text('ĐIỂM NGỮ PHÁP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
+              const SizedBox(height: 8),
+              ...grammarPoints.map((g) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(g['title'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.indigo)),
+                  const SizedBox(height: 4),
+                  Text(g['explanation'] ?? '', style: const TextStyle(fontSize: 12.5, color: _DS.textDark, height: 1.5)),
+                  if ((g['formula'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                      child: Text(g['formula'], textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                    ),
+                  ],
+                ]),
+              )),
+              const SizedBox(height: 12),
+            ],
+
+            if (vocabBreakdown.isNotEmpty) ...[
+              const Text('TỪ VỰNG KHÓ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: vocabBreakdown.map<Widget>((v) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(v['word'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark, fontFamily: 'NotoSansTC')),
+                  if ((v['pinyin'] as String?)?.isNotEmpty == true)
+                    Text(v['pinyin'], style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: _DS.textGrey)),
+                  Text(v['meaning'] ?? '', style: const TextStyle(fontSize: 11.5, color: _DS.textGrey)),
+                ]),
+              )).toList()),
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+  
 
   void _showVipDialog() {
     showDialog(
@@ -1962,14 +2222,43 @@ class _ImageTranslatePageState extends State<ImageTranslatePage> {
                   Text('Đang phân tích ảnh...', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
                 ])),
 
+          if (_grammarData != null) _buildGrammarCard(),
           if (_extractedText.isNotEmpty)
             Container(width: double.infinity, margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm), border: Border.all(color: Colors.grey.shade200)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Row(children: [Icon(Icons.text_fields_rounded, size: 14, color: _DS.textGrey), SizedBox(width: 6),
-                    Text('Văn bản nhận diện:', style: TextStyle(fontSize: 12, color: _DS.textGrey, fontWeight: FontWeight.w700))]),
+                  Row(children: [
+                    const Icon(Icons.text_fields_rounded, size: 14, color: _DS.textGrey), const SizedBox(width: 6),
+                    Text(_imageType == 'grammar' ? 'Bấm vào câu muốn phân tích ngữ pháp:' : 'Văn bản nhận diện:',
+                        style: const TextStyle(fontSize: 12, color: _DS.textGrey, fontWeight: FontWeight.w700)),
+                  ]),
                   const SizedBox(height: 8),
-                  Text(_extractedText, style: const TextStyle(fontSize: 14, color: _DS.textDark, height: 1.5)),
+                  _imageType == 'grammar'
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _splitIntoSentences(_extractedText).map((sentence) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: GestureDetector(
+                              onTap: () => _analyzeSelectedText(sentence),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _DS.bg,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: _DS.indigoLight.withOpacity(0.5)),
+                                ),
+                                child: Row(children: [
+                                  Expanded(child: Text(sentence,
+                                      style: const TextStyle(fontSize: 14, color: _DS.textDark, height: 1.5, fontFamily: 'NotoSansTC'))),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: _DS.indigo),
+                                ]),
+                              ),
+                            ),
+                          )).toList(),
+                        )
+                      : Text(_extractedText, style: const TextStyle(fontSize: 14, color: _DS.textDark, height: 1.5)),
                 ])),
 
           if (_result.isNotEmpty)
