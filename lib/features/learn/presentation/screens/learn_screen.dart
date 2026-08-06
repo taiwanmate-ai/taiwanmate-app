@@ -19,6 +19,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/learn_hub_tab.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/quick_review_screen.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/mastery_profile_tab.dart';
+import 'package:chinesemate/features/mock_exam/presentation/screens/mock_exam_list_screen.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -483,7 +484,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
                         _buildQuickAccessRow(),
                         Expanded(child: VocabularyListTab(storage: _storage, lang: _lang)),
                       ]),
-                      _buildMockExamPlaceholder(),
+                      MockExamListScreen(initialLanguage: _lang),
                       const MasteryProfileTab(),
                     ],
                   ),
@@ -492,21 +493,6 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
       ),
     );
   }
-
-  // ── THI THỬ (placeholder — chưa triển khai chức năng) ─────
-  Widget _buildMockExamPlaceholder() => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Text('📝', style: TextStyle(fontSize: 56)),
-        const SizedBox(height: 16),
-        const Text('Thi thử', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _DS.textDark)),
-        const SizedBox(height: 8),
-        const Text('Tính năng đang được xây dựng — sắp ra mắt!',
-            textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: _DS.textGrey)),
-      ]),
-    ),
-  );
 
   // ── HEADER ────────────────────────────────────────────────
   Widget _buildHeader() {
