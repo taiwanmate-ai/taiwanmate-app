@@ -188,7 +188,8 @@ class PaymentService {
       return false;
     }
   }
-  /// Lấy URL checkout Lemon Squeezy (dùng cho web)
+  /// Lấy URL checkout Polar thật (dùng cho web) — backend tạo Checkout
+  /// Session qua polar_sdk, khóa sẵn customer_email theo user đang đăng nhập.
   static Future<String> createCheckout({String plan = 'monthly'}) async {
     final response = await DioClient.instance.get(
       '/payment/checkout-url',

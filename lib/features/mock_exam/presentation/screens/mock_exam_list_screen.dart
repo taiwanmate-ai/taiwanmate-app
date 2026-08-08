@@ -90,9 +90,18 @@ class _MockExamListScreenState extends ConsumerState<MockExamListScreen> {
 
   Widget _buildInProgressBanner() {
     final latestAsync = ref.watch(mockExamLatestProvider);
+    // Vấn đề 4: resume() trước đây KHÔNG truyền totalQuestionCount (khác
+    // hẳn nhánh "bắt đầu mới" ở _buildPeriodsList đã truyền p.questionCount)
+    // -> AppBar của màn làm bài hiện "Đang thi" thay vì "Câu X / ~45" khi
+    // resume. Lấy ước lượng tốt nhất (KHÔNG gọi API mới) từ danh sách kỳ
+    // thi đã tải sẵn của ngôn ngữ đang chọn — chỉ hiển thị gần đúng ("~"),
+    // đúng bản chất field này đã được thiết kế từ đầu.
+    final periodsAsync = ref.watch(mockExamPeriodsProvider);
     return latestAsync.when(
       data: (latest) {
         if (latest == null || latest.status != 'in_progress') return const SizedBox.shrink();
+        final periods = periodsAsync.asData?.value ?? const [];
+        final estimatedTotal = periods.isNotEmpty ? periods.first.questionCount : null;
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: Container(
@@ -110,8 +119,17 @@ class _MockExamListScreenState extends ConsumerState<MockExamListScreen> {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => MockExamTakingScreen.resume(attemptId: latest.attemptId),
-                )),
+                  builder: (_) => MockExamTakingScreen.resume(
+                    attemptId: latest.attemptId,
+                    totalQuestionCount: estimatedTotal,
+                  ),
+                  // Vấn đề 2: thiếu callback nay khien man Home van hien
+                  // banner "chua nop" cu sau khi nguoi dung da nop bai xong
+                  // qua chinh duong resume nay — mockExamLatestProvider la
+                  // FutureProvider.autoDispose, KHONG tu dong refetch neu
+                  // khong ai invalidate no, va man List nay khong bi huy
+                  // (van nam duoi trong stack) nen giu nguyen cache cu.
+                )).then((_) => _refresh()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ExamDS.indigo,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

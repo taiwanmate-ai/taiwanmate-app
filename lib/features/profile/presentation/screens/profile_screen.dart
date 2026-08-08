@@ -13,8 +13,8 @@ import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../manual_payment_screen.dart';
 import 'package:chinesemate/core/state/user_state.dart';
+import '../../polar_checkout_launcher.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -218,9 +218,19 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
   }
 
   Future<void> _logout() async {
-    showDialog(
+    // BUG THAT (2 lan sua truoc deu SAI huong): showDialog() + goi async
+    // (_storage.delete) + dieu huong (context.go) NGAY BEN TRONG callback cua
+    // nut trong dialog la to hop xung dot da biet voi GoRouter — dialog va
+    // trang chinh cung nam chung 1 ngan xep ma GoRouter quan ly, khoang cach
+    // async (await) giua luc dong dialog va luc dieu huong khien GoRouter
+    // rebuild giua chung, hieu nham la TOAN BO ngan xep bi rong.
+    // SUA DUNG: doi ket qua dialog tra ve (true/false) TRUOC, dong dialog chi
+    // bang Navigator.pop(dialogContext, true/false) — KHONG co await/dieu
+    // huong nao ben trong callback nut bam. Xu ly logout THAT o BEN NGOAI,
+    // sau khi dialog da dong hoan toan.
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => Dialog(
+      builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -231,21 +241,16 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
             const SizedBox(height: 20),
             Row(children: [
               Expanded(child: GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => Navigator.pop(dialogContext, false),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(12)),
                   child: const Text('Hủy', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, color: _DS.textGrey)),
                 ),
               )),
-              
               const SizedBox(width: 12),
               Expanded(child: GestureDetector(
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _storage.delete(key: 'access_token');
-                  if (mounted) context.go('/login');
-                },
+                onTap: () => Navigator.pop(dialogContext, true),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(color: _DS.red, borderRadius: BorderRadius.circular(12)),
@@ -257,6 +262,13 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
         ),
       ),
     );
+
+    // Dialog da dong HOAN TOAN o day (khong con khoang cach async ben trong
+    // callback nut bam nua) — moi thuc hien logout that.
+    if (confirmed == true) {
+      await _storage.delete(key: 'access_token');
+      if (mounted) context.go('/login');
+    }
   }
 
   Future<void> _pickImageFromFile() async {
@@ -756,6 +768,7 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
 // ═══════════════════════════════════════════════════════════════
 // VIP SCREEN
 // ═══════════════════════════════════════════════════════════════
+
 class VipScreen extends StatelessWidget {
   const VipScreen({super.key});
 
@@ -901,7 +914,7 @@ class VipScreen extends StatelessWidget {
 GestureDetector(
   onTap: () async {
     if (kIsWeb) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen()));
+      await startPolarCheckout(context, plan: 'monthly');
       return;
     } else {
       await PaymentService.purchaseAndroid(
@@ -940,7 +953,7 @@ const SizedBox(height: 12),
 GestureDetector(
   onTap: () async {
     if (kIsWeb) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen()));
+      await startPolarCheckout(context, plan: 'yearly');
       return;
     } else {
       await PaymentService.purchaseAndroid(
@@ -974,29 +987,6 @@ GestureDetector(
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
   ),
 ),
-              const SizedBox(height: 16),
-              Row(children: const [
-                Expanded(child: Divider(color: Colors.white24)),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('hoặc', style: TextStyle(color: Colors.white38))),
-                Expanded(child: Divider(color: Colors.white24)),
-              ]),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen())),
-                child: Container(
-                  width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.qr_code_2_rounded, color: Colors.white70, size: 20),
-                    SizedBox(width: 8),
-                    Text('Chuyển khoản ngân hàng (QR)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
-                  ]),
-                ),
-              ),
               const SizedBox(height: 12),
 
               // Voucher 24h

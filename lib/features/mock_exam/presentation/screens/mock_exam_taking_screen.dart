@@ -102,13 +102,25 @@ class _MockExamTakingScreenState extends ConsumerState<MockExamTakingScreen> {
           _speak(next.lastPlayedTranscript!);
         }
       }
+      // Vấn đề 3: audio/TTS của câu CŨ trước đây chỉ bị dừng khi có 1 lần
+      // PHÁT MỚI thật sự (bên trong _playRealAudio/_speak) — nếu câu tiếp
+      // theo KHÔNG phải Listening (không phát gì mới), audio cũ tiếp tục
+      // chạy vô thời hạn. Dừng CẢ HAI player NGAY khi chuyển sang câu khác
+      // (id khác câu trước) hoặc khi nộp bài xong — bất kể câu mới có audio
+      // hay không — TRƯỚC KHI xét có auto-play tiếp hay không.
+      final newQuestionId = next.currentQuestion?.id;
+      final prevQuestionId = prev?.currentQuestion?.id;
+      final questionChanged = prevQuestionId != null && newQuestionId != prevQuestionId;
+      if (questionChanged || next.phase == ExamPhase.finished) {
+        _audioPlayer.stop();
+        _tts.stop();
+      }
+
       // Feature 4: tu dong phat khi vao 1 cau Listening MOI (id khac cau
       // truoc) — van goi playCurrentStimulus() y het bam nut thu cong, nen
       // TINH DUNG 1 luot trong replay_limit cua cau do (khong "mien phi"
       // ngoai quota — xac nhan san pham: replay_limit=2, auto-play la luot
       // 1, "Nghe lai" la luot 2 — xem docstring MockExamSessionState).
-      final newQuestionId = next.currentQuestion?.id;
-      final prevQuestionId = prev?.currentQuestion?.id;
       if (newQuestionId != null &&
           newQuestionId != prevQuestionId &&
           next.currentQuestion?.stimulus != null &&

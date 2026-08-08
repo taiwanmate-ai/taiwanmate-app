@@ -72,7 +72,12 @@ class _HistoryCard extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(date, style: const TextStyle(fontWeight: FontWeight.w800, color: ExamDS.textDark)),
               const SizedBox(height: 2),
-              Text(result.cefrBand != null ? 'Trình độ: ${result.cefrBand}' : 'Chưa xếp trình độ',
+              // Khong duoc de hieu nham la chung chi/diem chinh thuc — xem
+              // ghi chu o mock_exam_result_screen.dart._buildScoreCard().
+              Text(
+                  result.cefrBand != null
+                      ? 'Trình độ ước tính: ${result.cefrBand} (nội bộ)'
+                      : 'Chưa xếp trình độ',
                   style: const TextStyle(fontSize: 12, color: ExamDS.textGrey)),
             ]),
           ),

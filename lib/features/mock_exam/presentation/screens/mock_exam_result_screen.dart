@@ -104,8 +104,14 @@ class _ResultBody extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
-            child: Text('Trình độ: ${result.cefrBand}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            // overall_raw_score la % dung tren ngan hang cau hoi TU SOAN cua
+            // TaiwanMate, KHONG phai scale score chinh thuc TOCFL/HSK, va
+            // CEFR khong co thang diem chinh thuc nao — nhan phai noi ro day
+            // la uoc tinh noi bo, KHONG duoc de hieu nham la chung chi/diem
+            // chinh thuc (xem LevelBandRule nguong % noi bo, seed_level_
+            // band_rules.py).
+            child: Text('Trình độ ước tính: ${result.cefrBand} (tham khảo nội bộ TaiwanMate)',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
           ),
         ],
       ]),
@@ -158,7 +164,11 @@ class _ResultBody extends StatelessWidget {
           decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
             Expanded(child: Text(c.conceptName ?? c.conceptId, style: const TextStyle(fontWeight: FontWeight.w600))),
-            Text('${(c.rawScore * 100).toStringAsFixed(0)}%',
+            // Bug da sua: rawScore tu backend (PlacementScoringService.
+            // score_attempt) DA la thang 0-100 (weighted_correct/weighted_
+            // total * 100), KHONG phai 0-1 — nhan them 100 lan nua ra
+            // "10000%" thay vi "100%".
+            Text('${c.rawScore.toStringAsFixed(0)}%',
                 style: TextStyle(color: color, fontWeight: FontWeight.w800)),
           ]),
         )),

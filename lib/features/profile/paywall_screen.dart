@@ -1,8 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:chinesemate/core/services/payment_service.dart';
-import 'manual_payment_screen.dart';
+import 'polar_checkout_launcher.dart';
 
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
@@ -16,9 +15,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
  Future<void> _subscribe() async {
     if (kIsWeb) {
-      // TẠM: Lemon Squeezy còn ở Test mode, chưa duyệt Live.
-      // Chuyển sang QR thủ công đã hoạt động ổn định, tránh user thanh toán vào môi trường test.
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualPaymentScreen()));
+      await startPolarCheckout(context, plan: _isYearly ? 'yearly' : 'monthly');
       return;
     } else {
       setState(() => _loading = true);
