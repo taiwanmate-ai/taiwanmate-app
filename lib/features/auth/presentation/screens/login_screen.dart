@@ -1,10 +1,14 @@
 ﻿import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/services/google_auth_service.dart';
+import '../../../../core/services/google_web_button.dart';
 import '../../../../shared/theme/app_colors.dart';
 import 'package:chinesemate/core/cache/app_cache.dart';
 
@@ -20,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _error;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _googleWebAuthSub;
 
   // Micro-copy rotation
   int _copyIndex = 0;
@@ -57,6 +62,48 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       if (mounted) setState(() => _copyIndex = (_copyIndex + 1) % _microcopy.length);
       _copyFadeCtrl.forward();
     });
+
+    // Web KHONG dung authenticate() truc tiep duoc (xem docstring
+    // GoogleAuthService) — phai render nut GIS that (renderGoogleWebButton
+    // trong build()) va lang nghe ket qua qua stream nay. Android/iOS
+    // KHONG can buoc nay (van dung _loginWithGoogle() goi signIn() nhu cu).
+    if (kIsWeb) {
+      _setupGoogleWebSignIn();
+    }
+  }
+
+  Future<void> _setupGoogleWebSignIn() async {
+    try {
+      await GoogleAuthService.ensureInitialized();
+    } catch (e) {
+      debugPrint('Google web sign-in init error: $e');
+      return;
+    }
+    _googleWebAuthSub = GoogleAuthService.webAuthenticationEvents.listen(
+      _handleGoogleWebAuthEvent,
+      onError: (Object e) {
+        debugPrint('Google web sign-in stream error: $e');
+        if (mounted) setState(() => _error = 'Đăng nhập Google thất bại, vui lòng thử lại');
+      },
+    );
+  }
+
+  Future<void> _handleGoogleWebAuthEvent(GoogleSignInAuthenticationEvent event) async {
+    if (event is! GoogleSignInAuthenticationEventSignIn) return;
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      await GoogleAuthService.completeSignIn(event.user);
+      AppCache.instance.preloadAll();
+      if (mounted) context.go('/home');
+    } on DioException catch (e) {
+      debugPrint('Google web sign-in DioException: $e');
+      setState(() => _error = e.response?.data['detail'] ?? 'Đăng nhập Google thất bại');
+    } catch (e) {
+      debugPrint('Google web sign-in error: $e');
+      setState(() => _error = 'Đăng nhập Google thất bại, vui lòng thử lại');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -66,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _enterCtrl.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _googleWebAuthSub?.cancel();
     super.dispose();
   }
 
@@ -86,6 +134,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       if (mounted) context.go('/home');
     } on DioException catch (e) {
       setState(() => _error = e.response?.data['detail'] ?? 'Email hoặc mật khẩu không đúng');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() { _isLoading = true; _error = null; });
+    try {
+      final accessToken = await GoogleAuthService.signIn();
+      if (accessToken == null) {
+        // Nguoi dung tu huy — khong phai loi, khong hien thong bao.
+        return;
+      }
+      AppCache.instance.preloadAll();
+      if (mounted) context.go('/home');
+    } on DioException catch (e) {
+      debugPrint('Google sign-in DioException: $e');
+      setState(() => _error = e.response?.data['detail'] ?? 'Đăng nhập Google thất bại');
+    } catch (e) {
+      // Bug da sua: truoc day catch chung nay KHONG in "e" ra dau ca —
+      // 1 loi StateError tu GoogleSignIn.initialize() (vd goi initialize()
+      // 2 lan do bam nut nhanh truoc khi lan dau kip tai xong JS SDK) bi
+      // "nuot" hoan toan, chi hien 1 chuoi loi co dinh, khong the debug
+      // duoc tu Console. LUON in "e" that ra Console tu nay ve sau.
+      debugPrint('Google sign-in error: $e');
+      setState(() => _error = 'Đăng nhập Google thất bại, vui lòng thử lại');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -332,6 +406,53 @@ Widget _buildTopSection(Size size) {
                   ),
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // Divider "hoặc"
+              Row(children: [
+                Expanded(child: Divider(color: Colors.grey.shade300)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('hoặc', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                ),
+                Expanded(child: Divider(color: Colors.grey.shade300)),
+              ]),
+
+              const SizedBox(height: 16),
+
+              // Đăng nhập với Google — TÍNH NĂNG THÊM VÀO, KHÔNG thay thế
+              // form email/mật khẩu ở trên.
+              //
+              // Web PHẢI dùng nút GIS thật (renderGoogleWebButton) — xác
+              // nhận qua chính source google_sign_in_web: authenticate()
+              // ném UnimplementedError trên Web ("Instead, use renderButton
+              // to create a sign-in widget."), supportsAuthenticate() luôn
+              // false trên Web. Android/iOS vẫn dùng nút tự vẽ + authenticate()
+              // như cũ, KHÔNG đổi.
+              if (kIsWeb)
+                Center(child: renderGoogleWebButton())
+              else
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : _loginWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.g_mobiledata_rounded, size: 26, color: Color(0xFF5B5FEF)),
+                        const SizedBox(width: 6),
+                        const Text('Đăng nhập với Google',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1D2E))),
+                      ],
+                    ),
+                  ),
+                ),
 
               const SizedBox(height: 14),
 

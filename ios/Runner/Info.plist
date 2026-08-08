@@ -66,5 +66,29 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- Google Sign-In (iOS) — theo dung README chinh thuc cua
+	     google_sign_in_ios: GIDClientID BAT BUOC, GIDServerClientID de
+	     dam bao ID token co "aud" ma backend nhan dien duoc (server
+	     client id = GOOGLE_CLIENT_ID Web, GIONG HET serverClientId
+	     truyen trong initialize() o google_auth_service.dart). -->
+	<key>GIDClientID</key>
+	<string>593288308402-j48bpdu5meqrdursmoe13ui31jkglsro.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>593288308402-c81p5iqdphom4nfsq2va667smunooig3.apps.googleusercontent.com</string>
+
+	<!-- URL scheme dao nguoc CUA CHINH GIDClientID o tren (KHONG PHAI Web
+	     ID) — vd client id "123-abc.apps.googleusercontent.com" ->
+	     scheme "com.googleusercontent.apps.123-abc". Thay dung theo gia
+	     tri GOOGLE_CLIENT_ID_IOS that. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.593288308402-j48bpdu5meqrdursmoe13ui31jkglsro</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
