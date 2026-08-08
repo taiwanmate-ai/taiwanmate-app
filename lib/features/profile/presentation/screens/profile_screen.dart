@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:chinesemate/core/state/user_state.dart';
 import '../../polar_checkout_launcher.dart';
+import '../../../../core/services/google_auth_service.dart';
 
 // ─── Design System ────────────────────────────────────────────
 class _DS {
@@ -266,6 +267,14 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
     // Dialog da dong HOAN TOAN o day (khong con khoang cach async ben trong
     // callback nut bam nua) — moi thuc hien logout that.
     if (confirmed == true) {
+      // Bug da sua: TRUOC DAY logout chi xoa JWT cua TaiwanMate, KHONG dong
+      // session Google — GIS SDK van con `auto_select: true` nen se TU
+      // DONG dang nhap lai ngay khi LoginScreen (sau logout) mount va
+      // render lai nut Google, gay dang nhap lai ngoai y muon + treo man
+      // hinh xam (xem docstring GoogleAuthService.signOut()). PHAI goi
+      // TRUOC khi dieu huong ve /login, de nut Google moi render lai KHONG
+      // con auto_select nua.
+      await GoogleAuthService.signOut();
       await _storage.delete(key: 'access_token');
       if (mounted) context.go('/login');
     }

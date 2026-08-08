@@ -97,6 +97,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       debugPrint('Google web sign-in init error: $e');
       return;
     }
+    // ensureInitialized() la async — widget co the da bi dispose truoc khi
+    // no hoan tat (vd dieu huong di rat nhanh). KHONG dang ky listener cho
+    // 1 State da chet.
+    if (!mounted) return;
     _googleWebAuthSub = GoogleAuthService.webAuthenticationEvents.listen(
       _handleGoogleWebAuthEvent,
       onError: (Object e) {
@@ -107,6 +111,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> _handleGoogleWebAuthEvent(GoogleSignInAuthenticationEvent event) async {
+    // Bug da sua: TRUOC DAY setState() o day KHONG kiem tra `mounted` —
+    // stream authenticationEvents la broadcast VA co the ban 1 event MOI
+    // (vd GIS tu dong dang nhap lai qua auto_select ngay khi nut Google
+    // duoc render lai) SAU KHI LoginScreen nay da bi dispose (vd nguoi
+    // dung da dieu huong di noi khac rat nhanh). setState() sau dispose()
+    // nem loi FlutterError/StateError that su ("Instance of ..." khi bi
+    // minify) — day la 1 phan nguyen nhan cua bug "treo man hinh xam" sau
+    // khi dang xuat roi dang nhap lai. LUON kiem tra `mounted` truoc MOI
+    // setState() trong ham nay tu nay ve sau.
+    if (!mounted) return;
     if (event is! GoogleSignInAuthenticationEventSignIn) return;
     setState(() { _isLoading = true; _error = null; });
     try {
@@ -115,10 +129,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       if (mounted) context.go('/home');
     } on DioException catch (e) {
       debugPrint('Google web sign-in DioException: $e');
-      setState(() => _error = e.response?.data['detail'] ?? 'Đăng nhập Google thất bại');
+      if (mounted) setState(() => _error = e.response?.data['detail'] ?? 'Đăng nhập Google thất bại');
     } catch (e) {
       debugPrint('Google web sign-in error: $e');
-      setState(() => _error = 'Đăng nhập Google thất bại, vui lòng thử lại');
+      if (mounted) setState(() => _error = 'Đăng nhập Google thất bại, vui lòng thử lại');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

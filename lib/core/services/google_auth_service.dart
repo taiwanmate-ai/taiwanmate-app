@@ -171,4 +171,42 @@ class GoogleAuthService {
 
     return completeSignIn(account);
   }
+
+  /// Don session Google KHI DANG XUAT khoi TaiwanMate — goi truoc khi xoa
+  /// JWT token cua TaiwanMate. Bug da sua: TRUOC DAY logout chi xoa JWT
+  /// cua TaiwanMate, KHONG goi gi toi GoogleSignIn ca. Xac nhan qua chinh
+  /// source that (gis_client.dart::signOut()): id.initialize() duoc cau
+  /// hinh voi `auto_select: true` ("Attempt to sign-in silently") — GIS SDK
+  /// cua Google se TU DONG dang nhap lai (silent/one-tap) khi nut Google
+  /// duoc render lai, TRU KHI da goi `id.disableAutoSelect()` — CHINH XAC
+  /// dieu ma `GoogleSignIn.instance.signOut()` lam (qua
+  /// `GoogleSignInPlatform.instance.signOut()` -> `_gisSdkClient.signOut()`
+  /// -> `id.disableAutoSelect()`). KHONG goi ham nay khi dang xuat se khien
+  /// GIS tu dong dang nhap lai NGAY sau khi LoginScreen moi (sau logout)
+  /// mount va render lai nut Google — gay ra dang nhap-lai-tu-dong ngoai
+  /// y muon, dua den dieu huong chong cheo trong luc LoginScreen con dang
+  /// mount/dispose do dang, day chinh la nguyen nhan cua bug treo man hinh
+  /// xam + vong lap requestAnimationFrame sau khi dang xuat.
+  ///
+  /// AN TOAN cho MOI truong hop dang xuat, ke ca user dang nhap bang email/
+  /// mat khau (chua bao gio dung Google) — `GoogleSignIn.instance.signOut()`
+  /// tren Web se `await ensureInitialized()` TRUOC (dam bao khong bao gio
+  /// hang vinh vien cho mot Completer chua duoc hoan tat trong truong hop
+  /// user duoc tu dong dang nhap qua token cu, KHONG bao gio ghe qua
+  /// LoginScreen — nen GoogleAuthService.ensureInitialized() co the CHUA
+  /// TUNG duoc goi cho phien nay). Loi (neu co, vd mat mang) chi duoc log,
+  /// KHONG lam gian doan luong dang xuat that su cua TaiwanMate.
+  static Future<void> signOut() async {
+    if (!kIsWeb &&
+        defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+    try {
+      await ensureInitialized();
+      await GoogleSignIn.instance.signOut();
+    } catch (e) {
+      debugPrint('Google sign-out error (bo qua, khong chan dang xuat): $e');
+    }
+  }
 }
