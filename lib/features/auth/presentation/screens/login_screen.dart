@@ -25,6 +25,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _obscurePassword = true;
   String? _error;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _googleWebAuthSub;
+  // Bug da sua: renderGoogleWebButton() TRUOC DAY duoc goi TRUC TIEP, MOI
+  // LAN build() (vd moi 4s do _copyTimer trong _buildBottomSection() goi
+  // setState()). Xac nhan qua chinh source that google_sign_in_web.dart
+  // (renderButton() dong 266-284): moi lan goi tao 1 `GSIButtonConfiguration()`
+  // MOI (default constructor, khong truyen vao), va Key cua FutureBuilder
+  // ben trong la `Key(config.hashCode.toString())` — hashCode nay THAY DOI
+  // moi lan goi (identity hashCode, khong phai value-based), nghia la MOI
+  // LAN _LoginScreenState.build() chay lai, Flutter thay Key khac -> PHA
+  // HUY VA TAO LAI TU DAU toan bo platform view (iframe nut GIS that su),
+  // dang ky lai MutationObserver/ResizeObserver tu dau (xem
+  // flexible_size_html_element_view.dart) — lap lien tuc, KHONG BAO GIO
+  // on dinh vi _copyTimer khong bao gio dung, gay vong lap treo man hinh
+  // vinh vien tren Web. SUA: goi renderGoogleWebButton() DUY NHAT 1 LAN
+  // trong initState(), cache lai Widget instance, dung LAI CHINH instance
+  // do trong moi build() — giu nguyen Key/danh tinh widget on dinh qua
+  // moi lan rebuild.
+  Widget? _googleWebButton;
 
   // Micro-copy rotation
   int _copyIndex = 0;
@@ -68,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     // trong build()) va lang nghe ket qua qua stream nay. Android/iOS
     // KHONG can buoc nay (van dung _loginWithGoogle() goi signIn() nhu cu).
     if (kIsWeb) {
+      _googleWebButton = renderGoogleWebButton();
       _setupGoogleWebSignIn();
     }
   }
@@ -431,7 +449,7 @@ Widget _buildTopSection(Size size) {
               // false trên Web. Android/iOS vẫn dùng nút tự vẽ + authenticate()
               // như cũ, KHÔNG đổi.
               if (kIsWeb)
-                Center(child: renderGoogleWebButton())
+                Center(child: _googleWebButton!)
               else
                 SizedBox(
                   width: double.infinity,
