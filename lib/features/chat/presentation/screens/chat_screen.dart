@@ -24,6 +24,7 @@ import 'package:chinesemate/features/chat/engines/companion_memory_service.dart'
 import 'package:chinesemate/features/chat/engines/companion_learning_engine.dart';
 import 'package:chinesemate/features/chat/engines/companion_learning_service.dart';
 import 'package:chinesemate/features/chat/engines/companion_voice_controller.dart';
+import 'package:chinesemate/features/chat/engines/chat_history_utils.dart';
 
 class _DS {
   static const indigo = Color(0xFF5B5FEF);
@@ -537,13 +538,12 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
     });
   }
 
-  List<Map<String, dynamic>> get _cleanHistory {
-    return _messages
-        .where((m) => m['content'] != null && !(m['content'] as String).startsWith('⚠️') && (m['content'] as String).isNotEmpty)
-        .take(8)
-        .map((m) => {'role': m['role'], 'content': m['content']})
-        .toList();
-  }
+  // Bug da sua (dieu tra 2026-08-12): TRUOC DAY dung .take(8) lay nham 8
+  // tin CU NHAT thay vi 8 tin GAN NHAT - xem docstring buildCleanChatHistory
+  // trong chat_history_utils.dart de biet chi tiet hau qua/cach xac nhan.
+  // Logic loc + cat that su nam trong ham thuan tuy buildCleanChatHistory
+  // (co the unit test doc lap); getter nay chi la wrapper tien dung.
+  List<Map<String, dynamic>> get _cleanHistory => buildCleanChatHistory(_messages);
 
   Future<void> _saveVocab(String word) async {
     try {
@@ -579,6 +579,13 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
     if (_sessionMessages % 10 == 0) {
       _saveMemory(); // fire-and-forget: kiem tra loi + tom tat dinh ky, khong doi ket qua
     }
+    // Bug da sua (dieu tra 2026-08-12): PHAI lay history TRUOC KHI them tin
+    // nhan user hien tai vao _messages - neu lay SAU (nhu code cu), history
+    // se chua ca tin nhan hien tai o cuoi, bi gui LAP LAI 2 lan len backend
+    // (1 lan qua 'history', 1 lan qua field 'message' rieng ngay ben duoi).
+    // Bien nay chi anh huong hoi thoai NGAN (<=8 tin), vi hoi thoai dai hon
+    // se bi cat boi buildCleanChatHistory truoc khi toi duoc phan tu cuoi.
+    final historyForRequest = _cleanHistory;
     setState(() {
       _messages.add({'role': 'user', 'content': text});
       _isLoading = true;
@@ -611,7 +618,7 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
         body: {
           'message': text,
           'system_prompt': _buildSystemPrompt(text),
-          'history': _cleanHistory,
+          'history': historyForRequest,
           'learning_mode': _learningMode,
           // Gui kem userType that de backend co the tu chan doc lap noi
           // dung nhay cam (mang vui/roast) cho tre em — lop phong thu THU
