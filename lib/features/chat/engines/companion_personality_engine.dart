@@ -493,6 +493,18 @@ User đang yếu chủ đề "${nextAction['label']}" (điểm hiện tại: ${n
 Nếu phù hợp, hãy tự nhiên lồng ghép luyện tập/hỏi về chủ đề này ngay trong tin nhắn phản hồi — ví dụ hỏi 1 câu liên quan, hoặc gợi ý user thử nói 1 câu về chủ đề đó. Không ép nếu ngữ cảnh đang lệch hẳn sang chuyện khác.''' : '';
   }
 
+  // Bo sung (2026-08-12, sau dieu tra bug suy luan dai tu tham chieu): mo
+  // rong rule so 7 - da thu nghiem that qua 21+ luot goi gpt-4o-mini that
+  // (khong tai hien duoc loi mot cach on dinh trong cac kich ban da dung
+  // thu, nhung chi phi them rat nho va khong lam giam chat luong/tu nhien
+  // cua reply o ca 2 kich ban da test), quyet dinh dua vao production nhu
+  // 1 bien phap phong ngua chi phi thap, khong doi huong ly thuyet. Extract
+  // rieng vi la 1 doan huong dan tuong doi dai, khong nhoi thang vao rule
+  // khac cho de doc.
+  String _buildContextConsistencyRule() {
+    return '7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc. Trước khi trả lời câu hỏi tiếp theo có đại từ mơ hồ (nó/này/đó/cái đó...), LUÔN xác định rõ ràng đang nói về khái niệm/từ nào từ lượt gần nhất trước khi trả lời — nếu không chắc chắn, có thể hỏi lại ngắn gọn để xác nhận thay vì đoán và trả lời sai chủ đề.';
+  }
+
   // Uu tien 4: rule so 4 (RULES BAT BUOC) khong con CUNG bat buoc trong
   // 2 truong hop (xem docstring tham so suppressMandatoryQuestion o
   // tren) — VAN giu nguyen vi tri "4." de khong pha tham chieu "quy tac
@@ -695,6 +707,7 @@ ${now.weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $aiName đang rảnh, mood vui hơ
 
     final String mandatoryQuestionRuleText =
         _buildMandatoryQuestionRuleText(suppressMandatoryQuestion, trendRng);
+    final String contextConsistencyRule = _buildContextConsistencyRule();
 
     return '''$langRule
 
@@ -715,7 +728,7 @@ RULES BẮT BUỘC:
 $mandatoryQuestionRuleText
 5. Khi dạy 1 từ mới, LUÔN wrap từ đó bằng tag: [NEW:<từ_that_dang_day>] — ví dụ nếu từ đang dạy là 風景 thì viết đúng [NEW:風景]. Chữ "詞語" trong hướng dẫn này CHỈ LÀ VÍ DỤ MINH HỌA cho vị trí đặt từ vào tag, TUYỆT ĐỐI KHÔNG được giữ nguyên chữ "詞語" hay bất kỳ placeholder nào trong câu trả lời thật — luôn thay bằng đúng từ tiếng Trung THẬT vừa dạy. KHÔNG kèm pinyin/phiên âm ngay sau từ đó dưới bất kỳ hình thức nào (kể cả trong ngoặc) — nhắc lại đúng quy tắc số 2.
 6. KHÔNG BAO GIỜ nói "Tôi là AI" hay xin lỗi vô nghĩa
-7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc
+$contextConsistencyRule
 8. ⚠️ CỰC KỲ QUAN TRỌNG — TIẾNG VIỆT PHẢI CÓ DẤU CÁCH GIỮA MỖI TỪ:
    ĐÚNG: (Hôm nay bạn chuẩn bị học gì?)
    SAI: (Hômnaybạnchuẩnbịhọcgì?)
