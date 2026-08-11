@@ -613,6 +613,12 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
           'system_prompt': _buildSystemPrompt(text),
           'history': _cleanHistory,
           'learning_mode': _learningMode,
+          // Gui kem userType that de backend co the tu chan doc lap noi
+          // dung nhay cam (mang vui/roast) cho tre em — lop phong thu THU
+          // 2, doc lap voi gate da lam o CompanionPersonalityEngine phia
+          // client (xem translate.py::chat_stream_endpoint). Client van
+          // giu nguyen gate cu, KHONG doi gi o day ngoai truong gui kem.
+          'user_type': _userType,
         },
       );
 

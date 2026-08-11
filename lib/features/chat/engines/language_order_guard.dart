@@ -79,9 +79,20 @@ class LanguageOrderGuard {
   /// tieng Viet — do la cau "mo coi" (AI viet tieng Viet ra ngoai ngoac),
   /// se bi doc nham giong — xoa hang cau do khoi luong TTS, giu nguyen
   /// hien thi tren man hinh.
+  ///
+  /// Bug da sua (dieu tra that qua chay code, khong doan): regex tach cau
+  /// TRUOC DAY chi nhan dau cau HALF-WIDTH (.!?) va xuong dong — KHONG
+  /// nhan dau cau FULL-WIDTH tieng Trung (。！？) ma AI LUON duoc lenh
+  /// dung (system prompt bat buoc "ONLY Phồn thể... dau cau Trung"). Hau
+  /// qua: 1 doan tra loi nhieu cau tieng Trung dung dau cau full-width bi
+  /// hieu nham la MOT cau duy nhat — chi can 1 tu tieng Viet "mo coi" lot
+  /// ra ngoai ngoac O BAT KY DAU trong "cau" khong lo do, ca khoi (co the
+  /// la TOAN BO tin nhan) bi coi la "cau mo coi" va bi xoa sach, keo theo
+  /// moi cau tieng Trung dung truoc no — dung nguyen nhan bug "chi doc
+  /// duoc 1 cau/mat het noi dung" da xac nhan qua dieu tra truoc.
   String stripOrphanVietnameseForTts(String textAfterParenRemoved) {
     final sentences =
-        textAfterParenRemoved.split(RegExp(r'(?<=[.!?\n])'));
+        textAfterParenRemoved.split(RegExp(r'(?<=[.!?。！？\n])'));
     final kept = sentences.where((s) => !_hasVietnameseDiacritics(s));
     return kept.join('').trim();
   }

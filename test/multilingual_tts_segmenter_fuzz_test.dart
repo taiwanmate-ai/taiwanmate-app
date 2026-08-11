@@ -1,0 +1,189 @@
+import 'dart:math';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:chinesemate/features/chat/engines/multilingual_tts_segmenter.dart';
+
+/// FIX-TTS-02 — Kiem tra TINH DAY DU TONG QUAT cua Segmenter, khong phai
+/// tim 1 bug cu the. Thay vi cho nguoi dung tinh co gap phai roi moi bao
+/// (nhu 3 vong bao cao bug lien tiep truoc do — dau ngoac kep, dau ngoac
+/// Trung, dau "..." lien tiep), test nay chu dong sinh ra HANG LOAT cau
+/// mau ket hop Viet + Trung + Anh + DU CAC LOAI dau cau/ky tu bao quanh
+/// AI thuc su hay dung, roi kiem tra 1 QUY TAC BAT BIEN DUY NHAT:
+///
+///   MOI segment output ra tu segment() PHAI co it nhat 1 ky tu \p{L}
+///   (chu cai/Han tu) — khong duoc co segment "chi toan dau cau" nao lot
+///   qua, vi day chinh la nguyen nhan goc gay ra ca 3 bug da sua (dau
+///   ngoac kep lot vao giua cau, dau ngoac Trung tu dung thanh 1 "chu",
+///   dau "..." lien tiep tao segment rong-vo-nghia).
+///
+/// Sinh cau mau BANG 2 CACH ket hop (khong dung random thuan — dung
+/// Random CO SEED CO DINH de test luon deterministic, khong flaky):
+/// 1. Duyet CO HE THONG qua moi hoan vi thu tu Viet/Trung/Anh, ghep voi
+///    moi loai dau noi/bao quanh trong danh sach _connectors.
+/// 2. Random co seed co dinh, tron them cac to hop dau cau/emoji/so it
+///    gap hon de tang do da dang.
+///
+/// Giu lai VINH VIEN trong bo regression — bat ky thay doi nao sau nay o
+/// Segmenter deu tu dong duoc kiem tra lai qua toan bo bo cau mau nay.
+void main() {
+  const seg = MultilingualTtsSegmenter();
+  final hasLetter = RegExp(r'\p{L}', unicode: true);
+
+  const viPhrases = [
+    'xin chào',
+    'cảm ơn bạn rất nhiều',
+    'nghĩa là',
+    'tôi rất vui được gặp bạn',
+    'bạn có khỏe không',
+    'chúc bạn một ngày tốt lành',
+    'hôm nay trời đẹp quá',
+  ];
+  const zhPhrases = [
+    '你好',
+    '謝謝你',
+    '我很高興',
+    '你好嗎',
+    '加油',
+    '再見',
+    '這句話很常用',
+  ];
+  const enPhrases = [
+    'hello',
+    'thank you so much',
+    'how are you',
+    'good luck',
+    'see you later',
+    "I don't know",
+  ];
+
+  // Cac loai dau noi/bao quanh AI thuc su hay dung — day du theo yeu cau:
+  // ngoac don/kep/Trung, ellipsis (2 kieu), phay 3 kieu, hai cham 2 kieu,
+  // gach ngang 3 kieu, dau cham cau, emoji, so.
+  const connectors = <String>[
+    ' (', // mo ngoac don
+    ') ',
+    ' （', // mo ngoac Trung
+    '） ',
+    ' "', // ngoac kep thang
+    '" ',
+    " '", // ngoac nhay don
+    "' ",
+    ' 「', // ngoac Trung don
+    '」 ',
+    ' 『', // ngoac Trung kep
+    '』 ',
+    '... ', // 3 dau cham ASCII
+    '… ', // ellipsis 1 ky tu
+    '， ', // phay Trung
+    ', ', // phay Anh/Viet
+    '、 ', // dau cach cau Trung
+    '： ', // hai cham Trung
+    ': ', // hai cham Anh/Viet
+    ' - ', // gach ngang ASCII
+    ' － ', // gach ngang full-width
+    ' — ', // em-dash
+    '？ ', // hoi Trung
+    '? ', // hoi Anh/Viet
+    '！ ', // than Trung
+    '! ', // than Anh/Viet
+    '。 ', // cham Trung
+    '. ', // cham Anh/Viet
+    ' 😀 ', // emoji
+    ' 👍 ',
+    ' 123 ', // so
+    ' 2024 ',
+    '?! ', // dau cau kep
+    '!? ',
+    '?... ',
+    '.、 ', // dau cau Trung+Anh lien tiep, khac loai
+  ];
+
+  final samples = <String>[];
+
+  // ── 1. Sinh CO HE THONG: moi hoan vi 3 ngon ngu x moi connector ──
+  final orders = [
+    [viPhrases, zhPhrases, enPhrases],
+    [zhPhrases, viPhrases, enPhrases],
+    [enPhrases, viPhrases, zhPhrases],
+    [zhPhrases, enPhrases, viPhrases],
+    [viPhrases, enPhrases, zhPhrases],
+    [enPhrases, zhPhrases, viPhrases],
+  ];
+  var idx = 0;
+  for (final order in orders) {
+    for (final c in connectors) {
+      final a = order[0][idx % order[0].length];
+      final b = order[1][idx % order[1].length];
+      final d = order[2][idx % order[2].length];
+      samples.add('$a$c$b$c$d.');
+      idx++;
+    }
+  }
+
+  // ── 2. Random co seed co dinh — tron them to hop it gap hon ──
+  final rng = Random(42);
+  final allPhrases = [...viPhrases, ...zhPhrases, ...enPhrases];
+  for (int i = 0; i < 40; i++) {
+    final nParts = 2 + rng.nextInt(3); // 2-4 phan
+    final buffer = StringBuffer();
+    for (int p = 0; p < nParts; p++) {
+      buffer.write(allPhrases[rng.nextInt(allPhrases.length)]);
+      buffer.write(connectors[rng.nextInt(connectors.length)]);
+    }
+    samples.add(buffer.toString());
+  }
+
+  // ── 3. Vai truong hop bien co the tao ra "manh dau cau don doc" ──
+  samples.addAll([
+    '你好...',
+    '你好。。。',
+    '你好？！',
+    'xin chào...!',
+    '(...)',
+    '「」',
+    'hello?!...',
+    '你好嗎？(nǐ hǎo ma?)...',
+    '加油！！！',
+    'cảm ơn...,...bạn',
+  ]);
+
+  test(
+    'Fuzz — ${samples.length} cau mau tron Viet+Trung+Anh+moi loai dau cau/bao quanh: '
+    'MOI segment deu phai co it nhat 1 ky tu \\p{L}, khong segment nao chi toan dau cau',
+    () {
+      final violations = <String>[];
+      for (final input in samples) {
+        List<TtsSegment> result;
+        try {
+          result = seg.segment(input);
+        } catch (e) {
+          violations.add('CRASH voi input "$input": $e');
+          continue;
+        }
+        for (final s in result) {
+          if (!hasLetter.hasMatch(s.text)) {
+            violations.add(
+              'Input "$input" -> segment vo nghia (lang=${s.lang}): "${s.text}"',
+            );
+          }
+        }
+      }
+
+      if (violations.isNotEmpty) {
+        fail(
+          'Phat hien ${violations.length} segment vi pham (chi toan dau cau, '
+          'se bi TTS phat gan nhu im lang) trong ${samples.length} cau mau:\n'
+          '${violations.take(20).join('\n')}'
+          '${violations.length > 20 ? '\n... va ${violations.length - 20} vi pham khac' : ''}',
+        );
+      }
+    },
+  );
+
+  test('Fuzz — khong co segment nao rong hoan toan (empty string) sau khi trim', () {
+    for (final input in samples) {
+      for (final s in seg.segment(input)) {
+        expect(s.text.trim(), isNotEmpty, reason: 'Input "$input" tao segment rong');
+      }
+    }
+  });
+}
