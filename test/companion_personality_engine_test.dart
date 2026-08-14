@@ -14,6 +14,7 @@ String _buildPrompt({
   String currentUserText = 'Hôm nay tao học từ mới nhé',
   String learningMode = 'zh_vi',
   Map<String, dynamic> aiMemory = const {},
+  String? chineseLevel,
 }) {
   const engine = CompanionPersonalityEngine();
   final result = engine.buildSystemPromptV2(
@@ -30,6 +31,7 @@ String _buildPrompt({
     now: DateTime(2026, 8, 10, 15, 0), // Thu Hai — tranh nhanh "cuoi tuan" gay nhieu khi doc ket qua
     currentUserText: currentUserText,
     recentlySuggestedTrendPhraseIds: const {},
+    chineseLevel: chineseLevel,
   );
   return result.prompt;
 }
@@ -133,7 +135,10 @@ void main() {
       // dua vao rule 2 o xa phia tren.
       final rule5Start = prompt.indexOf('5. Khi dạy 1 từ mới');
       expect(rule5Start, greaterThanOrEqualTo(0));
-      final rule5Text = prompt.substring(rule5Start, rule5Start + 400);
+      // Buoc 4 muc G: rule 5 duoc mo rong them 1 mo dau ve truong hop user
+      // chu dong hoi nghia 1 tu cu the (dai hon truoc ~90 ky tu) — noi
+      // rong cua so tim kiem tuong ung, khong doi ban chat dieu test.
+      final rule5Text = prompt.substring(rule5Start, rule5Start + 500);
       expect(rule5Text, contains('KHÔNG kèm pinyin'));
     });
 
@@ -207,6 +212,117 @@ void main() {
       final prompt = _buildPrompt(userType: 'student', currentUserText: '了 và 過 khác nhau thế nào?');
       expect(prompt, contains('KHÔNG bắt buộc kết thúc bằng câu hỏi'));
       expect(prompt, contains('tránh mẫu chung chung'));
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc A: truyen chinese_level vao engine (plumbing)', () {
+    // Luu y (sau khi them muc C/rule 13): rule 13 (dieu chinh do kho) LUON
+    // xuat hien va TU NO co nhac cum "Trình độ tiếng Trung hiện tại của
+    // user" (khong kem "theo hồ sơ:") + tu "beginner" nhu 1 phan huong dan
+    // chung, KHONG phu thuoc chineseLevel co duoc truyen hay khong. Vi vay
+    // cac test nay phai kiem tra dung CHUOI DAY DU cua _buildLevelContextNote
+    // (co "theo hồ sơ:") de khong bi nham voi rule 13.
+    test('chineseLevel null (mac dinh, loi goi cu) — prompt KHONG chua dong ghi chu trinh do tu ho so', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ:'), isFalse,
+          reason: 'Loi goi cu chua biet tham so nay khong duoc doi hanh vi prompt');
+    });
+
+    test('chineseLevel rong ("") — coi nhu chua co, KHONG chua dong ghi chu trinh do tu ho so', () {
+      final prompt = _buildPrompt(userType: 'adult', chineseLevel: '');
+      expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ:'), isFalse);
+    });
+
+    test('chineseLevel="beginner" — prompt PHAI chua dung gia tri nay', () {
+      final prompt = _buildPrompt(userType: 'adult', chineseLevel: 'beginner');
+      expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ: beginner'), isTrue);
+    });
+
+    test('chineseLevel="intermediate" — prompt PHAI chua dung gia tri nay (khong hard-code beginner)', () {
+      final prompt = _buildPrompt(userType: 'adult', chineseLevel: 'intermediate');
+      expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ: intermediate'), isTrue);
+      expect(prompt.contains('theo hồ sơ: beginner'), isFalse);
+    });
+
+    test('chineseLevel khong lam mat cac phan tinh khac cua prompt (RULES, IDENTITY van con nguyen)', () {
+      // Luu y: buildSystemPrompt co ngau nhien rieng (TRENDING/opener hint/
+      // closing hint tu Random() moi lan goi) nen KHONG so sanh byte-exact
+      // 2 lan goi khac nhau — chi xac nhan cac phan TINH (khong ngau nhien)
+      // van con nguyen khi co chineseLevel.
+      final prompt = _buildPrompt(userType: 'adult', chineseLevel: 'beginner');
+      expect(prompt.contains('IDENTITY: Mày là'), isTrue);
+      expect(prompt.contains('RULES BẮT BUỘC:'), isTrue);
+      expect(prompt.contains('TÍNH CÁCH CỐ ĐỊNH:'), isTrue);
+      // Dong trinh do phai nam NGAY SAU khoi IDENTITY/mood, TRUOC RULES
+      final levelIdx = prompt.indexOf('Trình độ tiếng Trung hiện tại');
+      final rulesIdx = prompt.indexOf('RULES BẮT BUỘC:');
+      expect(levelIdx, greaterThan(0));
+      expect(levelIdx, lessThan(rulesIdx));
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc B: van hoa/ngu canh thuc te (rule 12)', () {
+    test('Rule 12 xuat hien, yeu cau dao sau van hoa/ap luc ngam/cach ung xu', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt, contains('12. Khi giải thích 1 từ/cụm từ/câu liên quan đến TÌNH HUỐNG THỰC TẾ'));
+      expect(prompt, contains('sắc thái văn hóa'));
+      expect(prompt, contains('áp lực/kỳ vọng ngầm'));
+      expect(prompt, contains('cách ứng xử/phản hồi phù hợp'));
+    });
+
+    test('Rule 12 luon xuat hien bat ke userType (khong bi gate nham nhu TRENDING)', () {
+      for (final userType in ['kid', 'student', 'adult', 'elder']) {
+        final prompt = _buildPrompt(userType: userType);
+        expect(prompt.contains('12. Khi giải thích'), isTrue, reason: 'userType=$userType phai co rule 12');
+      }
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc C: dieu chinh do kho theo trinh do (rule 13)', () {
+    test('Rule 13 xuat hien, nhac ca 2 nguon tin hieu (ho so + cau hoi hien tai)', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt, contains('13. TRƯỚC KHI giải thích 1 cấu trúc ngữ pháp/khái niệm NÂNG CAO'));
+      expect(prompt, contains('mình mới học'));
+      expect(prompt, contains('đơn giản hóa cách giải thích'));
+    });
+
+    test('Rule 13 xuat hien du chineseLevel null (dua vao tin hieu cau hoi hien tai)', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt.contains('13. TRƯỚC KHI giải thích'), isTrue);
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc D: sua loi phai giai thich (rule 14)', () {
+    test('Rule 14 xuat hien, yeu cau giai thich ly do sai + nhac gian-phon the', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt, contains('14. Khi user tự viết 1 câu'));
+      expect(prompt, contains('LUÔN giải thích NGẮN GỌN lý do câu gốc sai'));
+      expect(prompt, contains('giản thể (简体字)'));
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc E: cau hoi mo ho/rong (rule 15)', () {
+    test('Rule 15 xuat hien, yeu cau hoi lai hoac tong quan co to chuc', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt, contains('15. Khi user hỏi 1 câu RỘNG'));
+      expect(prompt, contains('hỏi lại 1 câu ngắn để thu hẹp phạm vi'));
+      expect(prompt, contains('TỔNG QUAN CÓ TỔ CHỨC'));
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc F: luyen tap/quiz co the cham (rule 16)', () {
+    test('Rule 16 xuat hien, yeu cau bai tap that (dien khuyet/trac nghiem), khong chi liet ke', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt, contains('16. Khi user yêu cầu LUYỆN TẬP/QUIZ/đố'));
+      expect(prompt, contains('điền vào chỗ trống'));
+      expect(prompt, contains('trắc nghiệm ngắn'));
+    });
+  });
+
+  group('Audit AI Companion — Buoc 4 muc G: tag [NEW:] khi hoi nghia tu cu the (rule 5 mo rong)', () {
+    test('Rule 5 ap dung ro CA khi user chu dong hoi nghia 1 tu cu the', () {
+      final prompt = _buildPrompt(userType: 'adult');
+      expect(prompt, contains('HOẶC khi user chủ động hỏi nghĩa 1 từ tiếng Trung cụ thể'));
     });
   });
 }

@@ -264,6 +264,14 @@ class CompanionPersonalityEngine {
     required DateTime now,
     required String currentUserText,
     required Set<String> recentlySuggestedTrendPhraseIds,
+    // Audit AI Companion (2026-08-12), Buoc 4 muc A — nen tang cho Type 9
+    // (dieu chinh do kho) va cac quy tac sau nay can biet trinh do user.
+    // TRUOC DAY hoan toan KHONG duoc truyen vao engine (chi co userType
+    // kid/student/adult/elder, khong phai trinh do NGON NGU that su) —
+    // xem bao cao Buoc 3, phat hien "chinese_level da co tren User model +
+    // DB nhung chua bao gio toi duoc day". Nullable + mac dinh null de
+    // KHONG pha cac loi goi cu chua truyen tham so nay.
+    String? chineseLevel,
     // Truc "conversation style" TACH BIET voi userType (uu tien 3, Phase 1)
     // — mac dinh 'default' (giu NGUYEN styleRule theo userType nhu truoc
     // day, KHONG doi hanh vi cac loi goi cu). 'close_roast' = style "Gan
@@ -342,6 +350,7 @@ class CompanionPersonalityEngine {
       conversationStyle: conversationStyle,
       suppressMandatoryQuestion: suppressMandatoryQuestion,
       isSimpleGreeting: isSimpleGreeting,
+      chineseLevel: chineseLevel,
     );
 
     final safetyOverride = safetyActive ? '''
@@ -493,6 +502,17 @@ User đang yếu chủ đề "${nextAction['label']}" (điểm hiện tại: ${n
 Nếu phù hợp, hãy tự nhiên lồng ghép luyện tập/hỏi về chủ đề này ngay trong tin nhắn phản hồi — ví dụ hỏi 1 câu liên quan, hoặc gợi ý user thử nói 1 câu về chủ đề đó. Không ép nếu ngữ cảnh đang lệch hẳn sang chuyện khác.''' : '';
   }
 
+  // Audit AI Companion (2026-08-12), Buoc 4 muc A — CHI dua thong tin
+  // trinh do vao prompt de model biet (nen tang/plumbing), KHONG tu them
+  // huong dan hanh vi "phai lam gi voi thong tin nay" o day - quy tac
+  // dieu chinh do kho theo gia tri nay thuoc muc C (rieng, sau buoc nay).
+  // Rong neu khong co gia tri (vd loi goi cu chua truyen, hoac user chua
+  // tung dat trinh do trong Ho so) — KHONG ep buoc hien thi dong rong.
+  String _buildLevelContextNote(String? chineseLevel) {
+    if (chineseLevel == null || chineseLevel.isEmpty) return '';
+    return '\n(Trình độ tiếng Trung hiện tại của user theo hồ sơ: $chineseLevel.)';
+  }
+
   // Bo sung (2026-08-12, sau dieu tra bug suy luan dai tu tham chieu): mo
   // rong rule so 7 - da thu nghiem that qua 21+ luot goi gpt-4o-mini that
   // (khong tai hien duoc loi mot cach on dinh trong cac kich ban da dung
@@ -503,6 +523,66 @@ Nếu phù hợp, hãy tự nhiên lồng ghép luyện tập/hỏi về chủ �
   // khac cho de doc.
   String _buildContextConsistencyRule() {
     return '7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc. Trước khi trả lời câu hỏi tiếp theo có đại từ mơ hồ (nó/này/đó/cái đó...), LUÔN xác định rõ ràng đang nói về khái niệm/từ nào từ lượt gần nhất trước khi trả lời — nếu không chắc chắn, có thể hỏi lại ngắn gọn để xác nhận thay vì đoán và trả lời sai chủ đề.';
+  }
+
+  // ============================================================
+  // Audit AI Companion (2026-08-12), Buoc 4 muc B-G — bo sung co he thong
+  // cho 6/9 dang cau hoi bi xac nhan YEU qua test that o Buoc 3 (xem bao
+  // cao Buoc 1-3). Moi muc 1 ham rieng (dung pattern extract method da
+  // dung ca ngay), duoc danh so tiep tuc tu rule 12 tro di trong RULES
+  // BAT BUOC (KHONG chen giua 1-11 de tranh pha tham chieu "quy tac so 4"
+  // cua rule VIP Socrates so 10).
+  // ============================================================
+
+  // Muc B (Type 7 — quan trong nhat, differentiator san pham theo tai lieu
+  // goc muc 11): Buoc 3 xac nhan CA 3/3 vi du that (加班/扛著/尾牙) deu dung
+  // o nghia den + 1 cau ngu canh chung chung, KHONG dao sau sac thai van
+  // hoa/ap luc ngam/cach ung xu. Dua dung vi du 明天加班 tu tai lieu goc lam
+  // mau cau truc mong muon.
+  String _buildCulturalContextRule() {
+    return '12. Khi giải thích 1 từ/cụm từ/câu liên quan đến TÌNH HUỐNG THỰC TẾ ở Đài Loan (công sở, nhà máy, đời sống hàng ngày — ví dụ sếp nói "明天加班", đồng nghiệp rủ đi "尾牙", 1 câu nói/thành ngữ dùng ở nơi làm việc...), KHÔNG được dừng lại ở nghĩa đen/dịch nghĩa rồi coi như xong. LUÔN đào sâu thêm ít nhất 1 lớp: (1) sắc thái văn hóa/ngữ cảnh xã hội đằng sau câu nói (có mang tính mệnh lệnh ngầm không, có phải cách nói giảm nhẹ/gián tiếp không), (2) áp lực/kỳ vọng ngầm nếu có (có thực sự bắt buộc không, từ chối có ảnh hưởng gì), (3) gợi ý ngắn cách ứng xử/phản hồi phù hợp với văn hóa Đài Loan. Đây là điểm khác biệt cốt lõi — không chỉ dịch như từ điển, mà giúp user THỰC SỰ hiểu và hòa nhập môi trường sống/làm việc thật.';
+  }
+
+  // Muc C (Type 9): dung ca 2 nguon tin hieu trinh do — chineseLevel tu
+  // Ho so (muc A, co the null neu chua dat) VA tin hieu tu chinh cau hoi
+  // hien tai (Buoc 3 xac nhan model PHOT LO hoan toan tin hieu "moi hoc 2
+  // tuan" du nam ngay trong cau hoi — khong the chi dua vao chineseLevel
+  // structural vi phan lon user co the chua tung dat no).
+  String _buildLevelAdjustmentRule(String? chineseLevel) {
+    return '13. TRƯỚC KHI giải thích 1 cấu trúc ngữ pháp/khái niệm NÂNG CAO hoặc PHỨC TẠP, kiểm tra tín hiệu trình độ user từ 2 nguồn: (a) dòng "Trình độ tiếng Trung hiện tại của user" ở trên nếu có (beginner = mới học), (b) tín hiệu TRỰC TIẾP ngay trong câu hỏi hiện tại (user tự nói "mình mới học", "mới bắt đầu", "học được vài tuần"...). Nếu phát hiện user ở trình độ beginner/mới học (từ 1 trong 2 nguồn) VÀ câu hỏi yêu cầu kiến thức nâng cao/phức tạp: PHẢI đơn giản hóa cách giải thích (ví dụ ngắn, tránh thuật ngữ ngữ pháp hàn lâm) HOẶC thêm 1 câu ngắn cảnh báo/gợi ý học từ từ trước khi đi sâu — KHÔNG được phớt lờ tín hiệu trình độ chỉ vì user vẫn hỏi đúng câu hỏi khó.';
+  }
+
+  // Muc D (Type 4): Buoc 3 xac nhan 2/2 vi du that AI sua DUNG cau nhung
+  // KHONG BAO GIO giai thich tai sao sai (1 case con bo qua ca loi dung
+  // gian the du app dang day Phon the) — vi pham truc tiep muc dich hoc
+  // tap, chi va loi ma khong day.
+  String _buildErrorCorrectionRule() {
+    return '14. Khi user tự viết 1 câu (tiếng Trung/Anh/Việt) và nhờ sửa/kiểm tra: sau khi đưa câu ĐÚNG, LUÔN giải thích NGẮN GỌN lý do câu gốc sai — chỉ rõ điểm sai cụ thể (ngữ pháp/từ dùng sai/nhầm giản thể-phồn thể/thứ tự từ...), KHÔNG chỉ nói chung chung kiểu "nghe tự nhiên hơn". Nếu câu gốc dùng giản thể (简体字) dù app đang dạy Phồn thể, PHẢI chỉ rõ và nhắc lại quy tắc chỉ dùng Phồn thể (xem quy tắc số 3). Sửa mà không giải thích thì user không học được gì.';
+  }
+
+  // Muc E (Type 1): Buoc 3 xac nhan khong nhat quan — 1/3 vi du that tot
+  // (co cau truc + mo rong), 2/3 hoi hot (1 vi du don le roi hoi lai chung
+  // chung hoac khong hoi lai gi). Chinh hoa hoa thanh 1 quy tac ro rang
+  // thay vi de tuy model.
+  String _buildBroadQuestionRule() {
+    return '15. Khi user hỏi 1 câu RỘNG, KHÔNG có tiêu điểm cụ thể (ví dụ "dạy tôi ngữ pháp", "dạy tôi từ vựng", "dạy tôi giao tiếp công sở" — không chỉ rõ điểm/chủ đề nào), KHÔNG được trả lời hời hợt bằng 1 ví dụ đơn lẻ rồi dừng. Chọn 1 trong 2 cách: (a) hỏi lại 1 câu ngắn để thu hẹp phạm vi, hoặc (b) đưa 1 TỔNG QUAN CÓ TỔ CHỨC — liệt kê 2-4 nhánh/chủ đề cụ thể trong mảng đó (mỗi nhánh 1 ví dụ ngắn), rồi mời user chọn đào sâu nhánh nào.';
+  }
+
+  // Muc F (Type 6): Buoc 3 xac nhan phan hoi "luyen tap/do" hien tai chi
+  // liet ke tu vung hoac 1 cau mau don thuan, thieu yeu to kiem tra/thu
+  // thach that su (khong phai "luyen tap", chi la day lai).
+  String _buildPracticeQuizRule() {
+    return '16. Khi user yêu cầu LUYỆN TẬP/QUIZ/đố (ví dụ "ra cho tôi 1 câu để luyện...", "đố tôi từ vựng..."), PHẢI đưa ra 1 bài tập THẬT có thể chấm được qua text — ví dụ câu điền vào chỗ trống, câu hỏi trắc nghiệm ngắn (2-3 lựa chọn), hoặc yêu cầu user tự đặt câu rồi hẹn sẽ chấm/sửa. KHÔNG chỉ liệt kê danh sách từ vựng hoặc 1 câu ví dụ đơn thuần mà không có yếu tố kiểm tra nào.';
+  }
+
+  // Muc G (Type 3, van de nho nhat trong 6 muc): Buoc 3 phat hien khi user
+  // CHU DONG hoi nghia 1 tu cu the (vd "從 nghĩa là gì"), AI bo qua tag
+  // [NEW:...] — co le vi hieu rule 5 (duoi day) chi ap dung khi CHINH AI
+  // chu dong chon day tu moi, khong phai khi tra loi cau hoi truc tiep.
+  // Lam ro pham vi ap dung ngay trong chinh rule 5, extract rieng vi
+  // truoc day la text tinh nhoi thang trong template.
+  String _buildNewWordTagRule() {
+    return '5. Khi dạy 1 từ mới HOẶC khi user chủ động hỏi nghĩa 1 từ tiếng Trung cụ thể (ví dụ user hỏi "從 nghĩa là gì"), LUÔN wrap từ đó bằng tag: [NEW:<từ_that_dang_day>] — ví dụ nếu từ đang dạy là 風景 thì viết đúng [NEW:風景]. Chữ "詞語" trong hướng dẫn này CHỈ LÀ VÍ DỤ MINH HỌA cho vị trí đặt từ vào tag, TUYỆT ĐỐI KHÔNG được giữ nguyên chữ "詞語" hay bất kỳ placeholder nào trong câu trả lời thật — luôn thay bằng đúng từ tiếng Trung THẬT vừa dạy/vừa được hỏi. KHÔNG kèm pinyin/phiên âm ngay sau từ đó dưới bất kỳ hình thức nào (kể cả trong ngoặc) — nhắc lại đúng quy tắc số 2.';
   }
 
   // Uu tien 4: rule so 4 (RULES BAT BUOC) khong con CUNG bat buoc trong
@@ -648,6 +728,12 @@ ${now.weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $aiName đang rảnh, mood vui hơ
     // vong (xem _openerStyleHints) khi tin nhan la loi chao xa giao ngan
     // — giam lap cum "你好! (Xin chào...)" da xac nhan qua audit.
     bool isSimpleGreeting = false,
+    // Audit AI Companion (2026-08-12), Buoc 4 muc A — xem docstring day du
+    // tai buildSystemPromptV2. Nullable + mac dinh null: KHONG doi hanh vi
+    // cac loi goi cu chua truyen. Chi la "nen tang" (thong tin trinh do
+    // duoc dua vao prompt) — quy tac THUC SU dieu chinh do kho theo gia
+    // tri nay se duoc them o muc C (rieng, chua lam trong buoc nay).
+    String? chineseLevel,
   }) {
     final (:langRule, :langFormat) = _buildLanguageRule(learningMode);
 
@@ -708,13 +794,20 @@ ${now.weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $aiName đang rảnh, mood vui hơ
     final String mandatoryQuestionRuleText =
         _buildMandatoryQuestionRuleText(suppressMandatoryQuestion, trendRng);
     final String contextConsistencyRule = _buildContextConsistencyRule();
+    final String levelContextNote = _buildLevelContextNote(chineseLevel);
+    final String newWordTagRule = _buildNewWordTagRule();
+    final String culturalContextRule = _buildCulturalContextRule();
+    final String levelAdjustmentRule = _buildLevelAdjustmentRule(chineseLevel);
+    final String errorCorrectionRule = _buildErrorCorrectionRule();
+    final String broadQuestionRule = _buildBroadQuestionRule();
+    final String practiceQuizRule = _buildPracticeQuizRule();
 
     return '''$langRule
 
 FORMAT VÍ DỤ:
 $langFormat
 
-${_buildIdentityAndMoodSection(aiName, aiGender, now)}
+${_buildIdentityAndMoodSection(aiName, aiGender, now)}$levelContextNote
 $openerHintSection
 
 $effectiveStyleRule
@@ -726,7 +819,7 @@ RULES BẮT BUỘC:
 2. KHÔNG BAO GIỜ viết pinyin, kể cả trong ngoặc ngay sau 1 từ tiếng Trung — xem thêm quy tắc số 5 (đây là chỗ RẤT DỄ vi phạm quy tắc này nhất khi dạy từ mới).
 3. ONLY Phồn thể 繁體字, KHÔNG giản thể
 $mandatoryQuestionRuleText
-5. Khi dạy 1 từ mới, LUÔN wrap từ đó bằng tag: [NEW:<từ_that_dang_day>] — ví dụ nếu từ đang dạy là 風景 thì viết đúng [NEW:風景]. Chữ "詞語" trong hướng dẫn này CHỈ LÀ VÍ DỤ MINH HỌA cho vị trí đặt từ vào tag, TUYỆT ĐỐI KHÔNG được giữ nguyên chữ "詞語" hay bất kỳ placeholder nào trong câu trả lời thật — luôn thay bằng đúng từ tiếng Trung THẬT vừa dạy. KHÔNG kèm pinyin/phiên âm ngay sau từ đó dưới bất kỳ hình thức nào (kể cả trong ngoặc) — nhắc lại đúng quy tắc số 2.
+$newWordTagRule
 6. KHÔNG BAO GIỜ nói "Tôi là AI" hay xin lỗi vô nghĩa
 $contextConsistencyRule
 8. ⚠️ CỰC KỲ QUAN TRỌNG — TIẾNG VIỆT PHẢI CÓ DẤU CÁCH GIỮA MỖI TỪ:
@@ -740,6 +833,11 @@ ${isVip ? '''
 10. [VIP - PHƯƠNG PHÁP SOCRATES] Sau khi giải thích 1 điểm ngữ pháp/từ vựng MỚI cho user, ĐỪNG dừng lại ở giải thích — hãy HỎI NGƯỢC LẠI để kiểm tra user có hiểu thật không. Ví dụ: sau khi giải thích "了 vs 過", hỏi "Vậy mày thử đặt 1 câu dùng 過 xem?" hoặc "Giờ mày nói lại xem tại sao câu kia dùng 了 mà không dùng 過?". Đây là câu hỏi bắt buộc phải thay thế cho câu hỏi thông thường ở quy tắc số 4 khi vừa giải thích xong kiến thức mới — không hỏi kiểu xã giao, mà hỏi kiểu kiểm tra hiểu bài.
 ''' : ''}
 11. Nếu biết tên user từ memory → gọi tên tự nhiên trong reply
+$culturalContextRule
+$levelAdjustmentRule
+$errorCorrectionRule
+$broadQuestionRule
+$practiceQuizRule
 $mistakesNote$emotionNote
 $streakNote
 $memoryNote

@@ -70,6 +70,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with TickerProviderStat
   String _liveTranscript = '';
   late final CompanionVoiceController _voiceController;
   String _userType = 'student';
+  // Audit AI Companion (2026-08-12), Buoc 4 muc A — TRUOC DAY khong ton
+  // tai bien nao luu trinh do tieng Trung cua user trong man hinh Chat
+  // (chi co _userType la loai nguoi dung kid/student/adult/elder, KHONG
+  // phai trinh do NGON NGU that su). Nullable: null nghia la chua tai
+  // duoc/user chua tung dat trinh do trong Ho so — buildSystemPromptV2 tu
+  // xu ly gia tri null an toan (khong hien thi dong trinh do).
+  String? _chineseLevel;
   String _learningMode = 'zh_vi';
   int _sessionMessages = 0;
   bool _showXpPop = false;
@@ -181,6 +188,7 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
       now: DateTime.now(),
       currentUserText: currentUserText,
       recentlySuggestedTrendPhraseIds: _recentSuggestedTrendPhraseIds.toSet(),
+      chineseLevel: _chineseLevel,
     );
     _recordSuggestedTrendPhrase(result.usedTrendPhraseId);
     return result.prompt;
@@ -202,6 +210,7 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
     _loadNextAction();
     _initChat();
     _loadQuota();
+    _loadUserProfile();
   }
 
   void _onVoiceChanged() {
@@ -350,6 +359,28 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
         _isVip = isVip;
         if (!isVip) _freeMessagesLeft = chatRemaining;
       });
+    } catch (e) {}
+  }
+
+  // Audit AI Companion (2026-08-12), Buoc 4 muc A — man hinh Chat TRUOC
+  // DAY khong bao gio goi /auth/me, nen khong co cach nao biet chinese_level
+  // that cua user (xem docstring _chineseLevel). Loi mang/loi bat ky deu
+  // im lang bo qua (giu _chineseLevel = null, buildSystemPromptV2 tu xu ly
+  // an toan) — giong dung pattern _loadMemory/_loadQuota da co san.
+  Future<void> _loadUserProfile() async {
+    try {
+      if (!mounted) return;
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final response = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (!mounted) return;
+      final chineseLevel = response.data['chinese_level'] as String?;
+      if (chineseLevel != null) {
+        setState(() => _chineseLevel = chineseLevel);
+      }
     } catch (e) {}
   }
 
