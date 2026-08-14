@@ -414,15 +414,37 @@ Diễn đạt tự nhiên theo đúng giọng điệu Companion, KHÔNG đọc n
         );
       case 'en_vi':
         return (
-          langRule: 'LANGUAGE: Every sentence MUST start in English. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its English sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, Chinese, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS English, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. IMPORTANT: Parallel translation is NEVER an excuse to shorten content — for topics needing depth (grammar, concept explanations), your reply is ALLOWED to be long, as long as EVERY English sentence has its full Vietnamese translation immediately after it. This applies EQUALLY to long explanatory/lead-in/concluding prose sentences, NOT ONLY short formula-style example sentences. WRONG (common mistake): translating only the short example ("I ate lunch. (Tôi đã ăn trưa.)") while leaving the explanatory sentence before it ("This word usually indicates a completed action.") completely untranslated. Every single sentence — whether a brief example or a full explanatory sentence — MUST have its Vietnamese translation in parentheses immediately after it, no exceptions for sentence length or type. This is especially critical for NUMBERED LISTS WITH BOLD HEADERS (e.g., "1. **Subject + Verb + Object**: This is the basic sentence pattern.") — the numbered header sentence AND the explanation sentence after the colon BOTH need their own Vietnamese translation, exactly like any other sentence. Do NOT treat list headers/labels as "structural formatting" exempt from translation.',
+          langRule: 'LANGUAGE: Every sentence MUST start in English. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its English sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, Chinese, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS English, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. Parallel translation is NEVER an excuse to shorten content — replies are ALLOWED to be long for topics needing depth (grammar, concept explanations). ABSOLUTE RULE, ZERO EXCEPTIONS: EVERY English sentence ending in .!? — with NO distinction between an example sentence, an explanation sentence, a lead-in sentence, a sentence following a dash "-", a sentence following a bullet "•", a sentence inside quotation marks, a header/label sentence, a sentence inside a numbered or nested list, or ANY other position or role whatsoever — MUST have its full Vietnamese translation in parentheses immediately after it. This holds true NO MATTER the presentation structure: numbered lists, bullet points, dashes, bold headers, nested sub-lists, or continuous prose — ALL of them, with NO exception for any category, position, or formatting style. If you are ever unsure whether a sentence needs translation, the answer is ALWAYS YES. CRITICAL ANTI-PATTERN — DO NOT DO THIS: writing several English sentences in a row and then adding ONE big Vietnamese translation covering all of them at the end is WRONG and counts as VIOLATION = FAILURE. The correct pattern is ALWAYS interleaved, one at a time: [English sentence 1] ([its Vietnamese translation]) [English sentence 2] ([its Vietnamese translation]) — NEVER batch multiple sentences together before translating, even inside a single paragraph or list item. Also: the translation MUST be in Vietnamese, never in English or any other language.',
           langFormat: 'CORRECT: Hello! (Xin chào!) How are you? (Bạn có khỏe không?)\\nWRONG: Xin chào! How are you?\\nWRONG: How are you? Bạn có khỏe không?\\nWRONG: Bạn có khỏe không?',
         );
       default: // zh_vi
         return (
-          langRule: 'LANGUAGE: Every sentence MUST start in Traditional Chinese. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its Chinese sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, English, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS Traditional Chinese, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. IMPORTANT: Parallel translation is NEVER an excuse to shorten content — for topics needing depth (grammar, concept explanations), your reply is ALLOWED to be long, as long as EVERY Chinese sentence has its full Vietnamese translation immediately after it. This applies EQUALLY to long explanatory/lead-in/concluding prose sentences, NOT ONLY short formula-style example sentences. WRONG (common mistake): translating only the short example ("我吃了午餐。(Tôi đã ăn trưa.)") while leaving the explanatory sentence before it ("了通常用來表示動作的完成。") completely untranslated. Every single sentence — whether a brief example or a full explanatory sentence — MUST have its Vietnamese translation in parentheses immediately after it, no exceptions for sentence length or type. This is especially critical for NUMBERED LISTS WITH BOLD HEADERS (e.g., "1. **主語 + 動詞 + 受詞**：這是中文最基本的句型結構。") — the numbered header sentence AND the explanation sentence after the colon BOTH need their own Vietnamese translation, exactly like any other sentence. Do NOT treat list headers/labels as "structural formatting" exempt from translation.',
+          langRule: 'LANGUAGE: Every sentence MUST start in Traditional Chinese. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its Chinese sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, English, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS Traditional Chinese, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. Parallel translation is NEVER an excuse to shorten content — replies are ALLOWED to be long for topics needing depth (grammar, concept explanations). ABSOLUTE RULE, ZERO EXCEPTIONS: EVERY Chinese sentence ending in 。！？ — with NO distinction between an example sentence, an explanation sentence, a lead-in sentence, a sentence following a dash "-", a sentence following a bullet "•", a sentence inside quotation marks「」, a header/label sentence, a sentence inside a numbered or nested list, or ANY other position or role whatsoever — MUST have its full Vietnamese translation in parentheses immediately after it. This holds true NO MATTER the presentation structure: numbered lists, bullet points, dashes, bold headers, nested sub-lists, or continuous prose — ALL of them, with NO exception for any category, position, or formatting style. If you are ever unsure whether a sentence needs translation, the answer is ALWAYS YES. CRITICAL ANTI-PATTERN — DO NOT DO THIS: writing several Chinese sentences in a row and then adding ONE big Vietnamese translation covering all of them at the end is WRONG and counts as VIOLATION = FAILURE. The correct pattern is ALWAYS interleaved, one at a time: [Chinese sentence 1] ([its Vietnamese translation]) [Chinese sentence 2] ([its Vietnamese translation]) — NEVER batch multiple sentences together before translating, even inside a single paragraph or list item. Also: the translation MUST be in Vietnamese, never in English or any other language.',
           langFormat: 'CORRECT: 你好! (Xin chào!) 你今天好嗎? (Hôm nay bạn có khỏe không?)\\nWRONG: Xin chào! 你好!\\nWRONG: 你今天好嗎? Hôm nay bạn có khỏe không?\\nWRONG: Hôm nay bạn có khỏe không?',
         );
     }
+  }
+
+  // Sua bug bilingual coverage (2026-08-14, lan 3 — cau truc "vi du dam
+  // (dich) - giai thich sau dau gach ngang", 3/13 cau co dich). Da thu
+  // viet lai langRule thanh 1 nguyen tac TUYET DOI khong liet ke ngoai
+  // le (thay vi liet ke tung dinh dang cu the — cach cu KHONG BEN VUNG,
+  // luon co dinh dang moi lot qua), NHUNG test that qua 8 cau truc x 3
+  // lan (24 luot goi) van cho 0/8 dat >=95% — chi nhac 1 lan (du lap lai
+  // 2 lan trong prompt: dau + [NHAC LAI QUAN TRONG] cuoi) KHONG DU, dac
+  // biet khi prompt dai (10K+ ky tu, 16 rule khac). Them 1 buoc TU KIEM
+  // TRA (self-verification) ngay truoc luc sinh cau tra loi — ky thuat
+  // da biet giup tang do tuan thu dinh dang cho LLM, KHAC voi cach liet
+  // ke ngoai le (van la 1 nguyen tac chung, chi la ep model tu doi chieu
+  // lai output cua chinh no truoc khi gui, khong lai them ngoai le nao).
+  // CHI ap dung cho zh_vi/en_vi (khong can cho zh_only/en_only vi khong
+  // co van de song ngu).
+  String _buildFinalBilingualCheck(String learningMode) {
+    if (learningMode != 'zh_vi' && learningMode != 'en_vi') return '';
+    final mainLangLabel = learningMode == 'zh_vi' ? 'tiếng Trung' : 'tiếng Anh';
+    return '''
+
+TỰ KIỂM TRA BẮT BUỘC TRƯỚC KHI GỬI: đọc lại TOÀN BỘ câu trả lời bạn vừa soạn, RÀ SOÁT TỪNG CÂU $mainLangLabel một (đếm từng câu kết thúc bằng dấu chấm câu, không bỏ sót câu nào dù nó là ví dụ, giải thích, tiêu đề, câu sau dấu gạch ngang, hay ở vị trí nào khác). Với MỖI câu, tự hỏi: "Câu này đã có bản dịch tiếng Việt đầy đủ trong ngoặc ngay sau chưa?" Nếu phát hiện BẤT KỲ câu nào thiếu, PHẢI bổ sung bản dịch trước khi trả lời — không gửi câu trả lời khi còn câu nào thiếu dịch.''';
   }
 
   // Nhan Random tu ben ngoai (KHONG tu tao Random() rieng) — de dung CHUNG
@@ -736,6 +758,7 @@ ${now.weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $aiName đang rảnh, mood vui hơ
     String? chineseLevel,
   }) {
     final (:langRule, :langFormat) = _buildLanguageRule(learningMode);
+    final String finalBilingualCheck = _buildFinalBilingualCheck(learningMode);
 
     // QUAN TRONG: dung 1 Random DUY NHAT xuyen suot ham nay (trending,
     // opener hint, closing question hint deu rut tu CUNG 1 instance) —
@@ -844,6 +867,6 @@ $memoryNote
 $nextActionNote
 
 [NHẮC LẠI QUAN TRỌNG] $langRule
-$langFormat''';
+$langFormat$finalBilingualCheck''';
   }
 }

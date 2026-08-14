@@ -303,4 +303,56 @@ void main() {
       expect(all, contains('cố gắng'));
     });
   });
+
+  group('Fix bug TTS doc thanh tieng ky tu dinh dang markdown (2026-08-14)', () {
+    test('Dau gach ngang "-" sau vi du (dinh dang liet ke) khong con trong segment.text', () {
+      const input = '這裡的風景很美。（Nơi này có phong cảnh rất đẹp.）- 表達這個地方的景色吸引人。';
+      final result = seg.segment(input);
+      final all = joined(result);
+      expect(all, isNot(contains('-')));
+      // Noi dung THAT (khong phai dau gach ngang) van phai con nguyen
+      expect(all, contains('表達這個地方的景色吸引人'));
+      expect(all, contains('phong cảnh rất đẹp'));
+    });
+
+    test('Gach dau dong "•" khong con trong segment.text', () {
+      const input = '• 主語通常放在句首。（Chủ ngữ thường đặt ở đầu câu.）';
+      final result = seg.segment(input);
+      final all = joined(result);
+      expect(all, isNot(contains('•')));
+      expect(all, contains('主語通常放在句首'));
+    });
+
+    test('Tieu de markdown dam "**...**" khong con dau sao trong segment.text', () {
+      const input = '**主語 + 動詞 + 受詞**：這是中文最基本的句型結構。（Đây là cấu trúc câu cơ bản nhất.）';
+      final result = seg.segment(input);
+      final all = joined(result);
+      expect(all, isNot(contains('*')));
+      expect(all, contains('主語'));
+      expect(all, contains('這是中文最基本的句型結構'));
+    });
+
+    test('Tieu de markdown "### " (heading) khong con dau thang trong segment.text', () {
+      const input = '### 1. 句子結構\n主語 + 動詞 + 賓語。（Chủ ngữ cộng động từ cộng tân ngữ.）';
+      final result = seg.segment(input);
+      final all = joined(result);
+      expect(all, isNot(contains('#')));
+      expect(all, contains('句子結構'));
+    });
+
+    test('Ket hop ca 4 ky tu dinh dang (-•*#) trong 1 doan dai — khong con sot ky tu nao', () {
+      const input = '### 語法要點\n**主語和謂語**：主語是句子的主體。（Chủ ngữ là chủ thể của câu.）\n'
+          '- 例如：我吃飯。（Ví dụ: Tôi ăn cơm.）- 表達動作。（Diễn đạt hành động.）\n'
+          '• 另一個規則：形容詞在名詞前。（Một quy tắc khác: tính từ đứng trước danh từ.）';
+      final result = seg.segment(input);
+      final all = joined(result);
+      for (final marker in ['-', '•', '*', '#']) {
+        expect(all, isNot(contains(marker)), reason: 'Khong duoc con sot ky tu "$marker" trong noi dung gui TTS');
+      }
+      // Noi dung THAT van phai day du, khong bi mat theo
+      expect(all, contains('主語和謂語'));
+      expect(all, contains('表達動作'));
+      expect(all, contains('形容詞在名詞前'));
+    });
+  });
 }

@@ -107,6 +107,17 @@ class MultilingualTtsSegmenter {
   // toan de xoa.
   static final RegExp _quoteWrapper = RegExp("[\"“”‘’「」『』']");
 
+  // Sua bug TTS doc thanh tieng cac ky tu dinh dang KHONG PHAI noi dung
+  // can noi (2026-08-14, phat hien khi dieu tra bug thieu dich song ngu:
+  // AI hay tra loi dang liet ke markdown "- giai thich", "**tieu de**",
+  // "### 1. muc" — cac ky tu "-"/"*"/"#" nay TRUOC DAY roi vao nhanh
+  // "glue" chung (dong ben duoi), bi nhet nguyen van vao segment.text roi
+  // gui thang cho TTS doc thanh tieng "gach ngang"/"sao"/"thang"). Gom
+  // chung 1 nhom voi _quoteWrapper: XOA HAN, KHONG gan vao segment nao —
+  // day la ky tu dinh dang HIEN THI (markdown), khong phai noi dung can
+  // doc, giong dau ngoac kep o tren.
+  static final RegExp _silentFormattingMarker = RegExp(r'[\-•*#]');
+
   // Dau tieng Viet CHI CO trong tieng Viet, khong bao gio xuat hien trong
   // Pinyin (Pinyin chi dung macron/caron/u-umlaut cho thanh dieu, khong
   // dung dau moc/mu rieng, dau nga, dau hoi, hay dau nang).
@@ -217,6 +228,13 @@ class MultilingualTtsSegmenter {
       // giai thich chi tiet o dinh nghia _quoteWrapper). Khac voi cac dau
       // cau khac, day la ky tu BAO QUANH chu khong phai NOI DUNG can doc.
       if (_quoteWrapper.hasMatch(ch)) {
+        i += 1;
+        continue;
+      }
+
+      // Ky tu dinh dang markdown (-/•/*/#) — XOA HAN, KHONG doc thanh
+      // tieng (xem giai thich chi tiet o dinh nghia _silentFormattingMarker).
+      if (_silentFormattingMarker.hasMatch(ch)) {
         i += 1;
         continue;
       }
