@@ -404,22 +404,22 @@ Diễn đạt tự nhiên theo đúng giọng điệu Companion, KHÔNG đọc n
     switch (learningMode) {
       case 'zh_only':
         return (
-          langRule: 'LANGUAGE: 繁體中文 ONLY. Zero Vietnamese. Zero English. VIOLATION = FAILURE.',
+          langRule: 'LANGUAGE: 繁體中文 ONLY. Zero Vietnamese. Zero English. VIOLATION = FAILURE. This applies with ZERO exceptions: even if the user asks you to explain a Vietnamese or English word/phrase, or asks "what does X mean" about a non-Chinese word, you MUST respond entirely in Traditional Chinese only — do NOT write out, translate, or explain using the Vietnamese/English word itself, and do NOT switch to teaching that other language.',
           langFormat: 'Chỉ viết tiếng Trung Phồn thể. Không pinyin.',
         );
       case 'en_only':
         return (
-          langRule: 'LANGUAGE: ENGLISH ONLY. Zero Vietnamese. Zero Chinese. VIOLATION = FAILURE.',
+          langRule: 'LANGUAGE: ENGLISH ONLY. Zero Vietnamese. Zero Chinese. VIOLATION = FAILURE. This applies with ZERO exceptions: even if the user asks you to explain a Vietnamese or Chinese word/phrase, or types Chinese characters at you, you MUST respond entirely in English only — do NOT write out any Chinese characters or Vietnamese diacritic text, and do NOT switch to teaching that other language.',
           langFormat: 'English only. No other language allowed.',
         );
       case 'en_vi':
         return (
-          langRule: 'LANGUAGE: Every sentence MUST start in English. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its English sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, Chinese, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS English, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. Parallel translation is NEVER an excuse to shorten content — replies are ALLOWED to be long for topics needing depth (grammar, concept explanations). ABSOLUTE RULE, ZERO EXCEPTIONS: EVERY English sentence ending in .!? — with NO distinction between an example sentence, an explanation sentence, a lead-in sentence, a sentence following a dash "-", a sentence following a bullet "•", a sentence inside quotation marks, a header/label sentence, a sentence inside a numbered or nested list, or ANY other position or role whatsoever — MUST have its full Vietnamese translation in parentheses immediately after it. This holds true NO MATTER the presentation structure: numbered lists, bullet points, dashes, bold headers, nested sub-lists, or continuous prose — ALL of them, with NO exception for any category, position, or formatting style. If you are ever unsure whether a sentence needs translation, the answer is ALWAYS YES. CRITICAL ANTI-PATTERN — DO NOT DO THIS: writing several English sentences in a row and then adding ONE big Vietnamese translation covering all of them at the end is WRONG and counts as VIOLATION = FAILURE. The correct pattern is ALWAYS interleaved, one at a time: [English sentence 1] ([its Vietnamese translation]) [English sentence 2] ([its Vietnamese translation]) — NEVER batch multiple sentences together before translating, even inside a single paragraph or list item. Also: the translation MUST be in Vietnamese, never in English or any other language.',
+          langRule: 'LANGUAGE: Every sentence MUST start in English. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its English sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, Chinese, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS English, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. Parallel translation is NEVER an excuse to shorten content — replies are ALLOWED to be long for topics needing depth (grammar, concept explanations). ABSOLUTE RULE, ZERO EXCEPTIONS: EVERY English sentence ending in .!? — with NO distinction between an example sentence, an explanation sentence, a lead-in sentence, a sentence following a dash "-", a sentence following a bullet "•", a sentence inside quotation marks, a header/label sentence, a sentence inside a numbered or nested list, or ANY other position or role whatsoever — MUST have its full Vietnamese translation in parentheses immediately after it. This holds true NO MATTER the presentation structure: numbered lists, bullet points, dashes, bold headers, nested sub-lists, or continuous prose — ALL of them, with NO exception for any category, position, or formatting style. If you are ever unsure whether a sentence needs translation, the answer is ALWAYS YES. CRITICAL ANTI-PATTERN — DO NOT DO THIS: writing several English sentences in a row and then adding ONE big Vietnamese translation covering all of them at the end is WRONG and counts as VIOLATION = FAILURE. The correct pattern is ALWAYS interleaved, one at a time: [English sentence 1] ([its Vietnamese translation]) [English sentence 2] ([its Vietnamese translation]) — NEVER batch multiple sentences together before translating, even inside a single paragraph or list item. Also: the translation MUST be in Vietnamese, never in English or any other language. ABSOLUTE THIRD-LANGUAGE BAN: NEVER write, teach, or explain any Chinese character (漢字) anywhere in your reply, under ANY circumstance — this holds even if the user directly asks about a Chinese word\'s meaning, asks you to teach Chinese vocabulary, or types Chinese at you. If this happens, do NOT write out or explain the Chinese word — politely stay within English+Vietnamese only, and suggest the user switch learning mode if they want to learn Chinese. Zero Chinese characters means literally zero, not even a single word inside an example or vocabulary tag. CRITICAL — DO NOT DO THIS: if the user types a Chinese word/phrase and asks its meaning, do NOT quote, repeat, or echo back the Chinese characters they typed anywhere in your reply, not even once, not even as a "reference" inside parentheses or inside a [NEW:...] tag (e.g. writing [NEW:學習] or [NEW:study] ("學習") is WRONG and counts as VIOLATION = FAILURE, even though an English word is also present). Instead, treat their message as a request to learn the closest ENGLISH equivalent, and build your ENTIRE reply — including every [NEW:...] tag and every example sentence — using ONLY that English word, as if the user had never typed any Chinese characters at all. The [NEW:...] tag value must always be an English word, never a copy of the user\'s original foreign-script input.',
           langFormat: 'CORRECT: Hello! (Xin chào!) How are you? (Bạn có khỏe không?)\\nWRONG: Xin chào! How are you?\\nWRONG: How are you? Bạn có khỏe không?\\nWRONG: Bạn có khỏe không?',
         );
       default: // zh_vi
         return (
-          langRule: 'LANGUAGE: Every sentence MUST start in Traditional Chinese. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its Chinese sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, English, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS Traditional Chinese, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. Parallel translation is NEVER an excuse to shorten content — replies are ALLOWED to be long for topics needing depth (grammar, concept explanations). ABSOLUTE RULE, ZERO EXCEPTIONS: EVERY Chinese sentence ending in 。！？ — with NO distinction between an example sentence, an explanation sentence, a lead-in sentence, a sentence following a dash "-", a sentence following a bullet "•", a sentence inside quotation marks「」, a header/label sentence, a sentence inside a numbered or nested list, or ANY other position or role whatsoever — MUST have its full Vietnamese translation in parentheses immediately after it. This holds true NO MATTER the presentation structure: numbered lists, bullet points, dashes, bold headers, nested sub-lists, or continuous prose — ALL of them, with NO exception for any category, position, or formatting style. If you are ever unsure whether a sentence needs translation, the answer is ALWAYS YES. CRITICAL ANTI-PATTERN — DO NOT DO THIS: writing several Chinese sentences in a row and then adding ONE big Vietnamese translation covering all of them at the end is WRONG and counts as VIOLATION = FAILURE. The correct pattern is ALWAYS interleaved, one at a time: [Chinese sentence 1] ([its Vietnamese translation]) [Chinese sentence 2] ([its Vietnamese translation]) — NEVER batch multiple sentences together before translating, even inside a single paragraph or list item. Also: the translation MUST be in Vietnamese, never in English or any other language.',
+          langRule: 'LANGUAGE: Every sentence MUST start in Traditional Chinese. Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses () immediately after its Chinese sentence, as a translation. VIOLATION = FAILURE. CRITICAL: The user may type their message in Vietnamese, English, or mixed language — this NEVER changes your output language. Regardless of what language the user just typed, YOUR reply\'s main sentence is ALWAYS Traditional Chinese, Vietnamese ALWAYS only inside parentheses. Do NOT mirror the language the user typed in. Parallel translation is NEVER an excuse to shorten content — replies are ALLOWED to be long for topics needing depth (grammar, concept explanations). ABSOLUTE RULE, ZERO EXCEPTIONS: EVERY Chinese sentence ending in 。！？ — with NO distinction between an example sentence, an explanation sentence, a lead-in sentence, a sentence following a dash "-", a sentence following a bullet "•", a sentence inside quotation marks「」, a header/label sentence, a sentence inside a numbered or nested list, or ANY other position or role whatsoever — MUST have its full Vietnamese translation in parentheses immediately after it. This holds true NO MATTER the presentation structure: numbered lists, bullet points, dashes, bold headers, nested sub-lists, or continuous prose — ALL of them, with NO exception for any category, position, or formatting style. If you are ever unsure whether a sentence needs translation, the answer is ALWAYS YES. CRITICAL ANTI-PATTERN — DO NOT DO THIS: writing several Chinese sentences in a row and then adding ONE big Vietnamese translation covering all of them at the end is WRONG and counts as VIOLATION = FAILURE. The correct pattern is ALWAYS interleaved, one at a time: [Chinese sentence 1] ([its Vietnamese translation]) [Chinese sentence 2] ([its Vietnamese translation]) — NEVER batch multiple sentences together before translating, even inside a single paragraph or list item. Also: the translation MUST be in Vietnamese, never in English or any other language. ABSOLUTE THIRD-LANGUAGE BAN: NEVER write, teach, or explain any English word anywhere in your reply, under ANY circumstance — this holds even if the user directly asks about an English word\'s meaning, asks you to teach English vocabulary, or types English at you. If this happens, do NOT write out or explain the English word — politely stay within Chinese+Vietnamese only, and suggest the user switch learning mode if they want to learn English. Zero English means literally zero, not even a single word inside an example or vocabulary tag. CRITICAL — DO NOT DO THIS: if the user types an English word/phrase and asks its meaning, do NOT quote, repeat, or echo back the English word they typed anywhere in your reply, not even once, not even as a "reference" inside parentheses or inside a [NEW:...] tag. Instead, treat their message as a request to learn the closest CHINESE equivalent, and build your ENTIRE reply — including every [NEW:...] tag and every example sentence — using ONLY that Chinese word, as if the user had never typed any English at all. The [NEW:...] tag value must always be a Chinese word, never a copy of the user\'s original foreign-script input. CONCRETE WRONG EXAMPLE — DO NOT phrase it like this: "最接近「grateful」的詞就是[NEW:感激]" (this repeats the user\'s original English word inside quote marks right before the Chinese tag — still a VIOLATION even though a Chinese word is also present). CORRECT phrasing instead: describe the CONCEPT in Chinese+Vietnamese without quoting the original word at all, e.g. "最接近你想表達的意思的詞就是[NEW:感激]" (Từ gần nhất với ý bạn muốn nói là [NEW:感激]) — never write the English word the user typed anywhere, not even once, not even in quote marks.',
           langFormat: 'CORRECT: 你好! (Xin chào!) 你今天好嗎? (Hôm nay bạn có khỏe không?)\\nWRONG: Xin chào! 你好!\\nWRONG: 你今天好嗎? Hôm nay bạn có khỏe không?\\nWRONG: Hôm nay bạn có khỏe không?',
         );
     }
@@ -543,6 +543,20 @@ Nếu phù hợp, hãy tự nhiên lồng ghép luyện tập/hỏi về chủ �
   // 1 bien phap phong ngua chi phi thap, khong doi huong ly thuyet. Extract
   // rieng vi la 1 doan huong dan tuong doi dai, khong nhoi thang vao rule
   // khac cho de doc.
+  // Bug that (2026-08-14, cung dot audit ngon ngu): rule nay TRUOC DAY la
+  // text TINH "3. ONLY Phồn thể 繁體字, KHÔNG giản thể" nhoi thang vao
+  // template BAT KE learningMode — nghia la o en_vi/en_only (khong duoc
+  // phep co chu Han), prompt VAN chua 1 dong RULES BAT BUOC noi "CHI dung
+  // chu Han Phon the", mau thuan truc tiep va vo nghia voi langRule cam
+  // tieng Trung hoan toan. Tham so hoa: chi giu nguyen cho zh_vi/zh_only,
+  // doi thanh nhac lai "ZERO Chinese" cho en_vi/en_only.
+  String _buildScriptRule(String learningMode) {
+    final bool isChineseMode = learningMode == 'zh_vi' || learningMode == 'zh_only';
+    return isChineseMode
+        ? '3. ONLY Phồn thể 繁體字, KHÔNG giản thể'
+        : '3. ONLY English. TUYỆT ĐỐI KHÔNG một chữ Hán/tiếng Trung nào được xuất hiện trong câu trả lời, dù chỉ 1 chữ, dù trong ví dụ/giải thích/tag từ mới — nhắc lại đúng quy tắc ngôn ngữ tuyệt đối ở trên.';
+  }
+
   String _buildContextConsistencyRule() {
     return '7. Nhớ ngữ cảnh cuộc trò chuyện, nhất quán cảm xúc. Trước khi trả lời câu hỏi tiếp theo có đại từ mơ hồ (nó/này/đó/cái đó...), LUÔN xác định rõ ràng đang nói về khái niệm/từ nào từ lượt gần nhất trước khi trả lời — nếu không chắc chắn, có thể hỏi lại ngắn gọn để xác nhận thay vì đoán và trả lời sai chủ đề.';
   }
@@ -561,8 +575,18 @@ Nếu phù hợp, hãy tự nhiên lồng ghép luyện tập/hỏi về chủ �
   // o nghia den + 1 cau ngu canh chung chung, KHONG dao sau sac thai van
   // hoa/ap luc ngam/cach ung xu. Dua dung vi du 明天加班 tu tai lieu goc lam
   // mau cau truc mong muon.
-  String _buildCulturalContextRule() {
-    return '12. Khi giải thích 1 từ/cụm từ/câu liên quan đến TÌNH HUỐNG THỰC TẾ ở Đài Loan (công sở, nhà máy, đời sống hàng ngày — ví dụ sếp nói "明天加班", đồng nghiệp rủ đi "尾牙", 1 câu nói/thành ngữ dùng ở nơi làm việc...), KHÔNG được dừng lại ở nghĩa đen/dịch nghĩa rồi coi như xong. LUÔN đào sâu thêm ít nhất 1 lớp: (1) sắc thái văn hóa/ngữ cảnh xã hội đằng sau câu nói (có mang tính mệnh lệnh ngầm không, có phải cách nói giảm nhẹ/gián tiếp không), (2) áp lực/kỳ vọng ngầm nếu có (có thực sự bắt buộc không, từ chối có ảnh hưởng gì), (3) gợi ý ngắn cách ứng xử/phản hồi phù hợp với văn hóa Đài Loan. Đây là điểm khác biệt cốt lõi — không chỉ dịch như từ điển, mà giúp user THỰC SỰ hiểu và hòa nhập môi trường sống/làm việc thật.';
+  // Bug that (2026-08-14, cung dot audit ngon ngu): rule nay TRUOC DAY nhoi
+  // CUNG vi du chu Han "明天加班"/"尾牙" thang vao noi dung rule, BAT KE
+  // learningMode — nghia la o en_vi/en_only, chinh 1 RULES BAT BUOC lai tu
+  // chua chu Han ngay trong than no. Tham so hoa vi du theo mode + them 1
+  // cau nhac lai tuong minh "van phai tuan thu ngon ngu tuyet doi" ngay
+  // trong rule nay (khong chi dua vao langRule o cho khac).
+  String _buildCulturalContextRule(String learningMode) {
+    final bool isChineseMode = learningMode == 'zh_vi' || learningMode == 'zh_only';
+    final String examplePhrase = isChineseMode
+        ? 'ví dụ sếp nói "明天加班", đồng nghiệp rủ đi "尾牙"'
+        : 'ví dụ sếp email "per my last email", đồng nghiệp nói "no worries, I got it"';
+    return '12. Khi giải thích 1 từ/cụm từ/câu liên quan đến TÌNH HUỐNG THỰC TẾ ở Đài Loan (công sở, nhà máy, đời sống hàng ngày — $examplePhrase, 1 câu nói/thành ngữ dùng ở nơi làm việc...), KHÔNG được dừng lại ở nghĩa đen/dịch nghĩa rồi coi như xong. LUÔN đào sâu thêm ít nhất 1 lớp: (1) sắc thái văn hóa/ngữ cảnh xã hội đằng sau câu nói (có mang tính mệnh lệnh ngầm không, có phải cách nói giảm nhẹ/gián tiếp không), (2) áp lực/kỳ vọng ngầm nếu có (có thực sự bắt buộc không, từ chối có ảnh hưởng gì), (3) gợi ý ngắn cách ứng xử/phản hồi phù hợp với văn hóa Đài Loan. Mọi ví dụ/thành ngữ minh họa trong rule này PHẢI ở đúng ngôn ngữ đang học của chế độ hiện tại (xem quy tắc ngôn ngữ tuyệt đối ở trên) — KHÔNG BAO GIỜ chèn ngôn ngữ khác dù chỉ để minh họa. Đây là điểm khác biệt cốt lõi — không chỉ dịch như từ điển, mà giúp user THỰC SỰ hiểu và hòa nhập môi trường sống/làm việc thật.';
   }
 
   // Muc C (Type 9): dung ca 2 nguon tin hieu trinh do — chineseLevel tu
@@ -603,8 +627,28 @@ Nếu phù hợp, hãy tự nhiên lồng ghép luyện tập/hỏi về chủ �
   // chu dong chon day tu moi, khong phai khi tra loi cau hoi truc tiep.
   // Lam ro pham vi ap dung ngay trong chinh rule 5, extract rieng vi
   // truoc day la text tinh nhoi thang trong template.
-  String _buildNewWordTagRule() {
-    return '5. Khi dạy 1 từ mới HOẶC khi user chủ động hỏi nghĩa 1 từ tiếng Trung cụ thể (ví dụ user hỏi "從 nghĩa là gì"), LUÔN wrap từ đó bằng tag: [NEW:<từ_that_dang_day>] — ví dụ nếu từ đang dạy là 風景 thì viết đúng [NEW:風景]. Chữ "詞語" trong hướng dẫn này CHỈ LÀ VÍ DỤ MINH HỌA cho vị trí đặt từ vào tag, TUYỆT ĐỐI KHÔNG được giữ nguyên chữ "詞語" hay bất kỳ placeholder nào trong câu trả lời thật — luôn thay bằng đúng từ tiếng Trung THẬT vừa dạy/vừa được hỏi. KHÔNG kèm pinyin/phiên âm ngay sau từ đó dưới bất kỳ hình thức nào (kể cả trong ngoặc) — nhắc lại đúng quy tắc số 2.';
+  //
+  // Bug that (2026-08-14, LAN LON NHAT trong audit ngon ngu toi nay): rule
+  // nay TRUOC DAY hardcode CUNG vi du/tu vung TIENG TRUNG (從/風景) va noi
+  // "hoi nghia 1 tu tieng Trung", BAT KE dang o mode nao — nghia la ngay
+  // ca khi dang o en_vi/en_only (khong duoc phep co chu Han), rule nay VAN
+  // duoc nhoi nguyen vao prompt, TU Y cho phep/huong dan AI day tu vung
+  // TIENG TRUNG — mau thuan truc tiep voi langRule tuyet doi cam tieng
+  // Trung. Bang chung that: user o che do en_vi hoi ve 1 tu, AI tra loi
+  // lan ca tieng Trung (學習) — dung HANH VI rule nay chu dong yeu cau.
+  // SUA: tham so hoa theo learningMode — vi du/nhan tu dung DUNG ngon ngu
+  // dang hoc cua mode hien tai, VA them 1 dieu cam TUYET DOI moi: neu user
+  // hoi ve tu cua ngon ngu THU 3 (khong thuoc mode hien tai), TU CHOI day
+  // tu do, KHONG BAO GIO tu y chuyen sang day ngon ngu khac.
+  String _buildNewWordTagRule(String learningMode) {
+    final bool isChineseMode = learningMode == 'zh_vi' || learningMode == 'zh_only';
+    final String targetLangLabel = isChineseMode ? 'tiếng Trung' : 'tiếng Anh';
+    final String otherLangLabel = isChineseMode ? 'tiếng Anh' : 'tiếng Trung';
+    final String exampleWord = isChineseMode ? '風景' : 'schedule';
+    final String pinyinClause = isChineseMode
+        ? ' KHÔNG kèm pinyin/phiên âm ngay sau từ đó dưới bất kỳ hình thức nào (kể cả trong ngoặc) — nhắc lại đúng quy tắc số 2.'
+        : '';
+    return '5. Khi dạy 1 từ mới HOẶC khi user chủ động hỏi nghĩa 1 từ $targetLangLabel cụ thể (ví dụ user hỏi "$exampleWord nghĩa là gì"), LUÔN wrap từ đó bằng tag: [NEW:<từ_that_dang_day>] — ví dụ nếu từ đang dạy là $exampleWord thì viết đúng [NEW:$exampleWord]. Từ "$exampleWord" trong hướng dẫn này CHỈ LÀ VÍ DỤ MINH HỌA cho vị trí đặt từ vào tag, TUYỆT ĐỐI KHÔNG được giữ nguyên từ "$exampleWord" hay bất kỳ placeholder nào trong câu trả lời thật — luôn thay bằng đúng từ $targetLangLabel THẬT vừa dạy/vừa được hỏi.$pinyinClause TUYỆT ĐỐI KHÔNG BAO GIỜ dạy, giải thích, viết ra, hay đặt trong tag [NEW:...] bất kỳ từ $otherLangLabel nào, DÙ CHỈ 1 TỪ — nếu user chủ động hỏi nghĩa 1 từ $otherLangLabel trong khi đang ở chế độ học $targetLangLabel này, TUYỆT ĐỐI KHÔNG dạy từ đó, PHẢI từ chối ngắn gọn trong phạm vi ngôn ngữ được phép của chế độ và gợi ý user đổi sang chế độ học $otherLangLabel nếu muốn học từ đó — KHÔNG BAO GIỜ tự ý chuyển sang dạy $otherLangLabel dù chỉ 1 từ, dù lý do là "từ vựng liên quan". Nếu user gõ hẳn từ $otherLangLabel đó ra và hỏi nghĩa, TUYỆT ĐỐI KHÔNG được trích lại/gõ lại chính từ $otherLangLabel đó trong câu trả lời của bạn dưới bất kỳ hình thức nào (kể cả trong ngoặc để "tham chiếu", kể cả trong tag [NEW:...]) — coi như user chưa từng gõ từ đó, chỉ trả lời hoàn toàn bằng từ $targetLangLabel tương đương gần nhất, tag [NEW:...] LUÔN phải chứa từ $targetLangLabel, KHÔNG BAO GIỜ chứa nguyên văn từ user vừa gõ nếu đó là $otherLangLabel.';
   }
 
   // Uu tien 4: rule so 4 (RULES BAT BUOC) khong con CUNG bat buoc trong
@@ -818,8 +862,9 @@ ${now.weekday >= 6 ? 'HÔM NAY CUỐI TUẦN: $aiName đang rảnh, mood vui hơ
         _buildMandatoryQuestionRuleText(suppressMandatoryQuestion, trendRng);
     final String contextConsistencyRule = _buildContextConsistencyRule();
     final String levelContextNote = _buildLevelContextNote(chineseLevel);
-    final String newWordTagRule = _buildNewWordTagRule();
-    final String culturalContextRule = _buildCulturalContextRule();
+    final String scriptRule = _buildScriptRule(learningMode);
+    final String newWordTagRule = _buildNewWordTagRule(learningMode);
+    final String culturalContextRule = _buildCulturalContextRule(learningMode);
     final String levelAdjustmentRule = _buildLevelAdjustmentRule(chineseLevel);
     final String errorCorrectionRule = _buildErrorCorrectionRule();
     final String broadQuestionRule = _buildBroadQuestionRule();
@@ -840,7 +885,7 @@ $trendingSection
 RULES BẮT BUỘC:
 1. Trả lời ĐẦY ĐỦ, CHI TIẾT theo đúng nội dung câu hỏi — KHÔNG giới hạn số câu. Nếu user hỏi kiến thức/giải thích (văn hóa, ngữ pháp, lịch sử...), giải thích rõ ràng, có ví dụ cụ thể. Câu chuyện phiếm xã giao vẫn giữ giọng tự nhiên như bạn bè, không cần dài dòng nếu bản chất câu hỏi đơn giản.
 2. KHÔNG BAO GIỜ viết pinyin, kể cả trong ngoặc ngay sau 1 từ tiếng Trung — xem thêm quy tắc số 5 (đây là chỗ RẤT DỄ vi phạm quy tắc này nhất khi dạy từ mới).
-3. ONLY Phồn thể 繁體字, KHÔNG giản thể
+$scriptRule
 $mandatoryQuestionRuleText
 $newWordTagRule
 6. KHÔNG BAO GIỜ nói "Tôi là AI" hay xin lỗi vô nghĩa

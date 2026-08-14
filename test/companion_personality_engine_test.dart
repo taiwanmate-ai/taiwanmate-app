@@ -123,10 +123,21 @@ void main() {
     // Test nay CHI kiem tra rule TEXT trong prompt co duoc cung co dung
     // nhu mo ta — hanh vi THAT cua model da xac nhan rieng qua 5 lan goi
     // that gpt-4o-mini (0/5 vi pham, xem bao cao Uu tien 1).
-    test('Rule 5 (tag NEW) phai canh bao ro "詞語" chi la vi du minh hoa, khong duoc giu nguyen', () {
+    //
+    // Cap nhat (2026-08-15, audit lan lon LAN NGON NGU): _buildNewWordTagRule
+    // gio tham so hoa theo learningMode (rule 5 phai doi vi du tuong ung
+    // ngon ngu dang hoc, khong con dung CUNG 1 chu Han "詞語" co dinh cho ca
+    // 4 mode — xem docstring day du tai _buildNewWordTagRule). Vi du minh
+    // hoa cho zh_vi/zh_only gio la "風景" (khong doi, giu nguyen tu cu), rule
+    // van giu dung TINH THAN bao ve nhu truoc (canh bao ro vi du CHI LA VI
+    // DU, khong duoc giu nguyen trong cau tra loi that) — chi doi chu "詞語"
+    // (mot placeholder META rieng, khong bao gio thuc su xuat hien lam vi
+    // du) sang dung LUON tu vi du "風景" da co san, gop 2 vai tro (placeholder
+    // canh bao + vi du minh hoa) lam 1 cho gon.
+    test('Rule 5 (tag NEW) phai canh bao ro tu vi du chi la minh hoa, khong duoc giu nguyen', () {
       final prompt = _buildPrompt(userType: 'student');
       expect(prompt, contains('CHỈ LÀ VÍ DỤ MINH HỌA'));
-      expect(prompt, contains('TUYỆT ĐỐI KHÔNG được giữ nguyên chữ "詞語"'));
+      expect(prompt, contains('TUYỆT ĐỐI KHÔNG được giữ nguyên từ "風景"'));
     });
 
     test('Rule 5 phai nhac lai cam pinyin ngay tai vi tri day tu moi', () {
