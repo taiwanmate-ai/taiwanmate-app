@@ -288,6 +288,19 @@ class MultilingualTtsSegmenter {
         }
       }
       found ??= () {
+        // Bug that (2026-08-15): neu CHINH tu dang xet (words[i]) da tu no
+        // mang dau ket cau (vd 1 cau/thang tu cam than DUY NHAT 1 tu nhu
+        // "Hello!", "Great!", "OK."), thi no DA O RANH GIOI CUOI cau cua
+        // chinh no — KHONG duoc tiep tuc nhin xuyen SANG NOI DUNG SAU no
+        // (thuong la ban dich tieng Viet trong ngoac ngay sau). Cac dieu
+        // kien endsSentence(words[f]) o duoi CHI bat duoc truong hop dau
+        // ket cau nam o 1 TU KHAC (vd "Of course!" — dau "!" o tu "course",
+        // khong phai tu dau tien "Of") — truong hop 1-tu-1-cau nay lot qua
+        // vi vong lap forward chua tung tu kiem tra chinh no truoc khi
+        // buoc sang tu ke tiep. XAC NHAN qua chay that MultilingualTtsSegmenter:
+        // "Hello! (Xin chào!)" -> "Hello!" bi gan nham lang=vi (doc bang
+        // giong Viet) truoc khi co dong nay.
+        if (endsSentence(words[i])) return null;
         for (int f = i + 1; f < words.length; f++) {
           if (isViOrEn(words[f].lang)) return words[f].lang;
           if (endsSentence(words[f])) return null; // sang cau sau, dung lai

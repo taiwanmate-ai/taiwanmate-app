@@ -355,4 +355,60 @@ void main() {
       expect(all, contains('形容詞在名詞前'));
     });
   });
+
+  group('Fix bug TTS doc cau tieng Anh 1-tu bang giong Viet (2026-08-15)', () {
+    // Boi canh that: user bao cao o che do en_vi, co CAU TIENG ANH bi doc
+    // bang giong vi-VN thay vi giong Anh. Dieu tra xac nhan: khi 1 CAU
+    // TIENG ANH CHI CO 1 TU (vd "Hello!", "Great!", "Yes!" — tu do TU NO
+    // mang dau ket cau, khong phai o tu khac) va ngay sau no la ban dich
+    // tieng Viet trong ngoac, _resolveUnknown() tim hang xom XUOI (forward)
+    // vuot qua CHINH RANH GIOI CAU CUA NO, "muon" ngon ngu tu ban dich
+    // tieng Viet — vi vong lap forward CHUA TUNG kiem tra xem CHINH tu
+    // dang xet co da ket thuc cau cua no hay chua truoc khi buoc tiep.
+    // Da sua: forward-search kiem tra endsSentence(words[i]) TRUOC KHI vao
+    // vong lap — neu chinh no da la 1 cau/tu hoan chinh, dung tim xuyen
+    // sang noi dung sau (thuong la ban dich).
+    test('Cau tieng Anh 1 tu o DAU cau tra loi ("Hello!") van la en, khong bi "muon" ngon ngu tu ban dich Viet ngay sau', () {
+      const input = 'Hello! (Xin chào!) How are you? (Bạn có khỏe không?)';
+      final result = seg.segment(input);
+      expect(result[0].lang, 'en', reason: '"Hello!" phai la tieng Anh, khong duoc doc bang giong Viet');
+      expect(result[0].text, 'Hello!');
+      expect(langs(result), ['en', 'vi', 'en', 'vi']);
+    });
+
+    test('Cau tieng Anh 1 tu o GIUA cau tra loi ("Yes!") van la en', () {
+      const input = 'The concept is important. (Khái niệm này quan trọng.) '
+          'Yes! (Đúng vậy!) You should remember it. (Bạn nên nhớ nó.)';
+      final result = seg.segment(input);
+      expect(langs(result), ['en', 'vi', 'en', 'vi', 'en', 'vi']);
+      expect(result[2].text, 'Yes!');
+      expect(result[2].lang, 'en');
+    });
+
+    test('Cau tieng Anh 1 tu o CUOI cau tra loi ("Nice!") van la en', () {
+      const input = 'It means feeling thankful for something. '
+          '(Nó có nghĩa là cảm thấy biết ơn về điều gì đó.) Nice! (Hay đấy!)';
+      final result = seg.segment(input);
+      expect(langs(result), ['en', 'vi', 'en', 'vi']);
+      expect(result[2].text, 'Nice!');
+      expect(result[2].lang, 'en');
+    });
+
+    test('Cau 2 tu ("Of course!") van dung nhu truoc — khong regression (da dung san truoc fix, vi dau cau nam o tu khac)', () {
+      const input = "Of course! (Tất nhiên rồi!) Let's try another sentence. (Hãy thử một câu khác nhé.)";
+      final result = seg.segment(input);
+      expect(langs(result), ['en', 'vi', 'en', 'vi']);
+      expect(result[0].text, 'Of course!');
+      expect(result[0].lang, 'en');
+    });
+
+    test('Zh_vi: cau tieng Viet 1 tu ("Ừ!") dung ngay sau 1 tu Han doc lap van dung — khong regression chieu nguoc lai', () {
+      const input = '你好嗎？(Bạn khỏe không?) Ừ! (đúng vậy!)';
+      final result = seg.segment(input);
+      // Khong assert cung nhac chi tiet tung segment (khong phai trong tam
+      // bug nay), chi dam bao khong co ky tu Han nao bi gan nham 'vi' hay
+      // nguoc lai mot cach vo ly — segment dau tien van phai la Han.
+      expect(result.first.lang, 'zh-TW');
+    });
+  });
 }

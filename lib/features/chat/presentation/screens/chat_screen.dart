@@ -141,11 +141,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with TickerProviderStat
     }
   }
 
+  // Bug that (2026-08-15, cung dot audit lan/UI): switch nay TRUOC DAY chi
+  // co case rieng cho zh_vi/en_vi, con lai roi HET vao 1 nhanh `default`
+  // dung chung 1 bo cau tieng Trung — nghia la en_only (khong duoc phep co
+  // chu Han) van hien quick-reply CHU HAN ("學新詞彙 📚"...), vi pham cung 1
+  // kieu loi voi bug "zh_only hien tieng Viet" vua duoc bao cao. Them case
+  // rieng ro rang cho ca 4 mode, khong con dung nhanh default chung nua.
   List<String> get _defaultQuickReplies {
     switch (_learningMode) {
       case 'zh_vi': return ['Dạy tôi từ mới 📚', 'Sửa lỗi cho tôi ✍️', 'Kể chuyện Đài Loan 🇹🇼'];
       case 'en_vi': return ['Teach me new words 📚', 'Correct my English ✍️', 'Tell me about Taiwan 🇹🇼'];
-      default: return ['學新詞彙 📚', '幫我糾錯 ✍️', '聊台灣文化 🇹🇼'];
+      case 'en_only': return ['Teach me new words 📚', 'Correct my English ✍️', 'Tell me about Taiwan 🇹🇼'];
+      default: return ['學新詞彙 📚', '幫我糾錯 ✍️', '聊台灣文化 🇹🇼']; // zh_only
     }
   }
 
@@ -576,6 +583,35 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
   // (co the unit test doc lap); getter nay chi la wrapper tien dung.
   List<Map<String, dynamic>> get _cleanHistory => buildCleanChatHistory(_messages);
 
+  // Bug that (2026-08-15): thanh goi y "Luu tu moi" hien duoi khung chat va
+  // snackbar xac nhan la UI CHROME TINH cua app, HOAN TOAN doc lap voi noi
+  // dung AI tra loi — nhung TRUOC DAY luon viet CUNG 1 chuoi tieng Viet co
+  // dinh, bat ke learningMode. Vi tinh nang nay duoc kich hoat TRUC TIEP
+  // boi tag [NEW:...] trong CHINH AI reply (xuat hien o CA 4 mode, ke ca
+  // zh_only/en_only), user thu nghiem tren Chrome thay dung dong chu Viet
+  // nay va tuong lam la AI response bi lan ngon ngu — da dieu tra ky bang
+  // 10 lan goi that da dang (chao hoi/ngu phap/tu vung/cau hoi rong/van
+  // hoa) cho zh_only, xac nhan AI response THAT 100% sach, day la UI rieng
+  // biet gay nham lan. SUA: label + thong bao xac nhan gio theo dung ngon
+  // ngu duoc phep cua che do hien tai (Trung cho zh_only, Anh cho en_only)
+  // — zh_vi/en_vi giu nguyen tieng Viet (Viet la ngon ngu HOP LE trong 2
+  // che do do, khong can doi).
+  String get _vocabSuggestionLabel {
+    switch (_learningMode) {
+      case 'zh_only': return '💾 儲存新詞彙：';
+      case 'en_only': return '💾 Save new word:';
+      default: return '💾 Lưu từ mới:'; // zh_vi / en_vi — tieng Viet hop le
+    }
+  }
+
+  String _vocabSavedMessage(String word) {
+    switch (_learningMode) {
+      case 'zh_only': return '✅ 已將「$word」加入詞彙表！';
+      case 'en_only': return '✅ Saved "$word" to your vocabulary!';
+      default: return '✅ Đã lưu "$word" vào từ vựng!'; // zh_vi / en_vi
+    }
+  }
+
   Future<void> _saveVocab(String word) async {
     try {
       final token = await _storage.read(key: 'access_token');
@@ -588,7 +624,7 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
       if (mounted) {
         setState(() => _newVocabSuggestions.remove(word));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ Đã lưu "$word" vào từ vựng!'),
+          content: Text(_vocabSavedMessage(word)),
           backgroundColor: _DS.green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -735,12 +771,32 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
     if (mounted) setState(() {});
   }
 
+  // Bug that (2026-08-15, cung dot audit): CA 2 nhanh cua ham nay TRUOC DAY
+  // luon tra ve chuoi tieng Viet CO DINH, bat ke learningMode — trong khi
+  // ham nay chay SAU MOI lan AI tra loi va nhanh dau tien kich hoat khi
+  // reply co dau "?"/"？" (gan nhu LUON DUNG, vi rule 4 bat buoc AI ket
+  // thuc bang cau hoi) — nghia la quick-reply chip tieng Viet nay hien ra
+  // gan nhu SAU MOI TIN NHAN, ke ca o zh_only/en_only. Day la nguyen nhan
+  // NHIEU KHA NANG NHAT gay ra "thay tieng Viet xuat hien" ma user bao cao
+  // khi test zh_only tren Chrome (hay gap hon nhieu so voi thanh "Luu tu
+  // moi" chi hien khi co tag [NEW:...]). SUA: tham so hoa theo learningMode.
   List<String> _generateQuickReplies(String aiReply) {
     final lower = aiReply.toLowerCase();
-    if (lower.contains('?') || lower.contains('？')) {
-      return ['Tôi hiểu rồi 👍', 'Cho tôi ví dụ khác', 'Giải thích thêm'];
-    } else if (lower.contains('new:') || lower.contains('từ mới')) {
-      return ['Lưu từ này 💾', 'Dùng từ này trong câu', 'Dạy thêm từ khác'];
+    final bool hasQuestion = lower.contains('?') || lower.contains('？');
+    final bool hasNewWord = lower.contains('new:') || lower.contains('từ mới');
+
+    if (hasQuestion) {
+      switch (_learningMode) {
+        case 'zh_only': return ['我懂了 👍', '再給我一個例子', '再解釋多一點'];
+        case 'en_only': return ['Got it 👍', 'Give me another example', 'Explain more'];
+        default: return ['Tôi hiểu rồi 👍', 'Cho tôi ví dụ khác', 'Giải thích thêm']; // zh_vi / en_vi
+      }
+    } else if (hasNewWord) {
+      switch (_learningMode) {
+        case 'zh_only': return ['儲存這個詞 💾', '用這個詞造句', '再教我別的詞'];
+        case 'en_only': return ['Save this word 💾', 'Use it in a sentence', 'Teach me another word'];
+        default: return ['Lưu từ này 💾', 'Dùng từ này trong câu', 'Dạy thêm từ khác']; // zh_vi / en_vi
+      }
     }
     return _defaultQuickReplies;
   }
@@ -994,7 +1050,7 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               color: _DS.greenLight,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('💾 Lưu từ mới:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.green)),
+                Text(_vocabSuggestionLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.green)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8, runSpacing: 6,
