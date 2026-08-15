@@ -176,14 +176,22 @@ void main() {
       expect(result[2].text, 'nghĩa là bạn đã ăn cơm chưa');
     });
 
-    test('Anh+Viet CHUNG 1 ngoac, CO dau ngoac kep — van phai dung (khong duoc lam sai them)', () {
+    // Cap nhat (2026-08-15, tu dien dac trung Anh/Viet khong dau): truoc
+    // day (chi co sticky context, chua co tu dien) toan bo input nay MERGE
+    // thanh 1 segment lang='vi' DUY NHAT — nghia la "How are you" cung bi
+    // doc bang giong Viet, CHINH LA loai loi dang duoc sua trong dot audit
+    // nay (cau tieng Anh doc nham giong Viet). Voi tu dien moi, "How are
+    // you" (3/3 tu khop tu dien Anh, 0 tu Viet) duoc tach RIENG thanh
+    // segment en, phan giai thich "nghĩa là..." van la vi — day la HANH VI
+    // DUNG HON (moi cum duoc doc dung giong), khong phai regression.
+    test('Anh+Viet CHUNG 1 ngoac, CO dau ngoac kep — tu dien tach dung "How are you" (en) khoi phan giai thich Viet', () {
       const input = 'How are you (nghĩa là "bạn khỏe không")';
       final result = seg.segment(input);
-      expect(result, hasLength(1));
-      expect(result.single.lang, 'vi');
+      expect(langs(result), ['en', 'vi']);
+      expect(result[0].text, 'How are you');
       // Dau ngoac kep phai bi xoa het, KHONG lot vao giua text.
-      expect(result.single.text, 'How are you nghĩa là bạn khỏe không');
-      expect(result.single.text, isNot(contains('"')));
+      expect(result[1].text, 'nghĩa là bạn khỏe không');
+      expect(joined(result), isNot(contains('"')));
     });
 
     test('Viet+Trung CHUNG 1 ngoac, CO dau ngoac kep — SUA: Viet phai doc dung, khong con dau ngoac lot vao giua', () {

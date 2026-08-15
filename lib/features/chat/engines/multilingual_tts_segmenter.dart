@@ -174,6 +174,10 @@ class MultilingualTtsSegmenter {
 
     final words = <_Word>[];
     _tokenize(text, words, pinyinCandidate: false);
+    // Uu tien 3 (tu dien dac trung) PHAI chay TRUOC uu tien 4 (sticky
+    // context o _resolveUnknown) — xem thu tu uu tien day du o docstring
+    // ngay truoc _englishDictionary.
+    _resolveUnknownByDictionary(words);
     _resolveUnknown(words);
     final merged = _mergeAdjacent(words);
     return _splitAtSentenceBoundaries(merged);
@@ -261,6 +265,156 @@ class MultilingualTtsSegmenter {
     }
     if (pinyinCandidate) return _Lang.pinyin;
     return _Lang.unknown;
+  }
+
+  // ============================================================
+  // GIAI PHAP TRIET DE (2026-08-15) cho cau "mo ho" — tieng Anh KHONG dau
+  // dung CHUNG bang chu cai La-tinh voi tieng Viet khong dau, nen 1 CAU
+  // TIENG ANH DAI (khong chi 1 tu) van co the bi "sticky context" (hang
+  // xom cau lien ke) gan nham ngon ngu neu khong co dau thanh Viet/ky tu
+  // Han neo nao trong toan bo cau. Truoc Phase 2 Voice (loi phan loai se
+  // nghiem trong hon nhieu trong voice thoi gian thuc), can 1 tin hieu
+  // MANH HON, DOC LAP voi ngu canh cau lien ke: tu dien tu khoa tan suat
+  // cao dac trung rieng cho tung ngon ngu.
+  //
+  // THU TU UU TIEN (giam dan do tin cay), khop dung yeu cau da xac nhan:
+  //   1. Dau thanh dieu Viet ro rang (_viExclusive/_ambiguousAcuteGrave)
+  //      — DA xu ly o _classifyWord(), khong doi.
+  //   2. Han tu — DA xu ly o _tokenize() (nhanh _hanRun), khong doi.
+  //   3. Tu dien dac trung (MOI, xem _resolveUnknownByDictionary duoi day)
+  //      — ap dung THEO TUNG CAU (nhom tu bi chan boi dau ket cau), dem so
+  //      tu khop tu dien Anh (a) vs tu dien Viet khong dau (b) trong CHINH
+  //      cau do; neu 1 ben ap dao ro rang (>=2 tu khop, ben kia 0 tu) ->
+  //      quyet dinh CA CAU theo ben do.
+  //   4. Sticky context (_resolveUnknown(), giu NGUYEN khong doi, ke ca fix
+  //      "single-word sentence" da lam dung truoc — chi la BUOC CHOT sau
+  //      khi tu dien khong du tin hieu, KHONG con la buoc dau tien).
+  //   5. Mac dinh tieng Anh (fallback cuoi cung trong _resolveUnknown()).
+  //
+  // 2 danh sach duoc chon can than de KHONG trung nhau (1 tu khong duoc
+  // vua la tieng Anh thong dung VUA la tieng Viet khong dau thong dung —
+  // vd co tinh LOAI "do"/"an"/"so"/"the"/"that"/"may" khoi danh sach Viet
+  // vi trung voi tu tieng Anh rat pho bien).
+  // ============================================================
+
+  static const Set<String> _englishDictionary = {
+    // Mao tu / dai tu / gioi tu / lien tu — tan suat cao nhat, gan nhu
+    // KHONG BAO GIO la tu tieng Viet khong dau hop le.
+    'the', 'a', 'an', 'is', 'are', 'was', 'were', 'am', 'be', 'been', 'being',
+    'this', 'that', 'these', 'those', 'with', 'from', 'have', 'has', 'had',
+    'will', 'would', 'should', 'could', 'can', 'cannot', 'and', 'but',
+    'because', 'when', 'where', 'what', 'who', 'whom', 'whose', 'how', 'why',
+    'which', 'there', 'here', 'then', 'than', 'if', 'or', 'not', 'no', 'yes',
+    'you', 'your', 'yours', 'they', 'them', 'their', 'theirs', 'we', 'our',
+    'ours', 'us', 'he', 'she', 'it', 'its', 'his', 'her', 'him', 'my',
+    'mine', 'me', 'i', 'do', 'does', 'did', 'done', 'of', 'to', 'in', 'on',
+    'at', 'by', 'for', 'up', 'down', 'out', 'about', 'into', 'over', 'under',
+    'again', 'further', 'once', 'all', 'each', 'few', 'more', 'most',
+    'other', 'some', 'such', 'only', 'own', 'same', 'so', 'too', 'very',
+    'just',
+    // Dang rut gon (contraction) — luon la tieng Anh, xem them _contraction.
+    "don't", "doesn't", "didn't", "isn't", "aren't", "wasn't", "weren't",
+    "won't", "wouldn't", "shouldn't", "couldn't", "can't", "let's", "that's",
+    "it's", "what's", "who's", "i'm", "you're", "we're", "they're", "i've",
+    "you've", "we've", "they've", "i'll", "you'll", "he'll", "she'll",
+    "we'll", "they'll", "i'd", "you'd", "he'd", "she'd", "we'd", "they'd",
+    // Tu vung noi dung thong dung trong ngu canh day-hoc/tro chuyen (dung
+    // trong AI Companion that): word, mean, example, learn, study...
+    'word', 'words', 'mean', 'means', 'meaning', 'example', 'examples',
+    'sentence', 'sentences', 'use', 'used', 'using', 'learn', 'learning',
+    'learned', 'study', 'studying', 'studied', 'practice', 'practicing',
+    'correct', 'wrong', 'right', 'good', 'great', 'nice', 'well', 'like',
+    'likes', 'liked', 'want', 'wants', 'wanted', 'need', 'needs', 'needed',
+    'try', 'trying', 'tried', 'think', 'thinks', 'thought', 'know', 'knows',
+    'knew', 'known', 'feel', 'feels', 'felt', 'get', 'gets', 'got',
+    'gotten', 'make', 'makes', 'made', 'say', 'says', 'said', 'tell',
+    'tells', 'told', 'ask', 'asks', 'asked', 'give', 'gives', 'gave',
+    'given', 'take', 'takes', 'took', 'taken', 'come', 'comes', 'came',
+    'go', 'goes', 'went', 'gone', 'see', 'sees', 'saw', 'seen', 'look',
+    'looks', 'looked', 'find', 'finds', 'found', 'thing', 'things', 'way',
+    'ways', 'time', 'times', 'day', 'days', 'people', 'person', 'life',
+    'work', 'working', 'worked', 'world', 'hand', 'hands', 'part', 'place',
+    'week', 'weeks', 'month', 'months', 'year', 'years', 'point', 'number',
+    'group', 'today', 'tomorrow', 'yesterday', 'now', 'before', 'after',
+    'always', 'never', 'sometimes', 'usually', 'often', 'still', 'also',
+    'even', 'really', 'actually', 'maybe', 'perhaps', 'please', 'thanks',
+    'thank', 'sorry', 'welcome', 'hello', 'hi', 'hey', 'bye', 'goodbye',
+    'sure', 'course', 'important', 'remember', 'understand', 'explain',
+    'question', 'answer', 'help', 'let',
+  };
+
+  // Tu chuc nang/dai tu/gioi tu tieng Viet CO THE bi go khong dau — chi gom
+  // tu KHONG trung voi tu tieng Anh thong dung. Co tinh KHONG dua vao day
+  // cac tu "an" (ăn), "so" (so sanh), "but" (bút), "day" (đây/dạy) khong
+  // dau du la tu Viet hop le — vi tat ca deu trung truc tiep voi tu tieng
+  // Anh CUC KY pho bien (an/so/but/day) da co san trong _englishDictionary
+  // (xac nhan qua script doi chieu 2 danh sach — xem _p21_dict_check.py,
+  // da xoa sau khi dung). Giu ca 2 ben se tu mau thuan ngay trong 1 lan
+  // vote (tinh sai). Uu tien AN TOAN: bo khoi danh sach Viet, chi giu ben
+  // tieng Anh.
+  static const Set<String> _vietnameseNoDiacriticDictionary = {
+    'la', 'gi', 'cua', 'cho', 'nay', 'hay', 'den', 'di', 've', 'con',
+    'nguoi', 'minh', 'ban', 'hoc', 'noi', 'khong', 'toi', 'va',
+    'roi', 'chua', 'dang', 'se', 'da', 'rat', 'qua', 'lam', 'sinh', 'viec',
+    'anh', 'em', 'chi', 'ong', 'chau', 'nha', 'truong', 'lop', 'thay',
+    'giao', 'ghe', 'sach', 'vo', 'tay', 'chan', 'mieng', 'mui',
+    'tai', 'toc', 'ao', 'quan', 'giay', 'non', 'mu', 'phut', 'nam',
+    'thang', 'tuan', 'sang', 'trua', 'chieu', 'dem', 'kia', 'ay',
+    'nao', 'sao', 'nhu', 'vay', 'rang', 'neu', 'boi', 'vi', 'tu', 'tren',
+    'duoi', 'giua', 'ngoai', 'trong', 'ngay', 'biet', 'muon', 'thich',
+    'ghet', 'yeu', 'buon', 'vui', 'gian', 'lo', 'mung', 'giong', 'khac',
+    'moi', 'cu', 'nho', 'dai', 'ngan', 'cao', 'thap', 'nhieu', 'dep',
+    'xau', 'tot', 'te', 'nong', 'lanh', 'mua', 'nang', 'choi', 'uong',
+    'ngu', 'thuc', 'chay', 'dung', 'ngoi', 'xem', 'nghe', 'doc', 'viet',
+  };
+
+  static final RegExp _coreWordPattern = RegExp(r"^[A-Za-z]+(?:'[A-Za-z]+)?");
+
+  /// Tra ve 'en'/'vi' neu tu (sau khi tach phan glue/dau cau dinh kem) co
+  /// trong 1 trong 2 tu dien dac trung o tren, null neu khong khop tu nao
+  /// (van con "mo ho", se roi xuong sticky context o _resolveUnknown()).
+  String? _dictLangFor(String wordText) {
+    final m = _coreWordPattern.firstMatch(wordText);
+    if (m == null) return null;
+    final core = m.group(0)!.toLowerCase();
+    if (_englishDictionary.contains(core)) return 'en';
+    if (_vietnameseNoDiacriticDictionary.contains(core)) return 'vi';
+    return null;
+  }
+
+  /// Buoc UU TIEN 3 (xem docstring khoi tren): voi MOI "cau" (nhom tu bi
+  /// chan boi dau ket cau .!?。！？), dem so tu _Lang.unknown khop tu dien
+  /// Anh vs Viet KHONG DAU trong CHINH cau do. Neu 1 ben ap dao ro rang
+  /// (>=2 tu khop, ben kia dung 0 tu) -> gan CA CAU theo ben do. Neu hoa/
+  /// khong du tin hieu -> KHONG dong gi ca, de _resolveUnknown() (sticky
+  /// context) xu ly phan con lai nhu buoc chot.
+  void _resolveUnknownByDictionary(List<_Word> words) {
+    bool endsSentence(_Word w) => _endsSentence.hasMatch(w.text.trim());
+    int groupStart = 0;
+    for (int i = 0; i < words.length; i++) {
+      if (endsSentence(words[i]) || i == words.length - 1) {
+        _applyDictionaryVoteToGroup(words, groupStart, i);
+        groupStart = i + 1;
+      }
+    }
+  }
+
+  void _applyDictionaryVoteToGroup(List<_Word> words, int start, int end) {
+    int enCount = 0;
+    int viCount = 0;
+    for (int k = start; k <= end; k++) {
+      if (words[k].lang != _Lang.unknown) continue;
+      final d = _dictLangFor(words[k].text);
+      if (d == 'en') enCount++;
+      if (d == 'vi') viCount++;
+    }
+    _Lang? decided;
+    if (enCount >= 2 && viCount == 0) decided = _Lang.en;
+    if (viCount >= 2 && enCount == 0) decided = _Lang.vi;
+    if (decided == null) return;
+    for (int k = start; k <= end; k++) {
+      if (words[k].lang == _Lang.unknown) words[k].lang = decided;
+    }
   }
 
   /// Tu khong the tu xac dinh (La-tinh thuan, khong dau) chi co the la
