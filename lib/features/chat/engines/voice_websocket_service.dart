@@ -11,6 +11,26 @@
 /// tung duoc dung o dau trong lib/ truoc gio) — cross-platform (web +
 /// native) qua 1 API duy nhat WebSocketChannel.connect(), KHONG can tach
 /// web_utils_impl/stub nhu cac tinh nang browser-only khac trong app nay.
+///
+/// Buoc 3+4a (2026-08-15): them xu ly nhan {"type":"transcript"/
+/// "transcript_error"} (server-side STT, xem app/api/v1/voice_ws.py) va
+/// {"type":"ai_text_response"/"ai_text_response_error"} (server-side AI
+/// response, Buoc 4a — CHUA stream, gui 1 lan sau khi AI sinh xong).
+///
+/// Buoc 4b (2026-08-15): NANG CAP — server KHONG con gui
+/// {"type":"ai_text_response"} nua (xem docstring app/api/v1/voice_ws.py),
+/// thay bang {"type":"ai_text_response_chunk","text":"...",
+/// "is_final":false/true} gui LIEN TUC tung phan. onAiTextResponse (cu) bi
+/// XOA, thay bang onAiTextResponseChunk(text, isFinal) — text rong khi
+/// isFinal=true (chunk cuoi CHI de danh dau ket thuc, khong mang noi
+/// dung). onAiTextResponseError GIU NGUYEN (van dung cho truong hop AI
+/// khong sinh duoc chunk nao ngay tu dau).
+/// Expose qua CAC CALLBACK RIENG (khong goi truc tiep CompanionVoiceController
+/// tu trong service nay) — giu service nay CHI lo protocol/ket noi, TACH
+/// BIET voi logic phat TTS (CompanionVoiceController) giong dung tinh
+/// than "moi lop 1 trach nhiem" da dung xuyen suot app nay. Noi day 2 lop
+/// lai la viec cua CALLER (vd 1 man hinh/orchestrator sau nay o Lop 6):
+///   voiceWsService.onAiTextResponseChunk = (text, isFinal) { ... }
 library;
 
 import 'dart:async';
@@ -26,6 +46,33 @@ class VoiceWebSocketService extends ChangeNotifier {
       : _tokenProvider = tokenProvider;
 
   final Future<String?> Function() _tokenProvider;
+
+  /// Goi khi server bao {"type":"transcript"} (STT thanh cong, Buoc 3).
+  void Function(String text)? onTranscript;
+
+  /// Goi khi server bao {"type":"transcript_error"} (STT that bai/audio
+  /// khong ro tieng noi, Buoc 3) — client nen bao user noi lai.
+  void Function(String message)? onTranscriptError;
+
+  /// Goi khi server bao {"type":"transcript_low_confidence"} (Whisper
+  /// Confidence Gate, 2026-08-15 — xem docstring app/api/v1/voice_ws.py)
+  /// — CO nghe duoc text nhung KHONG chac chan (avg_logprob/
+  /// compression_ratio vuot nguong). Backend KHONG goi AI cho luot nay —
+  /// CALLER nen phat lai [message] qua TTS (giong phan ung nguoi that xin
+  /// noi lai) roi quay ve trang thai lang nghe, KHONG coi [text] la cau
+  /// tra loi dang tin cay de xu ly tiep.
+  void Function(String text, String message)? onTranscriptLowConfidence;
+
+  /// Goi khi server bao {"type":"ai_text_response_chunk"} (AI streaming,
+  /// Buoc 4b) — moi lan goi la 1 doan delta text moi (isFinal=false), lan
+  /// cuoi cung (isFinal=true) text LUON rong, chi de danh dau da het
+  /// stream. CALLER tu quyet dinh lam gi (vd don vao SentenceAccumulator
+  /// roi goi CompanionVoiceController.appendStreamingSentence()).
+  void Function(String text, bool isFinal)? onAiTextResponseChunk;
+
+  /// Goi khi server bao {"type":"ai_text_response_error"} (AI khong sinh
+  /// duoc chunk nao ngay tu dau).
+  void Function(String message)? onAiTextResponseError;
 
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
@@ -95,11 +142,18 @@ class VoiceWebSocketService extends ChangeNotifier {
     }
   }
 
-  void _onMessage(dynamic raw) {
+  void _onMessage(dynamic raw) => handleRawMessageForTesting(raw as String);
+
+  /// Xu ly 1 message JSON tho — TACH RIENG khoi listener that de test
+  /// duoc bang cach "gia lap" 1 message den ma KHONG can mo ket noi
+  /// WebSocket that (dung @visibleForTesting, khong goi tu code san xuat
+  /// ngoai file nay/test).
+  @visibleForTesting
+  void handleRawMessageForTesting(String raw) {
     debugPrint('[VoiceWebSocketService] nhan message: $raw');
     Map<String, dynamic>? data;
     try {
-      data = jsonDecode(raw as String) as Map<String, dynamic>;
+      data = jsonDecode(raw) as Map<String, dynamic>;
     } catch (e) {
       debugPrint('[VoiceWebSocketService] khong parse duoc JSON: $e');
       return;
@@ -111,6 +165,37 @@ class VoiceWebSocketService extends ChangeNotifier {
       case 'error':
         debugPrint('[VoiceWebSocketService] server bao loi: ${data['message']}');
         break;
+      case 'transcript':
+        final text = data['text'] as String? ?? '';
+        debugPrint('[VoiceWebSocketService] transcript: $text');
+        onTranscript?.call(text);
+        break;
+      case 'transcript_error':
+        final message = data['message'] as String? ?? 'Không nhận diện được giọng nói';
+        debugPrint('[VoiceWebSocketService] transcript_error: $message');
+        onTranscriptError?.call(message);
+        break;
+      case 'transcript_low_confidence':
+        final text = data['text'] as String? ?? '';
+        final message = data['message'] as String? ?? 'Mình nghe chưa rõ lắm, bạn nói lại được không?';
+        debugPrint('[VoiceWebSocketService] transcript_low_confidence: text=$text message=$message');
+        onTranscriptLowConfidence?.call(text, message);
+        break;
+      case 'ai_text_response_chunk':
+        final text = data['text'] as String? ?? '';
+        final isFinal = data['is_final'] as bool? ?? false;
+        debugPrint('[VoiceWebSocketService] ai_text_response_chunk: $text (is_final=$isFinal)');
+        onAiTextResponseChunk?.call(text, isFinal);
+        break;
+      case 'ai_text_response_error':
+        final message = data['message'] as String? ?? 'Không tạo được câu trả lời';
+        debugPrint('[VoiceWebSocketService] ai_text_response_error: $message');
+        onAiTextResponseError?.call(message);
+        break;
+      // audio_received/audio_chunk-related server messages (Buoc 2) CHUA
+      // can xu ly rieng o Flutter — server tu quan ly buffer, Flutter chi
+      // CAN GUI audio_chunk/audio_end (se noi day khi VAD that duoc noi
+      // vao WebSocket, ngoai pham vi Buoc 4a).
       default:
         debugPrint('[VoiceWebSocketService] message type khong xac dinh: ${data['type']}');
     }
@@ -154,6 +239,58 @@ class VoiceWebSocketService extends ChangeNotifier {
     }
     debugPrint('[VoiceWebSocketService] gui ping');
     channel.sink.add(jsonEncode({'type': 'ping'}));
+  }
+
+  /// Lop 6 (2026-08-15) — Gui {"type": "audio_chunk", "data": "<base64>"}
+  /// (giao thuc Buoc 2) — dung boi man hinh Voice that de gui audio da
+  /// ghi tu mic (qua VoiceMicRecorder) sau khi VoiceActivityDetector phat
+  /// hien ket thuc 1 luot noi.
+  void sendAudioChunk(String audioBase64) {
+    final channel = _channel;
+    if (!isConnected || channel == null) {
+      debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui audio_chunk');
+      return;
+    }
+    channel.sink.add(jsonEncode({'type': 'audio_chunk', 'data': audioBase64}));
+  }
+
+  /// Lop 6 (2026-08-15) — Gui {"type": "audio_end"} (giao thuc Buoc 2),
+  /// bao server ghep buffer va bat dau STT.
+  ///
+  /// Buoc C (2026-08-20) — kem theo [systemPrompt]/[learningMode] THAT
+  /// (do VoiceChatScreen xay qua CompanionPersonalityEngine.buildSystemPromptV2,
+  /// dung chung engine voi Chat) de backend dung DUNG lua chon cua user
+  /// thay vi prompt/mode co dinh — xem docstring app/api/v1/voice_ws.py.
+  void sendAudioEnd({String? systemPrompt, String? learningMode}) {
+    final channel = _channel;
+    if (!isConnected || channel == null) {
+      debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui audio_end');
+      return;
+    }
+    debugPrint('[VoiceWebSocketService] gui audio_end (learningMode=$learningMode)');
+    channel.sink.add(jsonEncode({
+      'type': 'audio_end',
+      if (systemPrompt != null) 'system_prompt': systemPrompt,
+      if (learningMode != null) 'learning_mode': learningMode,
+    }));
+  }
+
+  /// Lop 5 (2026-08-15) — Gui {"type": "interrupt"} — goi khi VAD (Lop 1)
+  /// phat hien user BAT DAU NOI trong luc AI van dang streaming cau tra
+  /// loi, de backend DUNG GUI TIEP cac chunk con lai (xem docstring
+  /// app/api/v1/voice_ws.py, phan Lop 5). CALLER (orchestrator/man hinh)
+  /// van PHAI tu goi CompanionVoiceController.stopSpeaking() NGAY LAP TUC
+  /// O PHIA CLIENT — KHONG cho toi khi co phan hoi tu server (do tre
+  /// mang round-trip la khong can thiet cho hanh dong CUC BO nhu dung
+  /// phat audio dang co san trong loa).
+  void sendInterrupt() {
+    final channel = _channel;
+    if (!isConnected || channel == null) {
+      debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui interrupt');
+      return;
+    }
+    debugPrint('[VoiceWebSocketService] gui interrupt');
+    channel.sink.add(jsonEncode({'type': 'interrupt'}));
   }
 
   /// Ngat ket noi CHU DINH — sau loi goi nay se KHONG tu dong thu lai nua

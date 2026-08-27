@@ -3,6 +3,7 @@ import 'dart:html' as html;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js' as js;
+import 'package:http/http.dart' as http;
 
 html.MediaRecorder? _mediaRecorder;
 List<html.Blob> _audioChunks = [];
@@ -114,6 +115,23 @@ Future<void> webStartRecordingAutoStop(
   Duration silenceDuration = const Duration(milliseconds: 2500),
 }) async {
   await webStartRecording(onData, onError);
+}
+
+/// Lop 6 (2026-08-15) — doc bytes tu ket qua AudioRecorder.stop() cua
+/// package `record` (VoiceMicRecorder, Voice pipeline moi). Tren web,
+/// record_web's MediaRecorderDelegate.stop() tra ve 1 blob: URL (KHONG
+/// phai duong dan file that — dart:io.File khong ton tai tren web) — doc
+/// bytes qua http.get() (package:http tren web di qua fetch cua trinh
+/// duyet, co the fetch duoc blob: URL cung origin/session vua tao no).
+Future<List<int>?> webReadRecordedBytes(String pathOrUrl) async {
+  try {
+    final resp = await http.get(Uri.parse(pathOrUrl));
+    if (resp.statusCode != 200) return null;
+    html.Url.revokeObjectUrl(pathOrUrl);
+    return resp.bodyBytes;
+  } catch (e) {
+    return null;
+  }
 }
 
 void webEval(String jsCode) {

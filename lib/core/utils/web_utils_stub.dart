@@ -175,6 +175,24 @@ void webStopRecording() async {
     _isStopping = false;
   }
 }
+/// Lop 6 (2026-08-15) — doc bytes tu ket qua AudioRecorder.stop() cua
+/// package `record` DUNG TRUC TIEP boi VoiceMicRecorder (Voice pipeline
+/// moi, TACH RIENG khoi _recorder o tren — khong dung chung 1 instance
+/// vi co the co 2 man hinh ghi am khac nhau). Tren native, stop() tra ve
+/// 1 duong dan file THAT — doc bang dart:io File nhu da lam o
+/// webStopRecording() phia tren.
+Future<List<int>?> webReadRecordedBytes(String pathOrUrl) async {
+  try {
+    final file = File(pathOrUrl);
+    if (!await file.exists()) return null;
+    final bytes = await file.readAsBytes();
+    file.delete().catchError((_) => file);
+    return bytes;
+  } catch (e) {
+    return null;
+  }
+}
+
 void webEval(String js) {}
 
 void webCopyText(String text) {
