@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chinesemate/core/providers/hanzi_mode_provider.dart';
+import 'package:chinesemate/core/providers/learning_mode_provider.dart';
 import 'roleplay_screen.dart';
 import 'chat_history_screen.dart';
 import 'package:chinesemate/features/chat/engines/companion_personality_engine.dart';
@@ -77,6 +78,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with TickerProviderStat
   // duoc/user chua tung dat trinh do trong Ho so — buildSystemPromptV2 tu
   // xu ly gia tri null an toan (khong hien thi dong trinh do).
   String? _chineseLevel;
+  // 2026-08-20: gia tri KHOI TAO 'zh_vi' o day CHI la fallback an toan
+  // (ChatEntryGateScreen da dam bao user luon chon truoc khi vao duoc man
+  // hinh nay) — gia tri THAT SU duoc doc tu learningModeProvider (nguon
+  // duy nhat, dung chung Chat+Voice) trong initState(), xem duoi day.
   String _learningMode = 'zh_vi';
   int _sessionMessages = 0;
   bool _showXpPop = false;
@@ -204,6 +209,14 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
   @override
   void initState() {
     super.initState();
+    // 2026-08-20: doc learningMode THAT tu nguon duy nhat (learningModeProvider)
+    // — TRUOC DAY bien nay CHI khoi tao hardcode 'zh_vi', KHONG BAO GIO doc
+    // lua chon user da luu, nen moi lan mo lai man hinh deu am tham quay ve
+    // zh_vi du user da chon che do khac truoc do (chinh la loai "lech" nguoi
+    // dung lo ngai). ref.read (khong watch) — chi can gia tri LUC MO man
+    // hinh, thay doi sau do (qua sheet Cai dat) da co duong rieng cap nhat
+    // _learningMode + ghi lai provider dong thoi (xem _showSettings duoi day).
+    _learningMode = ref.read(learningModeProvider) ?? 'zh_vi';
     _xpPopCtrl = AnimationController(duration: const Duration(milliseconds: 1000), vsync: this);
     _xpPopAnim = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _xpPopCtrl, curve: Curves.elasticOut),
@@ -907,7 +920,15 @@ String _relationshipLabel(Map<String, dynamic>? memory) {
                 ].map((item) => _ModeChip(
                   icon: item['icon']!, label: item['label']!,
                   isSelected: _learningMode == item['key'],
-                  onTap: () { setModal(() {}); setState(() { _learningMode = item['key']!; _quickReplies = _defaultQuickReplies; }); },
+                  onTap: () {
+                    setModal(() {});
+                    setState(() { _learningMode = item['key']!; _quickReplies = _defaultQuickReplies; });
+                    // 2026-08-20: ghi qua NGUON DUY NHAT (dung chung Chat+
+                    // Voice) — KHONG chi setState cuc bo nhu truoc (do la
+                    // nguyen nhan goc lam lua chon "bien mat" khi mo lai man
+                    // hinh, vi khong co gi ghi lai persist ca).
+                    ref.read(learningModeProvider.notifier).setMode(item['key']!);
+                  },
                 )).toList(),
               ),
               const SizedBox(height: 24),

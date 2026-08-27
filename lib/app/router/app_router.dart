@@ -6,7 +6,7 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/translate/presentation/screens/translate_screen.dart';
 import '../../features/learn/presentation/screens/learn_screen.dart';
-import '../../features/chat/presentation/screens/chat_screen.dart';
+import '../../features/chat/presentation/screens/chat_entry_gate_screen.dart';
 import '../../features/chat/presentation/screens/live_chat_screen.dart';
 import '../../features/tools/presentation/screens/tools_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -51,7 +51,7 @@ final appRouter = GoRouter(
           GoRoute(path: '/learn', builder: (c, s) => const LearnScreen()),
         ]),
         StatefulShellBranch(routes: [
-          GoRoute(path: '/chat', builder: (c, s) => const ChatScreen()),
+          GoRoute(path: '/chat', builder: (c, s) => const ChatEntryGateScreen()),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(path: '/live', builder: (c, s) => const LiveChatScreen()),
