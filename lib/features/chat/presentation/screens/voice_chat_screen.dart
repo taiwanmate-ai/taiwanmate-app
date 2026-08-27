@@ -33,12 +33,15 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:chinesemate/core/constants/api_constants.dart';
 import 'package:chinesemate/core/providers/learning_mode_provider.dart';
 import 'package:chinesemate/features/chat/engines/companion_personality_engine.dart';
 import 'package:chinesemate/features/chat/engines/mood_tag_parser.dart';
+import 'package:chinesemate/features/chat/engines/voice_teaching_instruction.dart';
 import 'package:chinesemate/features/chat/engines/voice_websocket_service.dart';
 import 'package:chinesemate/features/chat/engines/companion_voice_controller.dart';
 import 'package:chinesemate/features/chat/engines/voice_mic_recorder.dart';
@@ -110,6 +113,15 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   /// cho Phan C (noi rule ngon ngu that vao backend Voice, CHUA lam).
   String _learningMode = 'zh_vi';
 
+  /// Audit "Giao vien tuong tac that" (2026-08-27) — TRUOC DAY VoiceChatScreen
+  /// KHONG bao gio goi /auth/me nen chineseLevel LUON null khi goi
+  /// buildSystemPromptV2() (khac ChatScreen da fetch tu lau, xem _loadUserProfile()
+  /// duoi day, dung Y HET pattern cua chat_screen.dart) — nghia la quy tac
+  /// i+1 (do kho theo trinh do +1 bac) truoc gio KHONG CO GI de tinh toan
+  /// cho Voice. Null an toan (buildSystemPromptV2 tu xu ly, mac dinh coi
+  /// nhu beginner trong instruction moi — xem voice_teaching_instruction.dart).
+  String? _chineseLevel;
+
   /// Buoc C (2026-08-20) — dung CHUNG engine voi Chat de xay system_prompt
   /// THAT gui kem audio_end, thay vi prompt co dinh backend tu bia
   /// (_FALLBACK_SYSTEM_PROMPT, xem docstring voice_ws.py). Voice CHUA theo
@@ -127,6 +139,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   void initState() {
     super.initState();
     _learningMode = ref.read(learningModeProvider) ?? 'zh_vi';
+    _loadUserProfile();
     _wsService = VoiceWebSocketService(tokenProvider: () => _storage.read(key: 'access_token'));
     _voiceController = CompanionVoiceController(
       tokenProvider: () => _storage.read(key: 'access_token'),
@@ -167,6 +180,28 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
         _uiState = _VoiceUiState.readyToTalk;
       });
     };
+  }
+
+  /// Audit "Giao vien tuong tac that" (2026-08-27) — dung Y HET pattern cua
+  /// ChatScreen._loadUserProfile() (chat_screen.dart) de vá gap chineseLevel
+  /// (xem docstring _chineseLevel o tren). Loi mang/loi bat ky deu im lang
+  /// bo qua (giu _chineseLevel = null, buildSystemPromptV2 tu xu ly an toan)
+  /// — giong dung tinh than cac ham _load*() khac trong app nay.
+  Future<void> _loadUserProfile() async {
+    try {
+      if (!mounted) return;
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final response = await dio.get(
+        '${ApiConstants.baseUrl}${ApiConstants.me}',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (!mounted) return;
+      final chineseLevel = response.data['chinese_level'] as String?;
+      if (chineseLevel != null) {
+        setState(() => _chineseLevel = chineseLevel);
+      }
+    } catch (e) {}
   }
 
   void _onAiTextResponseChunk(String text, bool isFinal) {
@@ -341,12 +376,20 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       now: DateTime.now(),
       currentUserText: '',
       recentlySuggestedTrendPhraseIds: const {},
+      chineseLevel: _chineseLevel,
     );
+    // Audit "Giao vien tuong tac that" (2026-08-27) — noi THEM (khong sua)
+    // quy tac IRF + Comprehensible Input i+1, CHI cho Voice, TRUOC
+    // kVoiceNaturalizerInstruction (cau truc/noi dung luot noi truoc, giong
+    // dieu/mood sau — xem docstring voice_teaching_instruction.dart, bao
+    // gom giai thich xung dot voi rule 15 "cau hoi rong" da phat hien va
+    // xu ly rieng cho Voice o do).
+    //
     // Audit "Speech Naturalizer" (2026-08-24) — noi THEM (khong sua)
     // huong dan noi tu nhien + yeu cau mood tag, CHI cho Voice (Chat
     // KHONG goi doan nay — buildSystemPromptV2()/companion_personality_
     // engine.dart giu nguyen 100%). Xem docstring kVoiceNaturalizerInstruction.
-    final voiceSystemPrompt = result.prompt + kVoiceNaturalizerInstruction;
+    final voiceSystemPrompt = result.prompt + kVoiceInteractiveTeachingInstruction + kVoiceNaturalizerInstruction;
     _wsService.sendAudioEnd(systemPrompt: voiceSystemPrompt, learningMode: _learningMode);
   }
 
