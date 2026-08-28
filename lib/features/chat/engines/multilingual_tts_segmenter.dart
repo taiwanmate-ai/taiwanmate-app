@@ -522,10 +522,20 @@ class MultilingualTtsSegmenter {
           // Manh chi con dau cau, khong co chu nao — gop vao segment lien
           // truoc (neu co); neu day la manh DAU TIEN (chua co segment nao
           // truoc do) thi bo qua han, khong tao segment rong-vo-nghia.
+          //
+          // Fix 2026-08-28 (bao cao that: TTS doc dau cham cuoi cau thanh
+          // tieng "dot"): NOI TRUC TIEP, KHONG chen space truoc trimmed —
+          // ban truoc chen ' $trimmed' (co space) trong khi manh nay CHINH
+          // LA phan dau cau con sot cua CAU TRUOC (vd moi dau "." rieng le
+          // cua "..." sau khi tach o tren), khong phai 1 tu moi. Voi "..."
+          // (3 dau cham rieng le), moi lan gop CO space bien "tu..." thanh
+          // "tu. . ." — 1 dau cham dung TACH RIENG boi khoang trang o CA 2
+          // phia chinh la dang TTS (dac biet giong Anh) hay doc thanh
+          // tieng "dot" nhat, thay vi hieu la dau "..." lien tuc/tu nhien.
           if (out.isNotEmpty) {
             final prev = out.removeLast();
             out.add(TtsSegment(
-              text: '${prev.text} $trimmed',
+              text: '${prev.text}$trimmed',
               lang: prev.lang,
               isPinyin: prev.isPinyin,
               metadata: prev.metadata,

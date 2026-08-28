@@ -146,6 +146,31 @@ void main() {
     'cảm ơn...,...bạn',
   ]);
 
+  // ── 4. Audit "Giao vien tuong tac that"/IRF (2026-08-28) — bao cao that:
+  // TTS doc dau cham cuoi cau thanh tieng "dot". Nguyen nhan xac nhan:
+  // _splitAtSentenceBoundaries gop manh CHI-CO-DAU-CAU vao segment truoc
+  // do BANG CACH CHEN 1 KHOANG TRANG ('${prev.text} $trimmed') — voi "..."
+  // (3 dau cham ASCII rieng le, tach thanh 3 manh lien tiep), moi lan gop
+  // THEM 1 space, bien "tu..." thanh "tu. . ." (dau cham bi co lap boi
+  // khoang trang ca 2 phia — chinh la dang TTS de doc thanh "dot" nhat).
+  // Da sua: noi TRUC TIEP khong chen space. Cau mau duoi day + invariant
+  // moi (xem "khong duoc co dau cau CO LAP boi khoang trang") dam bao
+  // khong tai phat, dac biet cho cau NGAN kieu IRF (kVoiceInteractiveTeachingInstruction)
+  // ket thuc bang 1 dau cham don hoac "..." NGAY SAU 1 tu/dau ngoac kep.
+  samples.addAll([
+    'Bạn thử nói lại xem.',
+    '你好嗎 nghĩa là "bạn khỏe không". Bạn thử nói lại xem.',
+    'Chuẩn rồi đó! Giờ thử từ tiếp theo: 謝謝 nghĩa là cảm ơn. Bạn thử nói lại xem.',
+    'với bộ "trùng"... không phải "在" nha.',
+    'Cố gắng lại lần nữa nhé: 再見.',
+    '我們先 học cách nói "Tôi tên là...". (Chúng ta hãy học cách nói "Tôi tên là...")',
+    'à...',
+    'trùng...',
+    '"trùng"...',
+    'Thử lại xem nhé...',
+    '你好...再見...謝謝...',
+  ]);
+
   test(
     'Fuzz — ${samples.length} cau mau tron Viet+Trung+Anh+moi loai dau cau/bao quanh: '
     'MOI segment deu phai co it nhat 1 ky tu \\p{L}, khong segment nao chi toan dau cau',
@@ -186,4 +211,31 @@ void main() {
       }
     }
   });
+
+  // Regression-guard rieng (2026-08-28) — xem giai thich day du o nhom mau
+  // "4." o tren: bat ky dau cau nao (.!?。！？) bi CO LAP boi khoang trang
+  // o CA 2 phia (hoac dau/cuoi chuoi) trong 1 segment.text la dau hieu
+  // TRUC TIEP cua bug "TTS doc thanh dot" — du van co \p{L} o cho khac
+  // trong CUNG segment (nen khong bi bat boi test invariant o tren).
+  final isolatedPunct = RegExp(r'(?:^|\s)[.!?。！？](?:\s|$)');
+  test(
+    'Fuzz — khong segment nao co dau cau bi CO LAP boi khoang trang (dau hieu bug "doc thanh dot")',
+    () {
+      final violations = <String>[];
+      for (final input in samples) {
+        for (final s in seg.segment(input)) {
+          if (isolatedPunct.hasMatch(s.text)) {
+            violations.add('Input "$input" -> segment co dau cau co lap (lang=${s.lang}): "${s.text}"');
+          }
+        }
+      }
+      if (violations.isNotEmpty) {
+        fail(
+          'Phat hien ${violations.length} segment co dau cau bi co lap boi khoang trang '
+          '(se bi TTS doc thanh tieng, vd "dot") trong ${samples.length} cau mau:\n'
+          '${violations.take(20).join('\n')}',
+        );
+      }
+    },
+  );
 }
