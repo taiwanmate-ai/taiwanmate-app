@@ -19,6 +19,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import '../../features/community/presentation/screens/community_screen.dart';
 import '../../features/learn_v2/presentation/screens/learning_hub_screen_v2.dart';
+import '../../core/constants/feature_flags.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -62,9 +63,15 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
         ]),
-        StatefulShellBranch(routes: [
-          GoRoute(path: '/community', builder: (c, s) => const CommunityScreen()),
-        ]),
+        // Audit "an tab Cong dong" (2026-08-31, xem feature_flags.dart) —
+        // BO HAN branch nay khoi danh sach khi cờ tat, thay vi chi an
+        // item o main_shell.dart — dam bao GoRouter KHONG BAO GIO dang
+        // ky route '/community', nen CommunityScreen KHONG THE duoc
+        // mount/goi API du bang cach nao (khong chi qua bottom nav).
+        if (kCommunityTabEnabled)
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/community', builder: (c, s) => const CommunityScreen()),
+          ]),
       ],
     ),
   ],

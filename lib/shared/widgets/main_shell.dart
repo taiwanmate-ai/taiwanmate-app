@@ -2,6 +2,36 @@
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import '../../core/constants/feature_flags.dart';
+
+/// Audit "an tab Cong dong" (2026-08-31) — TACH RIENG khoi build() thanh
+/// 1 ham top-level thuan (khong phu thuoc BuildContext/state) de TEST
+/// DUOC TRUC TIEP bang unit test don gian (khong can dung widget/router
+/// — xem test/main_shell_nav_items_test.dart), CHUNG MINH dung logic
+/// SAN XUAT RA danh sach item THAT SU duoc MainShell.build() dung (goi
+/// lai CHINH ham nay, khong sao chep logic rieng cho test).
+///
+/// Thu tu VA SO LUONG o day PHAI khop CHINH XAC voi danh sach `branches`
+/// trong app_router.dart (StatefulShellRoute.indexedStack) — _onTap()
+/// trong _MainShellState dung index tuyet doi tu BottomNavigationBar de
+/// goi navigationShell.goBranch(index), nen 2 danh sach LUON phai dong
+/// bo ve so luong/thu tu item con hien thi.
+List<BottomNavigationBarItem> buildMainShellNavItems() {
+  return [
+    const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+    const BottomNavigationBarItem(icon: Icon(Icons.translate_outlined), activeIcon: Icon(Icons.translate), label: 'Dịch'),
+    const BottomNavigationBarItem(icon: Icon(Icons.school_outlined), activeIcon: Icon(Icons.school), label: 'Học'),
+    const BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'AI Chat'),
+    const BottomNavigationBarItem(icon: Icon(Icons.mic_outlined), activeIcon: Icon(Icons.mic), label: 'Live'),
+    const BottomNavigationBarItem(icon: Icon(Icons.build_outlined), activeIcon: Icon(Icons.build), label: 'Công cụ'),
+    const BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Cá nhân'),
+    // An hoan toan (khong chi bang opacity/style) khi cờ tat, de cac tab
+    // con lai tu lap day khoang trong, khong de lai icon/khoang trang
+    // vo nghia.
+    if (kCommunityTabEnabled)
+      const BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), activeIcon: Icon(Icons.people_rounded), label: 'Cộng đồng'),
+  ];
+}
 
 class MainShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -109,16 +139,7 @@ class _MainShellState extends State<MainShell> {
         elevation: 12,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.translate_outlined), activeIcon: Icon(Icons.translate), label: 'Dịch'),
-          BottomNavigationBarItem(icon: Icon(Icons.school_outlined), activeIcon: Icon(Icons.school), label: 'Học'),
-          BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'AI Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.mic_outlined), activeIcon: Icon(Icons.mic), label: 'Live'),
-          BottomNavigationBarItem(icon: Icon(Icons.build_outlined), activeIcon: Icon(Icons.build), label: 'Công cụ'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Cá nhân'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), activeIcon: Icon(Icons.people_rounded), label: 'Cộng đồng'),
-        ],
+        items: buildMainShellNavItems(),
       ),
     );
   }
