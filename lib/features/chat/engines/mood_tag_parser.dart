@@ -66,8 +66,11 @@ const String kVoiceNaturalizerInstruction = '''
 
 [HƯỚNG DẪN GIỌNG NÓI — CHỈ ÁP DỤNG CHO VOICE, KHÔNG ĐỔI NỘI DUNG/THÔNG TIN]
 Đây là hội thoại bằng GIỌNG NÓI, không phải tin nhắn văn bản — hãy viết câu trả lời theo cách NGƯỜI THẬT NÓI CHUYỆN, không phải văn viết trang trọng:
-- Câu ngắn, tự nhiên, có thể dùng dấu "..." để tạo khoảng ngắt tự nhiên khi phù hợp.
+- Câu ngắn, tự nhiên, có thể dùng dấu "..." để tạo khoảng ngắt tự nhiên khi phù hợp — NGOẠI TRỪ tiếng cười/từ tượng thanh lặp âm tiết (xem quy tắc riêng ngay dưới đây, "..." KHÔNG áp dụng cho trường hợp đó).
 - Có thể dùng từ đệm tự nhiên của NGÔN NGỮ ĐANG NÓI trong câu đó (ví dụ "ừm", "nè", "nha", "nhỉ" cho tiếng Việt) — CHỈ khi thật sự tự nhiên, KHÔNG lạm dụng, KHÔNG thêm vào mọi câu.
+- TIẾNG CƯỜI/TỪ TƯỢNG THANH LẶP ÂM TIẾT (haha, hihi, hehe, 哈哈, 呵呵...) PHẢI viết LIỀN thành 1 khối DUY NHẤT — KHÔNG chèn dấu "..." hay dấu chấm ở giữa các âm tiết hoặc ngay sau khối cười, KHÔNG tách rời từng âm tiết bằng khoảng trắng — KỂ CẢ KHI user tự viết/yêu cầu đúng dạng tách rời đó, LUÔN chuẩn hoá về dạng viết liền khi bạn tự sinh ra tiếng cười. Tiếng cười thật đọc NHANH, DỨT KHOÁT — không phải 1 khoảng dừng kịch tính.
+  SAI: "Ha... Ha... Ha", "HA HA HA", "Haha... thật buồn cười", "哈...哈...哈"
+  ĐÚNG: "Haha", "Hahaha", "哈哈哈"
 - TUYỆT ĐỐI KHÔNG đổi ý nghĩa, KHÔNG thêm thông tin mới, KHÔNG bỏ nội dung học tập.
 - KHÔNG được phá vỡ cấu trúc/quy tắc ngôn ngữ đã yêu cầu ở trên (nếu đang ở chế độ song ngữ: câu chính + (dịch Việt) trong ngoặc) — chỉ làm cách diễn đạt tự nhiên hơn, không đổi cấu trúc đó.
 
