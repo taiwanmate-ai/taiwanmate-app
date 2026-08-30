@@ -27,7 +27,15 @@ const _enOnlyMarker = 'LANGUAGE: ENGLISH ONLY. Zero Vietnamese. Zero Chinese.';
 const _zhViStartMarker = 'LANGUAGE: Every sentence MUST start in Traditional Chinese.';
 const _enViStartMarker = 'LANGUAGE: Every sentence MUST start in English.';
 const _viParentheticalMarker = 'Vietnamese is NEVER allowed as a standalone sentence — it may ONLY appear inside parentheses';
-const _bilingualSelfCheckMarker = 'TỰ KIỂM TRA BẮT BUỘC TRƯỚC KHI GỬI';
+// Fix 2026-08-30 — _buildFinalBilingualCheck() gio co 2 nhanh CUNG dung
+// chung 1 dong tieu de ("TỰ KIỂM TRA BẮT BUỘC TRƯỚC KHI GỬI") nhung NOI
+// DUNG rieng: zh_vi/en_vi kiem tra DICH SONG NGU DAY DU, zh_only/en_only
+// (MOI them, xem docstring _buildLanguageRule) kiem tra KHONG LAN NGON
+// NGU KHAC — can 2 marker RIENG BIET de phan biet dung 2 nhanh, khong
+// dung chung 1 marker chung chung nua (truoc day zh_only/en_only KHONG
+// co self-check nao ca nen chi can 1 marker la du).
+const _bilingualCoverageSelfCheckMarker = 'RÀ SOÁT TỪNG CÂU';
+const _languagePuritySelfCheckMarker = 'đọc lại TỪNG KÝ TỰ';
 
 String _buildPromptFor(String learningMode) {
   const engine = CompanionPersonalityEngine();
@@ -108,22 +116,26 @@ void main() {
           case 'zh_only':
             expect(prompt.contains(_zhOnlyMarker), isTrue, reason: 'Thieu marker zh_only');
             expect(prompt.contains(_viParentheticalMarker), isFalse, reason: 'zh_only KHONG duoc chua huong dan dich tieng Viet trong ngoac');
-            expect(prompt.contains(_bilingualSelfCheckMarker), isFalse, reason: 'zh_only KHONG can tu kiem tra song ngu (chi 1 ngon ngu)');
+            expect(prompt.contains(_bilingualCoverageSelfCheckMarker), isFalse, reason: 'zh_only KHONG can tu kiem tra DICH SONG NGU (chi 1 ngon ngu)');
+            expect(prompt.contains(_languagePuritySelfCheckMarker), isTrue, reason: 'zh_only PHAI co tu kiem tra KHONG LAN ngon ngu khac (fix 2026-08-30)');
             break;
           case 'en_only':
             expect(prompt.contains(_enOnlyMarker), isTrue, reason: 'Thieu marker en_only');
             expect(prompt.contains(_viParentheticalMarker), isFalse, reason: 'en_only KHONG duoc chua huong dan dich tieng Viet trong ngoac');
-            expect(prompt.contains(_bilingualSelfCheckMarker), isFalse, reason: 'en_only KHONG can tu kiem tra song ngu');
+            expect(prompt.contains(_bilingualCoverageSelfCheckMarker), isFalse, reason: 'en_only KHONG can tu kiem tra DICH SONG NGU');
+            expect(prompt.contains(_languagePuritySelfCheckMarker), isTrue, reason: 'en_only PHAI co tu kiem tra KHONG LAN ngon ngu khac (fix 2026-08-30)');
             break;
           case 'zh_vi':
             expect(prompt.contains(_zhViStartMarker), isTrue, reason: 'Thieu marker zh_vi (bat dau bang tieng Trung)');
             expect(prompt.contains(_viParentheticalMarker), isTrue, reason: 'zh_vi PHAI co huong dan dich tieng Viet trong ngoac');
-            expect(prompt.contains(_bilingualSelfCheckMarker), isTrue, reason: 'zh_vi PHAI co buoc tu kiem tra song ngu');
+            expect(prompt.contains(_bilingualCoverageSelfCheckMarker), isTrue, reason: 'zh_vi PHAI co buoc tu kiem tra DICH SONG NGU');
+            expect(prompt.contains(_languagePuritySelfCheckMarker), isFalse, reason: 'zh_vi KHONG dung self-check KHONG-LAN-ngon-ngu (dang cho zh_only/en_only)');
             break;
           case 'en_vi':
             expect(prompt.contains(_enViStartMarker), isTrue, reason: 'Thieu marker en_vi (bat dau bang tieng Anh)');
             expect(prompt.contains(_viParentheticalMarker), isTrue, reason: 'en_vi PHAI co huong dan dich tieng Viet trong ngoac');
-            expect(prompt.contains(_bilingualSelfCheckMarker), isTrue, reason: 'en_vi PHAI co buoc tu kiem tra song ngu');
+            expect(prompt.contains(_bilingualCoverageSelfCheckMarker), isTrue, reason: 'en_vi PHAI co buoc tu kiem tra DICH SONG NGU');
+            expect(prompt.contains(_languagePuritySelfCheckMarker), isFalse, reason: 'en_vi KHONG dung self-check KHONG-LAN-ngon-ngu (dang cho zh_only/en_only)');
             break;
         }
       });

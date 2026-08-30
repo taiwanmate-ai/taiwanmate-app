@@ -404,12 +404,51 @@ Diễn đạt tự nhiên theo đúng giọng điệu Companion, KHÔNG đọc n
     switch (learningMode) {
       case 'zh_only':
         return (
-          langRule: 'LANGUAGE: 繁體中文 ONLY. Zero Vietnamese. Zero English. VIOLATION = FAILURE. This applies with ZERO exceptions: even if the user asks you to explain a Vietnamese or English word/phrase, or asks "what does X mean" about a non-Chinese word, you MUST respond entirely in Traditional Chinese only — do NOT write out, translate, or explain using the Vietnamese/English word itself, and do NOT switch to teaching that other language.',
+          // Fix 2026-08-28 (bao cao that: Whisper nghe nham cau tron Trung+
+          // Viet ngan "了 trong 好了" thanh "Lơ trong hào lơ" — xac nhan qua
+          // benchmark_stt_models.py, CA whisper-1 LAN gpt-4o-mini-transcribe
+          // deu nghe giong het nhau, khong phai loi rieng 1 model — nen AI
+          // (gpt-4o-mini, model that Voice dung cho zh_only khi khong
+          // premium) TRA LOI HOAN TOAN bang tieng Viet, vi pham rule nay).
+          // Rule CU chi cam "viet ra/dich tu Viet/Anh NGUOI DUNG DA GO" —
+          // KHONG co cau lenh ro rang cho truong hop input KHONG RO RANG/
+          // nghe nham TRONG GIONG mot cau ngon ngu khac — model (dac biet
+          // gpt-4o-mini, voi prompt dai ~5000 ky tu canh tranh IRF+
+          // Naturalizer+Safety) suy dien nham "user dang noi tieng Viet"
+          // roi TU MINH chon tra loi bang tieng Viet de "giai thich". Da
+          // xac nhan bang test that: chi CAN THEM cau lenh ro rang nay (
+          // KHONG doi kien truc/model) la du chan duoc — xem test_voice_
+          // language_rule_garbled_input.py (test that qua gpt-4o-mini).
+          //
+          // Fix 2 (2026-08-30) — sau lan fix tren, 1/25 lan van con chen 1
+          // cum tieng Viet NGAN trong ngoac kep de "chu thich nghia" (vd
+          // 「chào bạn」) — nhe hon nhieu so voi bug goc (tra loi HOAN TOAN
+          // bang tieng khac) nhung VAN la vi pham cam ket "0% ngoai le" cua
+          // zh_only. Them cau lenh CAM RIENG cho dang nay (khac voi cau
+          // "khong dich tu NGUOI DUNG go" da co — day la CHINH AI TU Y chen
+          // chu thich, khong phai dich lai loi user) + 1 vi du CU THE, dung
+          // DUNG mau hinh da chung minh hieu qua (WRONG/CORRECT).
+          //
+          // Fix 3 (2026-08-30, cung ngay) — chay lai full regression phat
+          // hien 1 DANG THU 3 chua tung thay: AI KHONG dich/chu thich, ma
+          // TRICH DAN NGUYEN VAN tu input garbled cua user vao trong cau
+          // hoi lai (vd input "Lơ trong hào lơ" -> AI hoi lai "你提到的「
+          // lơ 」是什麼意思呢？" — "lơ" ở đây là COPY THANG tu input, khong
+          // phai AI tu dich). Day la dang loi ma zh_vi/en_vi DA CO san 1
+          // cau lenh rieng tu truoc ("do NOT quote, repeat, or echo back
+          // the English/Chinese word they typed") nhung zh_only/en_only
+          // truoc gio CHUA CO — bo sung tuong tu. Xac nhan dat 0/N CA 3
+          // dang vi pham (tra loi han ngon ngu khac, chen chu thich, trich
+          // dan nguyen van input) qua test_voice_language_rule_garbled_input.py.
+          langRule: 'LANGUAGE: 繁體中文 ONLY. Zero Vietnamese. Zero English. VIOLATION = FAILURE. CRITICAL: The user\'s input may be in Vietnamese, English, mixed language, or may be unclear/garbled/mis-transcribed (e.g. from speech recognition errors) and LOOK LIKE a word or phrase in another language — NONE of this ever changes your output language. Regardless of what language the input appears to be in, or how unclear/garbled/nonsensical it looks, YOUR ENTIRE reply is ALWAYS 100% Traditional Chinese, with ZERO exceptions — this includes any clarification request, "please repeat" message, or "I don\'t understand" reply: THAT message itself must ALSO be 100% Traditional Chinese, never Vietnamese or English. Do NOT mirror the language the input seems to be in, not even for a short clarification question. CONCRETE EXAMPLE if input is unclear/garbled: WRONG — "Bạn có thể nói rõ hơn không?" (asking for clarification in Vietnamese is STILL a violation). CORRECT — "你可以再說一次嗎？" (asking for clarification entirely in Chinese). NEVER add a gloss, translation, or clarifying annotation in Vietnamese or English anywhere in your reply, in ANY form — not in parentheses (), not in quotation marks「」""\'\', not as a footnote or aside — EVEN IF you think it would help clarify a confusing or unclear word/phrase for the user. Zero exceptions, zero characters of Vietnamese or English anywhere, under any pretext, no matter how small or well-intentioned. CONCRETE EXAMPLE: WRONG — "你好是「chào bạn」的意思" (adding a short Vietnamese gloss in quotes, even just to help clarify meaning, is STILL a violation). CORRECT — "你好是打招呼的意思" (explain using ONLY Traditional Chinese, with absolutely no foreign-language gloss anywhere, even a short one). NEVER quote, repeat, copy, or echo back — anywhere in your reply, including inside a clarification question — any Vietnamese or English word/phrase/fragment that appeared in the user\'s input, even if the input was unclear/garbled and you are just trying to ask what it means. CONCRETE EXAMPLE: WRONG — "你提到的「lơ」是什麼意思呢？" (copying the Vietnamese-looking fragment "lơ" from the user\'s input into your reply, even inside a clarification question, is STILL a violation). CORRECT — "你可以再說一次嗎？我沒聽清楚。" (ask for clarification WITHOUT repeating any part of the unclear input back). This applies with ZERO exceptions: even if the user asks you to explain a Vietnamese or English word/phrase, or asks "what does X mean" about a non-Chinese word, you MUST respond entirely in Traditional Chinese only — do NOT write out, translate, or explain using the Vietnamese/English word itself, and do NOT switch to teaching that other language.',
           langFormat: 'Chỉ viết tiếng Trung Phồn thể. Không pinyin.',
         );
       case 'en_only':
         return (
-          langRule: 'LANGUAGE: ENGLISH ONLY. Zero Vietnamese. Zero Chinese. VIOLATION = FAILURE. This applies with ZERO exceptions: even if the user asks you to explain a Vietnamese or Chinese word/phrase, or types Chinese characters at you, you MUST respond entirely in English only — do NOT write out any Chinese characters or Vietnamese diacritic text, and do NOT switch to teaching that other language.',
+          // Fix 2026-08-28 + Fix 2 + Fix 3 (2026-08-30) — xem giai thich
+          // day du o case 'zh_only' o tren, cung nguyen nhan/cung fix, ap
+          // dung tuong tu cho en_only.
+          langRule: 'LANGUAGE: ENGLISH ONLY. Zero Vietnamese. Zero Chinese. VIOLATION = FAILURE. CRITICAL: The user\'s input may be in Vietnamese, Chinese, mixed language, or may be unclear/garbled/mis-transcribed (e.g. from speech recognition errors) and LOOK LIKE a word or phrase in another language — NONE of this ever changes your output language. Regardless of what language the input appears to be in, or how unclear/garbled/nonsensical it looks, YOUR ENTIRE reply is ALWAYS 100% English, with ZERO exceptions — this includes any clarification request, "please repeat" message, or "I don\'t understand" reply: THAT message itself must ALSO be 100% English, never Vietnamese or Chinese. Do NOT mirror the language the input seems to be in, not even for a short clarification question. CONCRETE EXAMPLE if input is unclear/garbled: WRONG — "Bạn có thể nói rõ hơn không?" (asking for clarification in Vietnamese is STILL a violation). CORRECT — "Could you say that again?" (asking for clarification entirely in English). NEVER add a gloss, translation, or clarifying annotation in Vietnamese or Chinese anywhere in your reply, in ANY form — not in parentheses (), not in quotation marks「」""\'\', not as a footnote or aside — EVEN IF you think it would help clarify a confusing or unclear word/phrase for the user. Zero exceptions, zero characters of Vietnamese or Chinese anywhere, under any pretext, no matter how small or well-intentioned. CONCRETE EXAMPLE: WRONG — "Hello means 「chào bạn」" (adding a short Vietnamese gloss in quotes, even just to help clarify meaning, is STILL a violation). CORRECT — "Hello is a common greeting." (explain using ONLY English, with absolutely no foreign-language gloss anywhere, even a short one). NEVER quote, repeat, copy, or echo back — anywhere in your reply, including inside a clarification question — any Vietnamese or Chinese word/phrase/fragment that appeared in the user\'s input, even if the input was unclear/garbled and you are just trying to ask what it means. CONCRETE EXAMPLE: WRONG — "What does 「lơ」 mean?" (copying the Vietnamese-looking fragment "lơ" from the user\'s input into your reply, even inside a clarification question, is STILL a violation). CORRECT — "Could you say that again? I didn\'t quite catch it." (ask for clarification WITHOUT repeating any part of the unclear input back). This applies with ZERO exceptions: even if the user asks you to explain a Vietnamese or Chinese word/phrase, or types Chinese characters at you, you MUST respond entirely in English only — do NOT write out any Chinese characters or Vietnamese diacritic text, and do NOT switch to teaching that other language.',
           langFormat: 'English only. No other language allowed.',
         );
       case 'en_vi':
@@ -437,9 +476,22 @@ Diễn đạt tự nhiên theo đúng giọng điệu Companion, KHÔNG đọc n
   // da biet giup tang do tuan thu dinh dang cho LLM, KHAC voi cach liet
   // ke ngoai le (van la 1 nguyen tac chung, chi la ep model tu doi chieu
   // lai output cua chinh no truoc khi gui, khong lai them ngoai le nao).
-  // CHI ap dung cho zh_vi/en_vi (khong can cho zh_only/en_only vi khong
-  // co van de song ngu).
+  //
+  // Mo rong 2026-08-30 — bug zh_only tra loi/chen chu thich sai ngon ngu
+  // (xem docstring _buildLanguageRule case 'zh_only'): them cau lenh RO
+  // RANG vao rule van CHUA du (1/25 van vi pham nang, 2/25 van chen chu
+  // thich khi test that qua gpt-4o-mini + prompt dai). Ap dung DUNG ky
+  // thuat da CHUNG MINH hieu qua o tren (tu kiem tra ngay truoc khi gui,
+  // o VI TRI CUOI CUNG cua prompt — uu tien recency cao nhat) cho ca
+  // zh_only/en_only, thay vi chi zh_vi/en_vi.
   String _buildFinalBilingualCheck(String learningMode) {
+    if (learningMode == 'zh_only' || learningMode == 'en_only') {
+      final mainLangLabel = learningMode == 'zh_only' ? 'tiếng Trung Phồn thể' : 'tiếng Anh';
+      final otherLangsLabel = learningMode == 'zh_only' ? 'tiếng Việt hoặc tiếng Anh' : 'tiếng Việt hoặc tiếng Trung';
+      return '''
+
+TỰ KIỂM TRA BẮT BUỘC TRƯỚC KHI GỬI: đọc lại TỪNG KÝ TỰ trong câu trả lời bạn vừa soạn, tìm xem có BẤT KỲ từ/cụm từ/chú thích nào bằng $otherLangsLabel không — kể cả 1 từ ngắn, kể cả nằm trong ngoặc đơn (), ngoặc kép「」""'', kể cả nếu đó là từ/cụm bạn COPY LẠI NGUYÊN VĂN từ câu hỏi của user (kể cả trong câu hỏi lại "ý bạn là gì?"), hay chỉ để "giúp làm rõ nghĩa". Nếu tìm thấy DÙ CHỈ 1 ký tự không phải $mainLangLabel (ngoài số/ký hiệu toán học thông thường), PHẢI viết lại câu trả lời để loại bỏ hoàn toàn trước khi gửi — không có ngoại lệ nào, kể cả khi bạn nghĩ nó giúp user hiểu rõ hơn.''';
+    }
     if (learningMode != 'zh_vi' && learningMode != 'en_vi') return '';
     final mainLangLabel = learningMode == 'zh_vi' ? 'tiếng Trung' : 'tiếng Anh';
     return '''
