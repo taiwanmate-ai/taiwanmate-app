@@ -162,6 +162,37 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       if (!mounted) return;
       setState(() => _shortUtteranceWarning = message);
     };
+    // Audit "gioi han 20 phut/ngay Voice + fix ket cung luc connect"
+    // (2026-08-30) — chi CHUYEN sang _VoiceUiState.error khi dang o giua
+    // luc connect (_uiState == connecting): day la cac truong hop server
+    // TU CHOI ket noi va DONG NGAY SAU (token khong hop le, khong co
+    // voice_access, da het 20 phut hom nay...) — KHONG con phien nao de
+    // tiep tuc, dua UI ve trang thai loi ro rang de "Bat dau Voice" hien
+    // lai. Cac trang thai KHAC (readyToTalk/recording/processing/
+    // aiSpeaking) CHI hien message, KHONG ngat phien dang hoat dong —
+    // day la loi vat nho giua session (vd audio_chunk hong), khong nen
+    // coi nhu "chet phien".
+    _wsService.onConnectionError = (message) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = message;
+        if (_uiState == _VoiceUiState.connecting) {
+          _uiState = _VoiceUiState.error;
+        }
+      });
+    };
+    // Audit "gioi han 20 phut/ngay Voice" (2026-08-30) — server da GUI
+    // message NAY roi TU DONG dong ket noi (xem docstring voice_ws.py) —
+    // goi _stopSession() TRUOC (dung goi don dep sẵn co: huy VAD/mic,
+    // ngat TTS, disconnect) roi MOI hien message, vi _stopSession() tu
+    // reset _errorMessage='' trong chinh no — neu hien message TRUOC,
+    // se bi xoa ngay sau do.
+    _wsService.onVoiceTimeLimitReached = (message) async {
+      if (!mounted) return;
+      await _stopSession();
+      if (!mounted) return;
+      setState(() => _errorMessage = message);
+    };
     _wsService.onTranscriptError = (message) {
       if (!mounted) return;
       setState(() {

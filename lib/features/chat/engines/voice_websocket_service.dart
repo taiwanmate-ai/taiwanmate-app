@@ -50,6 +50,26 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// Goi khi server bao {"type":"transcript"} (STT thanh cong, Buoc 3).
   void Function(String text)? onTranscript;
 
+  /// Audit "gioi han 20 phut/ngay Voice + fix ket cung luc connect"
+  /// (2026-08-30) — goi cho MOI message {"type":"error"} server gui
+  /// (token khong hop le, khong tim thay user, tai khoan bi khoa, khong
+  /// co voice_access, da het 20 phut Voice hom nay, VA CA cac loi tam
+  /// thoi giua session nhu audio_chunk hong/message type khong ho tro).
+  /// CALLER (voice_chat_screen.dart) tu quyet dinh xu ly the nao dua
+  /// theo _uiState HIEN TAI cua chinh no — service nay CHI chuyen tiep
+  /// message, KHONG tu doan xem day la loi "chet phien" hay "loi vat
+  /// nho giua session".
+  void Function(String message)? onConnectionError;
+
+  /// Audit "gioi han 20 phut/ngay Voice" (2026-08-30) — goi khi server
+  /// bao {"type":"voice_time_limit_reached"} (user CO voice_access nhung
+  /// da dung het 20 phut/ngay NGAY GIUA 1 session dang mo — xem docstring
+  /// _DAILY_VOICE_MINUTES_LIMIT trong voice_ws.py). Day la THONG BAO
+  /// BINH THUONG (khong phai loi), server se DONG ket noi ngay sau khi
+  /// gui message nay — CALLER nen dua UI ve trang thai nghi/idle GON
+  /// GANG (vd goi lai _stopSession()), KHONG coi day la loi/that bai.
+  void Function(String message)? onVoiceTimeLimitReached;
+
   /// Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30) —
   /// goi khi message "transcript" kem "short_utterance_warning": true (xem
   /// docstring _SHORT_UTTERANCE_WARNING_MS trong voice_ws.py — benchmark
@@ -176,6 +196,20 @@ class VoiceWebSocketService extends ChangeNotifier {
         break;
       case 'error':
         debugPrint('[VoiceWebSocketService] server bao loi: ${data['message']}');
+        // Audit "gioi han 20 phut/ngay Voice + fix ket cung luc connect"
+        // (2026-08-30): TRUOC DAY message "error" chi duoc debugPrint,
+        // KHONG co callback nao ca — cac truong hop server tu choi ket
+        // noi NGAY SAU accept() (token khong hop le, khong tim thay user,
+        // tai khoan bi khoa, VA GIO THEM: khong co voice_access/da het
+        // gio Voice hom nay) deu roi vao nhanh nay. Vi VoiceChatScreen
+        // KHONG lang nghe connection-state (xac nhan qua audit rieng),
+        // neu KHONG co callback, UI se KET CUNG o "Dang ket noi..." MAI
+        // MAI khi bi tu choi theo cach nay — chinh la nhanh MOI cua
+        // voice_access se di qua, nen BAT BUOC phai co callback o day de
+        // tinh nang moi hoat dong dung, tien the sua luon ca cac truong
+        // hop tu choi CU (token/user/khoa) cung dang bi cung 1 loi.
+        final errorMessage = data['message'] as String? ?? 'Đã có lỗi xảy ra';
+        onConnectionError?.call(errorMessage);
         break;
       case 'transcript':
         final text = data['text'] as String? ?? '';
@@ -191,6 +225,11 @@ class VoiceWebSocketService extends ChangeNotifier {
         final message = data['message'] as String? ?? 'Không nhận diện được giọng nói';
         debugPrint('[VoiceWebSocketService] transcript_error: $message');
         onTranscriptError?.call(message);
+        break;
+      case 'voice_time_limit_reached':
+        final message = data['message'] as String? ?? 'Bạn đã dùng hết 20 phút Voice hôm nay';
+        debugPrint('[VoiceWebSocketService] voice_time_limit_reached: $message');
+        onVoiceTimeLimitReached?.call(message);
         break;
       case 'transcript_low_confidence':
         final text = data['text'] as String? ?? '';
