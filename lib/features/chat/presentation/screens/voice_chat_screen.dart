@@ -85,6 +85,14 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   String _aiText = '';
   String _errorMessage = '';
 
+  /// Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30) —
+  /// CANH BAO MEM (khac _errorMessage — mau/y nghia rieng, KHONG phai loi
+  /// that) khi server bao "short_utterance_warning" (xem docstring
+  /// _SHORT_UTTERANCE_WARNING_MS trong voice_ws.py) — luot van duoc AI tra
+  /// loi binh thuong, CHI hien thi de nguoi dung tu can nhac muc do tin
+  /// tuong ket qua nghe duoc, KHONG chan/huy gi ca.
+  String _shortUtteranceWarning = '';
+
   /// True trong luc dang ghi am do BAM GIU XUAT PHAT TU luc AI dang noi
   /// (co the la Interrupt that, co the la bam nham) — phan biet voi 1
   /// lan bam giu binh thuong (readyToTalk -> recording, khong can VAD).
@@ -149,6 +157,10 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
     _wsService.onTranscript = (text) {
       if (!mounted) return;
       setState(() => _transcriptText = text);
+    };
+    _wsService.onShortUtteranceWarning = (message) {
+      if (!mounted) return;
+      setState(() => _shortUtteranceWarning = message);
     };
     _wsService.onTranscriptError = (message) {
       if (!mounted) return;
@@ -258,6 +270,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       _errorMessage = '';
       _transcriptText = '';
       _aiText = '';
+      _shortUtteranceWarning = '';
     });
 
     await _wsService.connect();
@@ -343,6 +356,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
         _uiState = _VoiceUiState.processing;
         _transcriptText = '';
         _aiText = '';
+        _shortUtteranceWarning = '';
       });
     }
 
@@ -422,6 +436,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       _transcriptText = trimmed;
       _aiText = '';
       _errorMessage = '';
+      _shortUtteranceWarning = '';
     });
     _wsService.sendTextInput(trimmed, systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
   }
@@ -487,6 +502,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       _transcriptText = '';
       _aiText = '';
       _errorMessage = '';
+      _shortUtteranceWarning = '';
       _isInterruptAttempt = false;
       _interruptConfirmed = false;
     });
@@ -597,6 +613,31 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
               if (_errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(_errorMessage, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+              ],
+              // Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30)
+              // — CO Y mau cam (KHONG dung do nhu _errorMessage) vi day la
+              // CANH BAO MEM, khong phai loi that: luot van duoc AI tra loi
+              // binh thuong (xem docstring _shortUtteranceWarning), chi giup
+              // nguoi dung tu can nhac muc do tin tuong ket qua nghe duoc.
+              if (_shortUtteranceWarning.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_shortUtteranceWarning, style: const TextStyle(color: Colors.orange, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
               ],
               const SizedBox(height: 24),
               Expanded(

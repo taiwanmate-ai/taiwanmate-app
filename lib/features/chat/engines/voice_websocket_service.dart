@@ -50,6 +50,18 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// Goi khi server bao {"type":"transcript"} (STT thanh cong, Buoc 3).
   void Function(String text)? onTranscript;
 
+  /// Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30) —
+  /// goi khi message "transcript" kem "short_utterance_warning": true (xem
+  /// docstring _SHORT_UTTERANCE_WARNING_MS trong voice_ws.py — benchmark
+  /// THAT tren 45 cau xac nhan cau <=4 tu sai 100%, Confidence Gate KHONG
+  /// bat duoc phan lon vi model "tu tin nhung sai"). Day la CANH BAO MEM
+  /// (KHONG phai transcript_error) — transcript VAN duoc coi la hop le va
+  /// AI VAN tra loi binh thuong (khac han transcript_error/transcript_
+  /// low_confidence, ca 2 deu CHAN luot khong cho AI tra loi) — CALLER chi
+  /// nen HIEN THI [message] de nguoi dung tu can nhac muc do tin tuong ket
+  /// qua, KHONG duoc chan/huy luot.
+  void Function(String message)? onShortUtteranceWarning;
+
   /// Goi khi server bao {"type":"transcript_error"} (STT that bai/audio
   /// khong ro tieng noi, Buoc 3) — client nen bao user noi lai.
   void Function(String message)? onTranscriptError;
@@ -169,6 +181,11 @@ class VoiceWebSocketService extends ChangeNotifier {
         final text = data['text'] as String? ?? '';
         debugPrint('[VoiceWebSocketService] transcript: $text');
         onTranscript?.call(text);
+        if (data['short_utterance_warning'] == true) {
+          final warningMessage = data['short_utterance_warning_message'] as String? ?? '';
+          debugPrint('[VoiceWebSocketService] short_utterance_warning: $warningMessage');
+          if (warningMessage.isNotEmpty) onShortUtteranceWarning?.call(warningMessage);
+        }
         break;
       case 'transcript_error':
         final message = data['message'] as String? ?? 'Không nhận diện được giọng nói';
