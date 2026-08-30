@@ -275,6 +275,30 @@ class VoiceWebSocketService extends ChangeNotifier {
     }));
   }
 
+  /// Audit "Go chu fallback" (2026-08-30) — Gui {"type": "text_input",
+  /// "text": "...", "system_prompt": "...", "learning_mode": "..."} —
+  /// dung khi user go chu thay vi noi (fallback cho gioi han that cua STT
+  /// voi cau ngan tron Viet-Trung chua hu tu ngu phap, xem docstring
+  /// app/api/v1/voice_ws.py). Backend BO QUA HOAN TOAN Whisper/Gate cho
+  /// duong nay, di THANG vao CUNG 1 ham xu ly AI voi audio_end
+  /// (_run_ai_turn) — cung dinh dang system_prompt/learning_mode voi
+  /// sendAudioEnd() o tren, CHI khac field 'text' thay vi phai doi qua
+  /// audio_chunk/audio_end.
+  void sendTextInput(String text, {String? systemPrompt, String? learningMode}) {
+    final channel = _channel;
+    if (!isConnected || channel == null) {
+      debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui text_input');
+      return;
+    }
+    debugPrint('[VoiceWebSocketService] gui text_input (go chu, learningMode=$learningMode)');
+    channel.sink.add(jsonEncode({
+      'type': 'text_input',
+      'text': text,
+      if (systemPrompt != null) 'system_prompt': systemPrompt,
+      if (learningMode != null) 'learning_mode': learningMode,
+    }));
+  }
+
   /// Lop 5 (2026-08-15) — Gui {"type": "interrupt"} — goi khi VAD (Lop 1)
   /// phat hien user BAT DAU NOI trong luc AI van dang streaming cau tra
   /// loi, de backend DUNG GUI TIEP cac chunk con lai (xem docstring

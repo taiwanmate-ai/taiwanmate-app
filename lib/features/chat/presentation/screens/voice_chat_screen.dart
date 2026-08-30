@@ -357,11 +357,24 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
 
     // Buoc C — xay system_prompt THAT theo dung _learningMode nguoi dung
     // da chon (qua CHINH engine cua Chat), gui kem audio_end de backend
-    // dung THAT thay vi fallback co dinh. currentUserText de rong vi
-    // audio_end duoc gui TRUOC khi backend transcribe xong (Voice khong
-    // co STT phia client) — cac truong context khac dung mac dinh hop ly
-    // vi VoiceChatScreen chua theo doi day du nhu ChatScreen (gioi han da
-    // biet, xem docstring _personalityEngine o tren).
+    // dung THAT thay vi fallback co dinh.
+    _wsService.sendAudioEnd(systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
+  }
+
+  /// Audit "Go chu fallback" (2026-08-30) — tach logic xay system_prompt
+  /// (truoc day nam RIENG trong _onMicPressEnd()) thanh 1 ham dung CHUNG,
+  /// de ca luot NOI (_onMicPressEnd) va luot GO CHU (_sendTypedText) deu
+  /// xay CHINH XAC 1 system_prompt nhu nhau — dam bao AI ap dung dung
+  /// luat/ngu canh bat ke input den tu giong noi hay chu go.
+  ///
+  /// currentUserText de rong vi ham nay duoc goi TRUOC khi biet noi dung
+  /// cuoi cung (audio_end goi TRUOC khi backend transcribe xong — Voice
+  /// khong co STT phia client; con luot go chu thi noi dung da go duoc
+  /// gui rieng qua field 'text' cua text_input, khong can nhet vao day) —
+  /// cac truong context khac dung mac dinh hop ly vi VoiceChatScreen chua
+  /// theo doi day du nhu ChatScreen (gioi han da biet, xem docstring
+  /// _personalityEngine o tren).
+  String _buildVoiceSystemPrompt() {
     final result = _personalityEngine.buildSystemPromptV2(
       learningMode: _learningMode,
       userType: 'student',
@@ -389,8 +402,76 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
     // huong dan noi tu nhien + yeu cau mood tag, CHI cho Voice (Chat
     // KHONG goi doan nay — buildSystemPromptV2()/companion_personality_
     // engine.dart giu nguyen 100%). Xem docstring kVoiceNaturalizerInstruction.
-    final voiceSystemPrompt = result.prompt + kVoiceInteractiveTeachingInstruction + kVoiceNaturalizerInstruction;
-    _wsService.sendAudioEnd(systemPrompt: voiceSystemPrompt, learningMode: _learningMode);
+    return result.prompt + kVoiceInteractiveTeachingInstruction + kVoiceNaturalizerInstruction;
+  }
+
+  /// Audit "Go chu fallback" (2026-08-30) — fallback UX kieu Duolingo (go
+  /// chu la fallback HANG NHAT, khong phai loi) cho gioi han THAT cua STT
+  /// voi cau ngan tron Viet-Trung chua hu tu ngu phap nhu 了/過/的 (xem
+  /// docstring app/api/v1/voice_ws.py, test_voice_language_rule_garbled_
+  /// input.py — KHONG the sua bang prompt/model). Gui THANG noi dung go
+  /// qua text_input — backend BO QUA HOAN TOAN Whisper/Gate, di CHINH XAC
+  /// 1 duong xu ly voi audio_end (_run_ai_turn ben backend), nen
+  /// conversation_history/system_prompt/mood-override deu giong het — CHI
+  /// khac o buoc NHAP LIEU (go thay vi noi).
+  void _sendTypedText(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    setState(() {
+      _uiState = _VoiceUiState.processing;
+      _transcriptText = trimmed;
+      _aiText = '';
+      _errorMessage = '';
+    });
+    _wsService.sendTextInput(trimmed, systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
+  }
+
+  /// Hien 1 o nhap chu don gian (bottom sheet, KHONG phuc tap — giong ô
+  /// chat text binh thuong nhu user yeu cau) de go thay vi noi. Dong lai
+  /// va quay ve giao dien Voice binh thuong ngay khi gui (_sendTypedText
+  /// tu chuyen UI sang "processing", giong het luong _onMicPressEnd()).
+  void _showTypeTextSheet() {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 8,
+            top: 16,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.send,
+                  decoration: const InputDecoration(
+                    hintText: 'Gõ câu bạn muốn nói...',
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (value) {
+                    Navigator.pop(sheetContext);
+                    _sendTypedText(value);
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.send, color: Colors.indigo),
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _sendTypedText(controller.text);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _stopSession() async {
@@ -464,6 +545,12 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   bool get _micButtonEnabled =>
       _uiState == _VoiceUiState.readyToTalk || _uiState == _VoiceUiState.recording || _uiState == _VoiceUiState.aiSpeaking;
 
+  /// Audit "Go chu fallback" (2026-08-30) — nut ban phim CHI bat khi dang
+  /// "readyToTalk" (khac nut mic con dung ca luc AI dang noi de Interrupt)
+  /// — go chu la 1 CACH KHOI DAU luot moi, khong co khai niem "ngat loi
+  /// bang chu" o day.
+  bool get _typeButtonEnabled => _uiState == _VoiceUiState.readyToTalk;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -530,30 +617,54 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
               ),
               const SizedBox(height: 20),
               if (_sessionActive)
-                GestureDetector(
-                  onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
-                  onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
-                  onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
-                  child: Container(
-                    width: double.infinity,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: _uiState == _VoiceUiState.recording ? Colors.red : Colors.indigo,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(_uiState == _VoiceUiState.recording ? Icons.mic : Icons.mic_none, color: Colors.white, size: 32),
-                        const SizedBox(width: 12),
-                        Text(
-                          _uiState == _VoiceUiState.recording ? 'Đang ghi... thả để gửi' : 'Giữ để nói',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
+                        onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
+                        onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
+                        child: Container(
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: _uiState == _VoiceUiState.recording ? Colors.red : Colors.indigo,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(_uiState == _VoiceUiState.recording ? Icons.mic : Icons.mic_none, color: Colors.white, size: 32),
+                              const SizedBox(width: 12),
+                              Text(
+                                _uiState == _VoiceUiState.recording ? 'Đang ghi... thả để gửi' : 'Giữ để nói',
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    // Audit "Go chu fallback" (2026-08-30) — fallback khi
+                    // STT nghe sai (xem docstring _sendTypedText) — go chu
+                    // la fallback HANG NHAT theo UX Duolingo, khong phai
+                    // loi, nen dat NGANG HANG voi nut mic (khong an sau
+                    // menu phu).
+                    SizedBox(
+                      width: 64,
+                      child: ElevatedButton(
+                        onPressed: _typeButtonEnabled ? _showTypeTextSheet : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo.shade300,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: const Icon(Icons.keyboard, color: Colors.white, size: 28),
+                      ),
+                    ),
+                  ],
                 ),
               const SizedBox(height: 12),
               SizedBox(
