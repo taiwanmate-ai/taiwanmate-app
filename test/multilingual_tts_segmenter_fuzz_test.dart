@@ -171,6 +171,41 @@ void main() {
     '你好...再見...謝謝...',
   ]);
 
+  // Audit khan "TTS doc dau cham cuoi cau dich Viet bang giong tieng Anh"
+  // (2026-08-30) — bao cao that trong che do song ngu (zh_vi/en_vi): AI
+  // thinh thoang viet ban dich Viet trong ngoac bang dau cau full-width
+  // KIEU TRUNG (。！？，、) thay vi Latin (.!?,) — mang phong cach dau cau
+  // cua cau tieng Trung ngay truoc sang ban dich. XAC NHAN qua doc code +
+  // chay that: segment van duoc gan DUNG lang='vi', nhung ky tu Trung do
+  // VAN CON trong segment.text, khien TTS phat am sai giong tai vi tri do.
+  final chinesePunctInViEnSamples = <String>[
+    '你好嗎？(Xin chào bạn khỏe không。)',
+    '我很好。(Tôi khỏe lắm。)',
+    '謝謝你。(Cảm ơn bạn nhiều nha。)',
+    '你確定嗎？(Bạn chắc chắn chứ！)',
+    '這樣可以嗎？(Như vậy được không，đúng không？)',
+    'How are you？(Bạn khỏe không。)',
+  ];
+  samples.addAll(chinesePunctInViEnSamples);
+
+  final strayChinesePunct = RegExp('[。！？，、：；]');
+  test(
+    'Fuzz — khong segment nao (lang != zh-TW) con sot dau cau full-width Trung (bug "TTS doc dau cham bang giong Anh")',
+    () {
+      final violations = <String>[];
+      for (final input in chinesePunctInViEnSamples) {
+        for (final s in seg.segment(input)) {
+          if (s.lang != 'zh-TW' && strayChinesePunct.hasMatch(s.text)) {
+            violations.add('Input "$input" -> segment lang=${s.lang} van con dau cau Trung: "${s.text}"');
+          }
+        }
+      }
+      if (violations.isNotEmpty) {
+        fail('Phat hien ${violations.length} segment vi/en con sot dau cau Trung:\n${violations.join('\n')}');
+      }
+    },
+  );
+
   test(
     'Fuzz — ${samples.length} cau mau tron Viet+Trung+Anh+moi loai dau cau/bao quanh: '
     'MOI segment deu phai co it nhat 1 ky tu \\p{L}, khong segment nao chi toan dau cau',

@@ -168,6 +168,51 @@ class MultilingualTtsSegmenter {
   // KHONG (vd chuoi dau cham lien tiếp "..." khong co chu nao).
   static final RegExp _hasLetterContent = RegExp(r'\p{L}', unicode: true);
 
+  // Audit khan "TTS doc dau cham cuoi cau dich Viet bang giong tieng Anh"
+  // (2026-08-30) — XAC NHAN qua chay that: khi AI (hay quen mang phong
+  // cach dau cau cua cau tieng Trung ngay truoc do) viet ban dich Viet
+  // trong ngoac bang dau cham/cham hoi/cham than KIEU TRUNG full-width
+  // (。！？，、) thay vi dau Latin thuong (.!?,), _hanRun o tren (dung cho
+  // TOKENIZE, khong doi vi van can nhan dung 1 doan chu Han THAT) coi
+  // ky tu nay la 1 "tu" rieng lang=han — nhung vi no KHONG co \p{L} (chi
+  // la dau cau), _splitAtSentenceBoundaries() dung gop no vao CUOI segment
+  // LIEN TRUOC (dung — tranh tao segment rong), giu NGUYEN lang cua
+  // segment do (vi du 'vi'). Ket qua: segment BAO CAO DUNG lang='vi',
+  // nhung PHAN TEXT lai chua 1 KY TU TRUNG "。" o cuoi — khi goi TTS voi
+  // giong/locale tieng Viet nhung gap ky tu nay (khong thuoc bang chu
+  // Viet), engine TTS (Google/OpenAI) co the phat am no bang 1 "giong la"
+  // (bao cao that: nghe giong tieng Anh) NGAY TAI VI TRI do — khac hoan
+  // toan voi bug "dot" cu (von do NOI CHUOI SAI khoang trang, khong lien
+  // quan Han-tu lot vao segment khac ngon ngu).
+  //
+  // FIX: sau khi split xong, CHUAN HOA moi ky tu dau cau full-width Trung
+  // (。！？，、：；) VE dang Latin/ASCII TRONG BAT KY segment nao KHONG
+  // phai zh-TW/Pinyin — cac dau nay chi hop le trong van ban Han, khong
+  // bao gio la NOI DUNG THAT can giu nguyen cho tieng Viet/Anh.
+  static const Map<String, String> _chinesePunctToLatin = {
+    '。': '.',
+    '！': '!',
+    '？': '?',
+    '，': ',',
+    '、': ',',
+    '：': ':',
+    '；': ';',
+  };
+
+  static final RegExp _strayChinesePunct = RegExp('[。！？，、：；]');
+
+  List<TtsSegment> _normalizeStrayChinesePunctuation(List<TtsSegment> segments) {
+    return segments.map((s) {
+      if (s.lang == 'zh-TW' && !s.isPinyin) return s;
+      if (!_strayChinesePunct.hasMatch(s.text)) return s;
+      final fixedText = s.text.replaceAllMapped(
+        _strayChinesePunct,
+        (m) => _chinesePunctToLatin[m.group(0)]!,
+      );
+      return TtsSegment(text: fixedText, lang: s.lang, isPinyin: s.isPinyin, metadata: s.metadata);
+    }).toList();
+  }
+
   List<TtsSegment> segment(String rawText) {
     final text = rawText.trim();
     if (text.isEmpty) return const [];
@@ -180,7 +225,8 @@ class MultilingualTtsSegmenter {
     _resolveUnknownByDictionary(words);
     _resolveUnknown(words);
     final merged = _mergeAdjacent(words);
-    return _splitAtSentenceBoundaries(merged);
+    final split = _splitAtSentenceBoundaries(merged);
+    return _normalizeStrayChinesePunctuation(split);
   }
 
   /// Duyet text theo thu tu: doan chu Han -> 1 word lang=han; doan trong
