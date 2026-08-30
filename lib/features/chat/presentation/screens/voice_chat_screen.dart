@@ -617,54 +617,83 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
               ),
               const SizedBox(height: 20),
               if (_sessionActive)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
-                        onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
-                        onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
-                        child: Container(
-                          height: 88,
-                          decoration: BoxDecoration(
-                            color: _uiState == _VoiceUiState.recording ? Colors.red : Colors.indigo,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(_uiState == _VoiceUiState.recording ? Icons.mic : Icons.mic_none, color: Colors.white, size: 32),
-                              const SizedBox(width: 12),
-                              Text(
-                                _uiState == _VoiceUiState.recording ? 'Đang ghi... thả để gửi' : 'Giữ để nói',
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ],
+                // Audit "Layout vo hinh — nut Giu de noi" (2026-08-30) — BUG
+                // THAT xac nhan qua console that (F12) + widget test that:
+                // Row(crossAxisAlignment: stretch) ngay duoi day TRUOC DAY
+                // (khong co SizedBox(height:88) bao ngoai) la NON-FLEX child
+                // TRUC TIEP cua Column cha — Column cho non-flex child 1 rang
+                // buoc UNBOUNDED o truc chinh (height=Infinity, CAN THIET de
+                // Column tinh dung khong gian con lai cho Expanded(vung
+                // transcript) o tren) — nhung CrossAxisAlignment.stretch tren
+                // Row lai CAN 1 rang buoc height CO GIOI HAN de biet "stretch
+                // toi dau", nen ket hop 2 dieu nay NEM LOI THAT cua Flutter
+                // "BoxConstraints forces an infinite height" NGAY TRONG
+                // performLayout() — MOI LAN render (khong phai thinh thoang,
+                // khong phai do cache) — RenderBox cua Row (va GestureDetector
+                // nut mic ben trong) vi vay KHONG BAO GIO co duoc `size`, dan
+                // toi "RenderBox was not laid out (hasSize)" / "Cannot hit
+                // test a render box with no size" dung nhu bao cao that tu
+                // Console. XAC NHAN qua flutter test that (khong doan): dung
+                // cau truc Row CU (khong SizedBox bao ngoai) tai lap dung loi
+                // "BoxConstraints forces an infinite height" — xem
+                // test/voice_chat_screen_mic_row_layout_test.dart.
+                // FIX: bao Row trong 1 SizedBox(height:88) CO GIOI HAN RO
+                // RANG — Row luc nay nhan duoc height=88 (khong con Infinity)
+                // tu chinh SizedBox, nen CrossAxisAlignment.stretch hoat dong
+                // dung (ca 2 nut cao bang nhau, dung 88), khong con phu thuoc
+                // vao rang buoc tu Column cha nua. Container ben trong nut
+                // mic KHONG can `height: 88` rieng nua (Expanded + stretch da
+                // ep dung 88 tu SizedBox ngoai).
+                SizedBox(
+                  height: 88,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
+                          onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
+                          onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _uiState == _VoiceUiState.recording ? Colors.red : Colors.indigo,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(_uiState == _VoiceUiState.recording ? Icons.mic : Icons.mic_none, color: Colors.white, size: 32),
+                                const SizedBox(width: 12),
+                                Text(
+                                  _uiState == _VoiceUiState.recording ? 'Đang ghi... thả để gửi' : 'Giữ để nói',
+                                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Audit "Go chu fallback" (2026-08-30) — fallback khi
-                    // STT nghe sai (xem docstring _sendTypedText) — go chu
-                    // la fallback HANG NHAT theo UX Duolingo, khong phai
-                    // loi, nen dat NGANG HANG voi nut mic (khong an sau
-                    // menu phu).
-                    SizedBox(
-                      width: 64,
-                      child: ElevatedButton(
-                        onPressed: _typeButtonEnabled ? _showTypeTextSheet : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo.shade300,
-                          disabledBackgroundColor: Colors.grey.shade300,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      const SizedBox(width: 12),
+                      // Audit "Go chu fallback" (2026-08-30) — fallback khi
+                      // STT nghe sai (xem docstring _sendTypedText) — go chu
+                      // la fallback HANG NHAT theo UX Duolingo, khong phai
+                      // loi, nen dat NGANG HANG voi nut mic (khong an sau
+                      // menu phu).
+                      SizedBox(
+                        width: 64,
+                        child: ElevatedButton(
+                          onPressed: _typeButtonEnabled ? _showTypeTextSheet : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo.shade300,
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Icon(Icons.keyboard, color: Colors.white, size: 28),
                         ),
-                        child: const Icon(Icons.keyboard, color: Colors.white, size: 28),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               const SizedBox(height: 12),
               SizedBox(
