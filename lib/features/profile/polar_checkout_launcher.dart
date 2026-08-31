@@ -22,9 +22,9 @@ import 'package:chinesemate/core/services/payment_service.dart';
 /// (home_screen.dart, tools_screen.dart, main_shell.dart deu dung y het mode
 /// nay cho launchUrl), tren web se mo tab moi thay vi dieu huong mat trang
 /// hien tai.
-Future<void> startPolarCheckout(BuildContext context, {required String plan}) async {
+Future<void> startPolarCheckout(BuildContext context, {required String plan, String product = 'vip'}) async {
   try {
-    final url = await PaymentService.createCheckout(plan: plan);
+    final url = await PaymentService.createCheckout(plan: plan, product: product);
     final uri = Uri.parse(url);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && context.mounted) {

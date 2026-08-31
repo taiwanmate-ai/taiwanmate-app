@@ -1,5 +1,5 @@
 ﻿import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,7 +11,21 @@ import '../network/dio_client.dart';
 class PaymentService {
   static final InAppPurchase _iap = InAppPurchase.instance;
   static const _storage = FlutterSecureStorage();
-  static const _productIds = {'vip_monthly', 'vip_yearly'};
+  // Audit "VIP Voice UI" (2026-08-31) — dung cho restorePurchases() (khoi
+  // phuc giao dich cu, vd cai lai app/doi may). Truoc day chi co 2 ID VIP
+  // nen mot giao dich Voice khoi phuc se bi BO QUA HOAN TOAN (khong goi
+  // _verifyWithBackend, mat quyen loi da tra tien) — bo sung 2 ID Voice.
+  static const _productIds = {'vip_monthly', 'vip_yearly', 'voice_monthly', 'voice_yearly'};
+
+  // Logic THUAN (khong phu thuoc InAppPurchase plugin/platform channel that)
+  // tach rieng de TEST DUOC truc tiep — restorePurchases() ben duoi GOI LAI
+  // CHINH 2 ham nay (khong sao chep logic rieng cho test), dam bao test xac
+  // nhan DUNG hanh vi production dang chay.
+  @visibleForTesting
+  static bool isRestorableProductId(String productId) => _productIds.contains(productId);
+
+  @visibleForTesting
+  static bool shouldMarkVipStatus(String productId) => !productId.startsWith('voice_');
 
   /// Web — giữ nguyên luồng Lemon Squeezy cũ, không đổi
   static void openCheckout({required String plan, required String fallbackUrl}) {
@@ -25,10 +39,13 @@ class PaymentService {
   /// onError: gọi khi có lỗi, truyền message hiển thị cho user
   static Future<void> purchaseAndroid({
     required String plan, // 'monthly' hoặc 'yearly'
+    String product = 'vip', // 'vip' hoặc 'voice' — Audit "VIP Voice UI" (2026-08-31)
     required void Function() onSuccess,
     required void Function(String message) onError,
   }) async {
-    final productId = plan == 'yearly' ? 'vip_yearly' : 'vip_monthly';
+    final productId = product == 'voice'
+        ? (plan == 'yearly' ? 'voice_yearly' : 'voice_monthly')
+        : (plan == 'yearly' ? 'vip_yearly' : 'vip_monthly');
 
     final bool available = await _iap.isAvailable();
     if (!available) {
@@ -71,7 +88,11 @@ class PaymentService {
           }
 
           if (verified) {
-            UserState.updateVipStatus(true);
+            // Chi cap nhat co VIP text-chat khi mua goi VIP — goi Voice la
+            // entitlement RIENG BIET (voice_access), khong lam VIP status.
+            if (shouldMarkVipStatus(productId)) {
+              UserState.updateVipStatus(true);
+            }
             onSuccess();
           } else {
             onError('Không thể xác thực giao dịch. Vui lòng liên hệ hỗ trợ');
@@ -109,7 +130,7 @@ class PaymentService {
       bool foundValid = false;
 
       for (final purchase in purchases) {
-        if (!_productIds.contains(purchase.productID)) continue;
+        if (!isRestorableProductId(purchase.productID)) continue;
 
         if (purchase.status == PurchaseStatus.error) {
           if (purchase.pendingCompletePurchase) await _iap.completePurchase(purchase);
@@ -129,7 +150,13 @@ class PaymentService {
 
           if (verified) {
             foundValid = true;
-            UserState.updateVipStatus(true);
+            // Mirror purchaseAndroid(): chi cap nhat co VIP text-chat cho
+            // giao dich VIP — Voice la entitlement RIENG BIET (voice_access,
+            // do backend tu cap qua verify-google-purchase), khong dung
+            // chung co UserState.isVipNotifier.
+            if (shouldMarkVipStatus(purchase.productID)) {
+              UserState.updateVipStatus(true);
+            }
           }
         }
       }
@@ -190,10 +217,12 @@ class PaymentService {
   }
   /// Lấy URL checkout Polar thật (dùng cho web) — backend tạo Checkout
   /// Session qua polar_sdk, khóa sẵn customer_email theo user đang đăng nhập.
-  static Future<String> createCheckout({String plan = 'monthly'}) async {
+  /// `product`: 'vip' (mặc định, gói VIP text-chat cũ) hoặc 'voice' (gói
+  /// VIP Voice mới) — xem POLAR_VOICE_PRODUCT_ID_BY_PLAN trong payment.py.
+  static Future<String> createCheckout({String plan = 'monthly', String product = 'vip'}) async {
     final response = await DioClient.instance.get(
       '/payment/checkout-url',
-      queryParameters: {'plan': plan},
+      queryParameters: {'plan': plan, 'product': product},
     );
     return response.data['url'];
   }

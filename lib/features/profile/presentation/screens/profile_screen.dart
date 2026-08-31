@@ -13,6 +13,7 @@ import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 import 'package:chinesemate/core/state/user_state.dart';
 import '../../polar_checkout_launcher.dart';
 import '../../../../core/services/google_auth_service.dart';
@@ -778,8 +779,54 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
 // VIP SCREEN
 // ═══════════════════════════════════════════════════════════════
 
-class VipScreen extends StatelessWidget {
+class VipScreen extends StatefulWidget {
   const VipScreen({super.key});
+
+  @override
+  State<VipScreen> createState() => _VipScreenState();
+}
+
+class _VipScreenState extends State<VipScreen> {
+  static const _storage = FlutterSecureStorage();
+  Map<String, dynamic>? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  // Audit "VIP Voice UI" (2026-08-31) — VipScreen truoc day la StatelessWidget,
+  // khong co du lieu user nao ca. Can tai rieng /auth/me o day (dung DUNG
+  // endpoint+cach goi nhu _loadProfile() cua _ProfileScreenState de nhat
+  // quan) de biet voice_access/voice_access_expires_at, quyet dinh hien nut
+  // mua VIP Voice hay trang thai "Da kich hoat, con han toi [ngay]".
+  Future<void> _loadUser() async {
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final response = await dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/auth/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted) setState(() => _user = response.data);
+    } catch (e) {
+      // Im lang bo qua — neu load loi, section Voice mac dinh hien nut mua
+      // (an toan hon la vo tinh khoa nham nguoi da mua that).
+    }
+  }
+
+  bool get _hasVoiceAccess => _user?['voice_access'] == true;
+
+  String? get _voiceExpiresLabel {
+    final raw = _user?['voice_access_expires_at'] as String?;
+    if (raw == null) return null;
+    try {
+      return DateFormat('dd/MM/yyyy').format(DateTime.parse(raw).toLocal());
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1009,6 +1056,150 @@ GestureDetector(
                 _VipBadge(icon: '⚡', label: 'Kích hoạt\ntức thì'),
                 _VipBadge(icon: '🇻🇳', label: 'Hỗ trợ\ntiếng Việt'),
               ]),
+
+              const SizedBox(height: 32),
+
+              // Audit "VIP Voice UI" (2026-08-31) — section RIENG BIET, ro
+              // rang tach khoi VIP text-chat o tren (mau tim/xanh duong
+              // khac han mau cam VIP, tranh nham lan mua sai goi). Copy
+              // dung dung tinh than TICH CUC (Duolingo-style) theo yeu cau:
+              // nhan manh GIA TRI/thiet ke hoc tap co chu dich, khong dung
+              // ngon tu gioi han ("chi", "toi da").
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_DS.purple.withOpacity(0.25), _DS.blue.withOpacity(0.15)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _DS.purple.withOpacity(0.4)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Text('🎙️', style: TextStyle(fontSize: 28)),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text('VIP Voice — Luyện nói trực tiếp cùng AI',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white)),
+                    ),
+                  ]),
+                  const SizedBox(height: 10),
+                  Text(
+                    '20 phút luyện nói mỗi ngày — đủ để thực hành phát âm, phản xạ hội thoại tự nhiên như một buổi học 1-kèm-1 thực thụ. Học đều đặn mỗi ngày, tiến bộ rõ rệt.',
+                    style: TextStyle(fontSize: 13, color: Colors.white.withOpacity(0.85), height: 1.6),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Vì sao 20 phút? Nghiên cứu cho thấy luyện tập ngắn, đều đặn mỗi ngày hiệu quả hơn học dồn 1 lần.',
+                    style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.55), fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: 18),
+                  if (_hasVoiceAccess)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _DS.green.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _DS.green.withOpacity(0.5)),
+                      ),
+                      child: Column(children: [
+                        const Text('✅ Đã kích hoạt VIP Voice',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _DS.green)),
+                        if (_voiceExpiresLabel != null) ...[
+                          const SizedBox(height: 4),
+                          Text('Còn hạn tới $_voiceExpiresLabel',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75))),
+                        ],
+                      ]),
+                    )
+                  else
+                    Row(children: [
+                      Expanded(child: GestureDetector(
+                        onTap: () async {
+                          if (kIsWeb) {
+                            await startPolarCheckout(context, plan: 'monthly', product: 'voice');
+                          } else {
+                            await PaymentService.purchaseAndroid(
+                              plan: 'monthly',
+                              product: 'voice',
+                              onSuccess: () {
+                                if (context.mounted) {
+                                  setState(() => _user = {...?_user, 'voice_access': true});
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('🎉 Kích hoạt VIP Voice thành công!'), backgroundColor: _DS.green),
+                                  );
+                                }
+                              },
+                              onError: (msg) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                                }
+                              },
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _DS.purple.withOpacity(0.6)),
+                          ),
+                          child: const Column(children: [
+                            Text('Tháng', style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600)),
+                            SizedBox(height: 4),
+                            Text('NT\$499', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
+                            Text('/tháng', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                          ]),
+                        ),
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(child: GestureDetector(
+                        onTap: () async {
+                          if (kIsWeb) {
+                            await startPolarCheckout(context, plan: 'yearly', product: 'voice');
+                          } else {
+                            await PaymentService.purchaseAndroid(
+                              plan: 'yearly',
+                              product: 'voice',
+                              onSuccess: () {
+                                if (context.mounted) {
+                                  setState(() => _user = {...?_user, 'voice_access': true});
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('🎉 Kích hoạt VIP Voice thành công!'), backgroundColor: _DS.green),
+                                  );
+                                }
+                              },
+                              onError: (msg) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                                }
+                              },
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [_DS.purple, _DS.blue]),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [BoxShadow(color: _DS.purple.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
+                          ),
+                          child: const Column(children: [
+                            Text('Năm', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
+                            SizedBox(height: 4),
+                            Text('NT\$4,320', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
+                            Text('/năm', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                          ]),
+                        ),
+                      )),
+                    ]),
+                ]),
+              ),
 
               const SizedBox(height: 24),
               TextButton(
