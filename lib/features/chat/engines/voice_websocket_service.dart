@@ -61,6 +61,18 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// nho giua session".
   void Function(String message)? onConnectionError;
 
+  /// Audit "khong thay CTA mua Voice tren man hinh test noi bo" (2026-09-02)
+  /// — goi khi server bao {"type":"voice_access_required"} (user KHONG co
+  /// voice_access hop le/da het han — 2 nhanh dau cua khoi kiem tra
+  /// _has_active_voice_access trong voice_ws.py). Truoc day 2 truong hop nay
+  /// dung chung type "error" nhu moi loi khac nen UI CHI hien text do,
+  /// KHONG co cach nao rieng biet de hien nut dieu huong toi VipScreen —
+  /// CALLER nen hien 1 nut "Mua goi Voice ngay" dan toi man hinh mua khi
+  /// nhan callback nay (khac onConnectionError: cac loi KHAC — token/tai
+  /// khoan khoa/da het 20 phut hom nay — KHONG co CTA mua vi khong lien
+  /// quan toi viec CAN mua goi).
+  void Function(String message)? onVoiceAccessRequired;
+
   /// Audit "gioi han 20 phut/ngay Voice" (2026-08-30) — goi khi server
   /// bao {"type":"voice_time_limit_reached"} (user CO voice_access nhung
   /// da dung het 20 phut/ngay NGAY GIUA 1 session dang mo — xem docstring
@@ -210,6 +222,11 @@ class VoiceWebSocketService extends ChangeNotifier {
         // hop tu choi CU (token/user/khoa) cung dang bi cung 1 loi.
         final errorMessage = data['message'] as String? ?? 'Đã có lỗi xảy ra';
         onConnectionError?.call(errorMessage);
+        break;
+      case 'voice_access_required':
+        final requiredMessage = data['message'] as String? ?? 'Bạn cần mua gói Voice để dùng tính năng này';
+        debugPrint('[VoiceWebSocketService] voice_access_required: $requiredMessage');
+        onVoiceAccessRequired?.call(requiredMessage);
         break;
       case 'transcript':
         final text = data['text'] as String? ?? '';

@@ -47,6 +47,7 @@ import 'package:chinesemate/features/chat/engines/companion_voice_controller.dar
 import 'package:chinesemate/features/chat/engines/voice_mic_recorder.dart';
 import 'package:chinesemate/features/chat/engines/voice_activity_detector.dart';
 import 'package:chinesemate/features/chat/engines/sentence_accumulator.dart';
+import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart' show VipScreen;
 import 'learning_mode_selection_screen.dart';
 
 enum _VoiceUiState { idle, connecting, readyToTalk, recording, processing, aiSpeaking, error }
@@ -84,6 +85,15 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   String _transcriptText = '';
   String _aiText = '';
   String _errorMessage = '';
+
+  /// Audit "khong thay CTA mua Voice tren man hinh test noi bo" (2026-09-02)
+  /// — true khi server tu choi ket noi vi thieu/het han voice_access (xem
+  /// onVoiceAccessRequired trong voice_websocket_service.dart). Khac voi
+  /// cac loi KHAC trong _errorMessage (token/tai khoan khoa/da het 20 phut
+  /// hom nay) — CHI truong hop nay moi can hien nut dieu huong toi VipScreen
+  /// de mua, vi day la truong hop DUY NHAT nguoi dung co the tu giai quyet
+  /// ngay tai cho bang cach mua goi.
+  bool _voiceAccessRequired = false;
 
   /// Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30) —
   /// CANH BAO MEM (khac _errorMessage — mau/y nghia rieng, KHONG phai loi
@@ -176,6 +186,22 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       if (!mounted) return;
       setState(() {
         _errorMessage = message;
+        _voiceAccessRequired = false;
+        if (_uiState == _VoiceUiState.connecting) {
+          _uiState = _VoiceUiState.error;
+        }
+      });
+    };
+    // Audit "khong thay CTA mua Voice tren man hinh test noi bo" (2026-09-02)
+    // — truoc day nhanh nay di chung onConnectionError (chi hien text do,
+    // khong co cach nao dieu huong toi VipScreen de mua) — server gio gui
+    // type rieng "voice_access_required" (xem voice_ws.py), tach callback
+    // rieng de UI hien them nut "Mua gói Voice ngay".
+    _wsService.onVoiceAccessRequired = (message) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = message;
+        _voiceAccessRequired = true;
         if (_uiState == _VoiceUiState.connecting) {
           _uiState = _VoiceUiState.error;
         }
@@ -204,6 +230,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       if (!mounted) return;
       setState(() {
         _errorMessage = '';
+        _voiceAccessRequired = false;
         _transcriptText = text;
         _aiText = message;
         _uiState = _VoiceUiState.aiSpeaking;
@@ -299,6 +326,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
     setState(() {
       _uiState = _VoiceUiState.connecting;
       _errorMessage = '';
+      _voiceAccessRequired = false;
       _transcriptText = '';
       _aiText = '';
       _shortUtteranceWarning = '';
@@ -467,6 +495,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       _transcriptText = trimmed;
       _aiText = '';
       _errorMessage = '';
+      _voiceAccessRequired = false;
       _shortUtteranceWarning = '';
     });
     _wsService.sendTextInput(trimmed, systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
@@ -533,6 +562,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       _transcriptText = '';
       _aiText = '';
       _errorMessage = '';
+      _voiceAccessRequired = false;
       _shortUtteranceWarning = '';
       _isInterruptAttempt = false;
       _interruptConfirmed = false;
@@ -644,6 +674,33 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
               if (_errorMessage.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(_errorMessage, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+              ],
+              // Audit "khong thay CTA mua Voice tren man hinh test noi bo"
+              // (2026-09-02) — TRUOC DAY thieu nut nay: user bi chan boi
+              // _errorMessage o tren nhung KHONG co cach nao dieu huong toi
+              // man hinh mua VIP Voice (VipScreen), phai tu tim duong sang
+              // Profile. CHI hien khi _voiceAccessRequired=true (thieu/het
+              // han voice_access) — cac loi KHAC (token/tai khoan khoa/da
+              // dung het 20 phut hom nay) KHONG co nut nay vi khong giai
+              // quyet duoc bang cach mua goi.
+              if (_voiceAccessRequired) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VipScreen()),
+                    ),
+                    icon: const Icon(Icons.mic),
+                    label: const Text('Mua gói Voice ngay'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C4DFF),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
               ],
               // Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30)
               // — CO Y mau cam (KHONG dung do nhu _errorMessage) vi day la
