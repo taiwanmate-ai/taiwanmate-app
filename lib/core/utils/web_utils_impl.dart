@@ -148,6 +148,41 @@ void webOpenUrl(String url) {
   html.window.open(url, '_blank');
 }
 
+/// Audit "nut mua Voice khong bam duoc tren iOS Safari" (2026-09-02) — mo 1
+/// tab TRANG NGAY LUC nay (dong bo, ngay dong callback tap that su, KHONG
+/// co await nao truoc do) roi dieu huong tab do SAU KHI co URL that qua
+/// webNavigateWindow() (co the cach nhau 1 lan goi API bat dong bo) — day
+/// la ky thuat chuan de giu "user activation" hop le qua khoang cho async:
+/// trinh duyet chi cho window.open() thanh cong khi no chay DONG BO trong
+/// callback cua hanh dong nguoi dung, nhung CHO PHEP dieu huong (set
+/// .location) 1 window DA MO o BAT KY luc nao sau do, ke ca khac origin —
+/// day la co che duy nhat duoc trinh duyet cho phep de cua so cha dieu
+/// huong cua so con da mo. KHAC voi webOpenUrl() o tren (mo VA dieu huong
+/// CUNG LUC — chi an toan khi KHONG co await nao truoc do).
+dynamic webOpenBlankWindow() {
+  return js.context.callMethod('open', ['', '_blank']);
+}
+
+/// Dieu huong 1 window da mo boi webOpenBlankWindow() toi [url]. [windowHandle]
+/// co the null (vd chinh trinh duyet chan luon ca tab trang — hiem, nhung
+/// KHONG duoc throw) — bo qua im lang, caller (startPolarCheckout) da co
+/// fallback hien SnackBar rieng khi khong dieu huong duoc.
+void webNavigateWindow(dynamic windowHandle, String url) {
+  if (windowHandle == null) return;
+  try {
+    (windowHandle as js.JsObject)['location'] = url;
+  } catch (_) {}
+}
+
+/// Dong 1 window da mo boi webOpenBlankWindow() nhung khong con can dung
+/// (vd tao Checkout Session that bai) — tranh de lai 1 tab trang vo nghia.
+void webCloseWindow(dynamic windowHandle) {
+  if (windowHandle == null) return;
+  try {
+    (windowHandle as js.JsObject).callMethod('close');
+  } catch (_) {}
+}
+
 String _jsString(String s) {
   final escaped = s
       .replaceAll(r'\', r'\\')

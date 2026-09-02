@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:chinesemate/core/services/payment_service.dart';
+import 'package:chinesemate/core/utils/web_utils.dart';
 
 /// Tao Checkout Session THAT tren Polar (GET /payment/checkout-url, backend
 /// da tra ve URL Polar that — xem app/api/v1/payment.py) roi mo bang
@@ -23,8 +25,34 @@ import 'package:chinesemate/core/services/payment_service.dart';
 /// nay cho launchUrl), tren web se mo tab moi thay vi dieu huong mat trang
 /// hien tai.
 Future<void> startPolarCheckout(BuildContext context, {required String plan, String product = 'vip'}) async {
+  // Audit "nut mua Voice khong bam duoc tren iOS Safari" (2026-09-02) —
+  // TRUOC DAY: await createCheckout() (goi API, co do tre mang) RỒI MỚI
+  // launchUrl()/window.open() — tren cac trinh duyet chan popup nghiem
+  // ngat (dac biet Safari iOS), khoang cho async giua luc tap va luc
+  // window.open() thuc su chay khien trinh duyet KHONG con coi day la
+  // hanh dong nguoi dung nua -> popup bi chan AM THAM (khong hien loi,
+  // giong nhu nut khong phan ung gi). Web KHAC: mo 1 tab TRANG NGAY LUC
+  // NAY (dong bo, truoc BAT KY await nao) de giu "user activation" hop
+  // le, roi dieu huong tab do SAU KHI co URL that — xem docstring
+  // webOpenBlankWindow()/webNavigateWindow() (web_utils_impl.dart).
+  final windowHandle = kIsWeb ? webOpenBlankWindow() : null;
+  // Hiem: trinh duyet chan luon ca tab TRANG (vd cai dat chan popup o muc
+  // nghiem ngat nhat) — bao loi NGAY, khong goi API tao Checkout Session
+  // vo ich (khong con noi de dieu huong toi).
+  if (kIsWeb && windowHandle == null) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể mở trang thanh toán, vui lòng thử lại sau')),
+      );
+    }
+    return;
+  }
   try {
     final url = await PaymentService.createCheckout(plan: plan, product: product);
+    if (kIsWeb) {
+      webNavigateWindow(windowHandle, url);
+      return;
+    }
     final uri = Uri.parse(url);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && context.mounted) {
@@ -33,6 +61,7 @@ Future<void> startPolarCheckout(BuildContext context, {required String plan, Str
       );
     }
   } catch (e) {
+    if (kIsWeb) webCloseWindow(windowHandle);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể tạo phiên thanh toán, vui lòng thử lại sau')),

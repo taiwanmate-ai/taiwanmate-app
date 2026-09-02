@@ -204,6 +204,14 @@ void webOpenUrl(String url) {
   // (Facebook, Twitter, LINE đều có thể nhận link/text qua share sheet native)
 }
 
+/// Audit "nut mua Voice khong bam duoc tren iOS Safari" (2026-09-02) — CHI
+/// dung tren web (startPolarCheckout() luon gate qua kIsWeb truoc khi goi),
+/// 3 ham nay o day CHI de bien dich duoc tren native, KHONG BAO GIO thuc su
+/// duoc goi tren Android/iOS app that.
+dynamic webOpenBlankWindow() => null;
+void webNavigateWindow(dynamic windowHandle, String url) {}
+void webCloseWindow(dynamic windowHandle) {}
+
 // ─── Chat streaming thật cho Android (dùng http, thay cho fetch/js chỉ có trên web) ───
 Stream<String> webChatStream({
   required String url,
