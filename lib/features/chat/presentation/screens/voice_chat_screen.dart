@@ -61,7 +61,7 @@ class VoiceChatScreen extends ConsumerStatefulWidget {
   ConsumerState<VoiceChatScreen> createState() => _VoiceChatScreenState();
 }
 
-class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
+class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerProviderStateMixin {
   final _storage = const FlutterSecureStorage();
   late final VoiceWebSocketService _wsService;
   late final CompanionVoiceController _voiceController;
@@ -83,6 +83,27 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   final SentenceAccumulator _sentenceAccumulator = SentenceAccumulator();
 
   StreamSubscription<double>? _ampSub;
+
+  /// Audit "Thiet ke lai UI Voice Chat" (2026-09-05) — bien do (dB) THAT tu
+  /// mic, cap nhat moi 30ms trong luc "dang nghe" (xem _kAmplitudePollInterval)
+  /// de driving vong pulsing quanh nut mic. Dung ValueNotifier (KHONG
+  /// setState() toan man hinh moi tick — 30ms/lan la ~33 lan/giay, setState()
+  /// ca cay se rebuild ca transcript/AppBar/... khong can thiet, gay lag tren
+  /// thiet bi yeu/Safari cu) — chi widget bao boc trong ValueListenableBuilder
+  /// (vong pulsing) rebuild theo tick nay, phan con lai cua man hinh khong
+  /// dong toi. -60.0 = gia tri "im lang" mac dinh luc chua co du lieu that.
+  final ValueNotifier<double> _amplitudeNotifier = ValueNotifier<double>(-60.0);
+
+  /// AnimationController lap lien tuc (repeat-reverse, giong dung pattern
+  /// _pulseCtrl da co san trong home_screen.dart) drive hieu ung "tho nhe"
+  /// khi AI dang noi — CHI la hieu ung CACH DIEU (khong gan voi bien do
+  /// audio TTS that, vi <audio> element khong co san du lieu muc am luong —
+  /// them AnalyserNode That se can Web Audio API rieng, vuot pham vi "giu
+  /// don gian" cua yeu cau thiet ke lai). Luon chay (re, vo hai) — CHI gia
+  /// tri cua no duoc SU DUNG trong build() khi _uiState == aiSpeaking, cac
+  /// trang thai khac bo qua hoan toan.
+  late final AnimationController _aiSpeakingPulseCtrl;
+
   _VoiceUiState _uiState = _VoiceUiState.idle;
   String _transcriptText = '';
   String _aiText = '';
@@ -166,6 +187,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   @override
   void initState() {
     super.initState();
+    _aiSpeakingPulseCtrl = AnimationController(duration: const Duration(milliseconds: 1500), vsync: this)
+      ..repeat(reverse: true);
     _learningMode = ref.read(learningModeProvider) ?? 'zh_vi';
     _loadUserProfile();
     _wsService = VoiceWebSocketService(tokenProvider: () => _storage.read(key: 'access_token'));
@@ -400,17 +423,29 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
     if (isInterruptAttempt) {
       _interruptVad.reset();
       _interruptVad.start(DateTime.now());
-      _ampSub?.cancel();
-      _ampSub = _micRecorder.onAmplitudeDb(interval: _kAmplitudePollInterval).listen(_onInterruptVadAmplitude);
     }
+    // Audit "Thiet ke lai UI Voice Chat" (2026-09-05) — TRUOC DAY CHI
+    // subscribe luc Interrupt (isInterruptAttempt) — gio LUON subscribe moi
+    // lan bat dau ghi am (ca luot noi binh thuong), vi vong pulsing "dang
+    // nghe" can du lieu bien do THAT o CA 2 truong hop, khong rieng Interrupt.
+    // Dung 1 subscription DUY NHAT cho ca 2 muc dich (xem _onAmplitudeDb) —
+    // KHONG mo 2 subscription song song toi CUNG 1 nguon (moi lan goi
+    // onAmplitudeDb() tao 1 vong poll rieng ben duoi, lang phi neu trung lap).
+    _ampSub?.cancel();
+    _ampSub = _micRecorder.onAmplitudeDb(interval: _kAmplitudePollInterval).listen(_onAmplitudeDb);
 
     if (mounted) setState(() => _uiState = _VoiceUiState.recording);
   }
 
-  /// CHI duoc goi trong luc dang xac nhan Interrupt (bam giu tu trang
-  /// thai aiSpeaking) — dung VoiceActivityDetector DUNG voi y nghia ban
-  /// dau: xac nhan giong noi THAT (khong phai bam nham) truoc khi ngat AI.
-  void _onInterruptVadAmplitude(double amplitudeDb) {
+  /// Goi MOI lan co frame bien do moi trong luc dang ghi am (ca luot noi
+  /// binh thuong LAN Interrupt) — luon cap nhat _amplitudeNotifier cho vong
+  /// pulsing (khong setState() toan man hinh, xem docstring _amplitudeNotifier),
+  /// CONG THEM xac nhan VAD Interrupt THAT (dung VoiceActivityDetector dung
+  /// y nghia ban dau) CHI khi _isInterruptAttempt=true.
+  void _onAmplitudeDb(double amplitudeDb) {
+    _amplitudeNotifier.value = amplitudeDb;
+    if (!_isInterruptAttempt) return;
+
     final event = _interruptVad.processAmplitude(amplitudeDb, DateTime.now());
     if (event != VadEvent.speechStarted) return;
 
@@ -429,6 +464,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
     if (_uiState != _VoiceUiState.recording) return;
     await _ampSub?.cancel();
     _ampSub = null;
+    _amplitudeNotifier.value = -60.0; // reset vong pulsing ve trang thai im lang
 
     if (_isInterruptAttempt && !_interruptConfirmed) {
       // Bam nham thoang qua — VAD CHUA kip xac nhan la giong noi that.
@@ -582,6 +618,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   Future<void> _stopSession() async {
     await _ampSub?.cancel();
     _ampSub = null;
+    _amplitudeNotifier.value = -60.0;
     _interruptVad.reset();
     await _micRecorder.cancel();
     _voiceController.stopSpeaking();
@@ -602,6 +639,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   @override
   void dispose() {
     _ampSub?.cancel();
+    _aiSpeakingPulseCtrl.dispose();
+    _amplitudeNotifier.dispose();
     _micRecorder.dispose();
     _voiceController.removeListener(_onVoiceControllerChanged);
     _voiceController.dispose();
@@ -616,34 +655,53 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       case _VoiceUiState.connecting:
         return 'Đang kết nối...';
       case _VoiceUiState.readyToTalk:
-        return '🎤 Giữ nút bên dưới để nói';
+        return 'Giữ nút mic bên dưới để nói';
       case _VoiceUiState.recording:
-        return '🔴 Đang ghi âm... (thả tay để gửi)';
+        return 'Đang nghe... thả tay để gửi';
       case _VoiceUiState.processing:
-        return '⏳ Đang xử lý...';
+        return 'Đang xử lý...';
       case _VoiceUiState.aiSpeaking:
-        return '🔊 AI đang nói... (giữ mic để ngắt lời)';
+        return 'AI đang nói... giữ mic để ngắt lời';
       case _VoiceUiState.error:
-        return '⚠️ Lỗi';
+        return 'Lỗi';
     }
   }
 
-  Color get _statusColor {
+  /// Audit "Thiet ke lai UI Voice Chat" (2026-09-05) — TRUOC DAY 6 mau
+  /// Material chung chung khong lien quan (Colors.grey/orange/green/red/
+  /// blue/purple), KHONG dong bo voi theme that cua app (user tu chon 1
+  /// trong 7 mau primary + dark/light mode — xem theme_provider.dart). Gio
+  /// lay TU CHINH ColorScheme cua context — tu dong dung mau/dung mode user
+  /// da chon, khong bia mau moi. 4 trang thai chinh dung 4 role KHAC NHAU
+  /// cua ColorScheme (primary/error/secondary/tertiary) de "de phan biet
+  /// bang mat" nhu yeu cau, khong trung nhau.
+  Color _stateColor(ColorScheme scheme) {
     switch (_uiState) {
       case _VoiceUiState.idle:
-        return Colors.grey;
+        return scheme.outline;
       case _VoiceUiState.connecting:
-        return Colors.orange;
+        return scheme.secondary;
       case _VoiceUiState.readyToTalk:
-        return Colors.green;
+        return scheme.primary;
       case _VoiceUiState.recording:
-        return Colors.red;
+        return scheme.error;
       case _VoiceUiState.processing:
-        return Colors.blue;
+        return scheme.secondary;
       case _VoiceUiState.aiSpeaking:
-        return Colors.purple;
+        return scheme.tertiary;
       case _VoiceUiState.error:
-        return Colors.red;
+        return scheme.error;
+    }
+  }
+
+  IconData get _micIcon {
+    switch (_uiState) {
+      case _VoiceUiState.recording:
+        return Icons.mic;
+      case _VoiceUiState.aiSpeaking:
+        return Icons.graphic_eq;
+      default:
+        return Icons.mic_none;
     }
   }
 
@@ -660,9 +718,12 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final stateColor = _stateColor(scheme);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trò chuyện trực tiếp (Voice) — test nội bộ'),
+        title: const Text('Trò chuyện Voice'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -684,26 +745,13 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: _statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _statusColor, width: 2),
-                ),
-                width: double.infinity,
-                child: Text(
-                  _statusText,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _statusColor),
-                ),
-              ),
+              const SizedBox(height: 8),
               if (_errorMessage.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(_errorMessage, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                Text(_errorMessage, style: TextStyle(color: scheme.error), textAlign: TextAlign.center),
+                const SizedBox(height: 8),
               ],
               // Audit "khong thay CTA mua Voice tren man hinh test noi bo"
               // (2026-09-02) — TRUOC DAY thieu nut nay: user bi chan boi
@@ -714,7 +762,6 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
               // dung het 20 phut hom nay) KHONG co nut nay vi khong giai
               // quyet duoc bang cach mua goi.
               if (_voiceAccessRequired) ...[
-                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -725,12 +772,19 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
                     icon: const Icon(Icons.mic),
                     label: const Text('Mua gói Voice ngay'),
                     style: ElevatedButton.styleFrom(
+                      // Giu NGUYEN mau tim/xanh nay (khong doi theo ColorScheme)
+                      // — day CHINH LA mau da dung cho section "VIP Voice"
+                      // trong VipScreen (profile_screen.dart), co chu dich
+                      // tach biet voi mau cam VIP text-chat de tranh nham
+                      // goi khi mua — doi mau o day se pha vo su nhat quan
+                      // do.
                       backgroundColor: const Color(0xFF7C4DFF),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
               ],
               // Audit "canh bao cau qua ngan — Whisper hallucinate" (2026-08-30)
               // — CO Y mau cam (KHONG dung do nhu _errorMessage) vi day la
@@ -738,7 +792,6 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
               // binh thuong (xem docstring _shortUtteranceWarning), chi giup
               // nguoi dung tu can nhac muc do tin tuong ket qua nghe duoc.
               if (_shortUtteranceWarning.isNotEmpty) ...[
-                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
@@ -756,124 +809,239 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
               ],
-              const SizedBox(height: 24),
+              // Audit "Thiet ke lai UI Voice Chat" (2026-09-05) — thay khu
+              // "Ban noi:/AI tra loi:" liet ke chu don thuan bang bong bong
+              // chat that (Ban noi can PHAI, tint theo primary; AI tra loi
+              // can TRAI, tint theo surfaceContainerHighest) — TAI SU DUNG
+              // NGUYEN _transcriptText/_aiText, chi doi cach trinh bay.
               Expanded(
                 child: SingleChildScrollView(
+                  reverse: true,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text('Bạn nói:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                      const SizedBox(height: 6),
-                      Text(_transcriptText.isEmpty ? '(chưa có)' : _transcriptText, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(height: 20),
-                      const Text('AI trả lời:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                      const SizedBox(height: 6),
-                      Text(_aiText.isEmpty ? '(chưa có)' : _aiText, style: const TextStyle(fontSize: 16)),
+                      if (_transcriptText.isEmpty && _aiText.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 40),
+                          child: Text(
+                            'Giữ nút mic bên dưới để bắt đầu trò chuyện cùng AI',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.5), fontSize: 14),
+                          ),
+                        ),
+                      if (_transcriptText.isNotEmpty)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: _ChatBubble(
+                            text: _transcriptText,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            color: scheme.primary.withValues(alpha: 0.16),
+                            textColor: scheme.onSurface,
+                            radius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(16),
+                              bottomRight: Radius.circular(4),
+                            ),
+                          ),
+                        ),
+                      if (_aiText.isNotEmpty)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: _ChatBubble(
+                            text: _aiText,
+                            color: scheme.surfaceContainerHighest,
+                            textColor: scheme.onSurface,
+                            radius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(4),
+                              bottomRight: Radius.circular(16),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  _statusText,
+                  key: ValueKey(_uiState),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: stateColor),
+                ),
+              ),
+              const SizedBox(height: 12),
               if (_sessionActive)
-                // Audit "Layout vo hinh — nut Giu de noi" (2026-08-30) — BUG
-                // THAT xac nhan qua console that (F12) + widget test that:
-                // Row(crossAxisAlignment: stretch) ngay duoi day TRUOC DAY
-                // (khong co SizedBox(height:88) bao ngoai) la NON-FLEX child
-                // TRUC TIEP cua Column cha — Column cho non-flex child 1 rang
-                // buoc UNBOUNDED o truc chinh (height=Infinity, CAN THIET de
-                // Column tinh dung khong gian con lai cho Expanded(vung
-                // transcript) o tren) — nhung CrossAxisAlignment.stretch tren
-                // Row lai CAN 1 rang buoc height CO GIOI HAN de biet "stretch
-                // toi dau", nen ket hop 2 dieu nay NEM LOI THAT cua Flutter
-                // "BoxConstraints forces an infinite height" NGAY TRONG
-                // performLayout() — MOI LAN render (khong phai thinh thoang,
-                // khong phai do cache) — RenderBox cua Row (va GestureDetector
-                // nut mic ben trong) vi vay KHONG BAO GIO co duoc `size`, dan
-                // toi "RenderBox was not laid out (hasSize)" / "Cannot hit
-                // test a render box with no size" dung nhu bao cao that tu
-                // Console. XAC NHAN qua flutter test that (khong doan): dung
-                // cau truc Row CU (khong SizedBox bao ngoai) tai lap dung loi
-                // "BoxConstraints forces an infinite height" — xem
-                // test/voice_chat_screen_mic_row_layout_test.dart.
-                // FIX: bao Row trong 1 SizedBox(height:88) CO GIOI HAN RO
-                // RANG — Row luc nay nhan duoc height=88 (khong con Infinity)
-                // tu chinh SizedBox, nen CrossAxisAlignment.stretch hoat dong
-                // dung (ca 2 nut cao bang nhau, dung 88), khong con phu thuoc
-                // vao rang buoc tu Column cha nua. Container ben trong nut
-                // mic KHONG can `height: 88` rieng nua (Expanded + stretch da
-                // ep dung 88 tu SizedBox ngoai).
+                // Audit "Layout vo hinh — nut Giu de noi" (2026-08-30, cap
+                // nhat 2026-09-05 luc thiet ke lai UI) — BUG THAT tung xac
+                // nhan qua console that (F12) + widget test that: 1 child
+                // KHONG-flex cua Column co Expanded sibling (vung chat bubble
+                // o tren) nhan rang buoc height UNBOUNDED tu Column — bat ky
+                // widget con nao ben trong CAN 1 rang buoc height CO GIOI HAN
+                // (truoc day la CrossAxisAlignment.stretch tren Row) se nem
+                // loi "BoxConstraints forces an infinite height" NGAY trong
+                // performLayout(). Van GIU NGUYEN nguyen tac fix da xac nhan
+                // dung (SizedBox voi height CO DINH bao ngoai) cho khu nut mic
+                // tron MOI nay — 220 du cho vong pulsing lon nhat (~190) +
+                // le. Xem test/voice_chat_screen_mic_row_layout_test.dart
+                // (van con hop le, cau truc SizedBox-bao-ngoai khong doi).
                 SizedBox(
-                  height: 88,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  height: 220,
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
-                          onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
-                          onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _uiState == _VoiceUiState.recording ? Colors.red : Colors.indigo,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            alignment: Alignment.center,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(_uiState == _VoiceUiState.recording ? Icons.mic : Icons.mic_none, color: Colors.white, size: 32),
-                                const SizedBox(width: 12),
-                                Text(
-                                  _uiState == _VoiceUiState.recording ? 'Đang ghi... thả để gửi' : 'Giữ để nói',
-                                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
+                      // Vong pulsing "dang nghe" — bien do dB THAT tu mic (xem
+                      // docstring _amplitudeNotifier/_onAmplitudeDb).
+                      if (_uiState == _VoiceUiState.recording)
+                        ValueListenableBuilder<double>(
+                          valueListenable: _amplitudeNotifier,
+                          builder: (context, amplitudeDb, _) {
+                            final normalized = ((amplitudeDb + 60) / 60).clamp(0.0, 1.0);
+                            final ringSize = 132.0 + normalized * 60.0;
+                            return Container(
+                              width: ringSize,
+                              height: ringSize,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: scheme.error.withValues(alpha: 0.10 + normalized * 0.18),
+                              ),
+                            );
+                          },
+                        ),
+                      // Vong "tho nhe" cach dieu khi AI dang noi — KHONG gan
+                      // voi bien do TTS that (xem docstring _aiSpeakingPulseCtrl).
+                      if (_uiState == _VoiceUiState.aiSpeaking)
+                        AnimatedBuilder(
+                          animation: _aiSpeakingPulseCtrl,
+                          builder: (context, _) {
+                            final t = _aiSpeakingPulseCtrl.value;
+                            final ringSize = 132.0 + t * 34.0;
+                            return Container(
+                              width: ringSize,
+                              height: ringSize,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: scheme.tertiary.withValues(alpha: 0.10 + t * 0.14),
+                              ),
+                            );
+                          },
+                        ),
+                      GestureDetector(
+                        onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
+                        onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
+                        onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          width: 132,
+                          height: 132,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _uiState == _VoiceUiState.recording ? scheme.error : stateColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_uiState == _VoiceUiState.recording ? scheme.error : stateColor)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: _uiState == _VoiceUiState.processing
+                                ? const SizedBox(
+                                    key: ValueKey('spinner'),
+                                    width: 40,
+                                    height: 40,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                                  )
+                                : Icon(_micIcon, key: ValueKey(_micIcon), color: Colors.white, size: 48),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      // Audit "Go chu fallback" (2026-08-30) — fallback khi
-                      // STT nghe sai (xem docstring _sendTypedText) — go chu
-                      // la fallback HANG NHAT theo UX Duolingo, khong phai
-                      // loi, nen dat NGANG HANG voi nut mic (khong an sau
-                      // menu phu).
-                      SizedBox(
-                        width: 64,
-                        child: ElevatedButton(
-                          onPressed: _typeButtonEnabled ? _showTypeTextSheet : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo.shade300,
-                            disabledBackgroundColor: Colors.grey.shade300,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      // Audit "Go chu fallback" (2026-08-30, cap nhat khi
+                      // thiet ke lai UI) — fallback khi STT nghe sai (xem
+                      // docstring _sendTypedText) — gio la 1 icon tron NHO
+                      // lech goc duoi-phai nut mic tron, KHONG con canh
+                      // tranh su chu y voi nut mic chinh nhu truoc.
+                      Positioned(
+                        bottom: 4,
+                        right: 4,
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _typeButtonEnabled ? _showTypeTextSheet : null,
+                            style: ElevatedButton.styleFrom(
+                              shape: const CircleBorder(),
+                              padding: EdgeInsets.zero,
+                              backgroundColor: scheme.secondaryContainer,
+                              disabledBackgroundColor: scheme.surfaceContainerHighest,
+                              elevation: 2,
+                            ),
+                            child: Icon(Icons.keyboard, color: scheme.onSecondaryContainer, size: 20),
                           ),
-                          child: const Icon(Icons.keyboard, color: Colors.white, size: 28),
                         ),
                       ),
                     ],
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
+                child: TextButton.icon(
                   onPressed: _uiState == _VoiceUiState.connecting
                       ? null
                       : (_sessionActive ? _stopSession : _startSession),
-                  icon: Icon(_sessionActive ? Icons.stop : Icons.mic),
+                  icon: Icon(_sessionActive ? Icons.stop : Icons.play_arrow, size: 18),
                   label: Text(_sessionActive ? 'Dừng Voice' : 'Bắt đầu Voice'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _sessionActive ? Colors.grey.shade700 : Colors.indigo,
-                    foregroundColor: Colors.white,
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.onSurface.withValues(alpha: 0.65),
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Audit "Thiet ke lai UI Voice Chat" (2026-09-05) — bong bong chat don
+/// gian, tach rieng de tai su dung cho ca 2 phia (Ban noi/AI tra loi) thay
+/// vi lap code Container 2 lan trong build().
+class _ChatBubble extends StatelessWidget {
+  const _ChatBubble({
+    required this.text,
+    required this.color,
+    required this.textColor,
+    required this.radius,
+    this.margin,
+  });
+
+  final String text;
+  final Color color;
+  final Color textColor;
+  final BorderRadius radius;
+  final EdgeInsets? margin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+      decoration: BoxDecoration(color: color, borderRadius: radius),
+      child: Text(text, style: TextStyle(fontSize: 15, color: textColor, height: 1.4)),
     );
   }
 }
