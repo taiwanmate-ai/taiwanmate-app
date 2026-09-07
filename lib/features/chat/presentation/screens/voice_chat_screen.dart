@@ -34,6 +34,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -47,6 +48,7 @@ import 'package:chinesemate/features/chat/engines/companion_voice_controller.dar
 import 'package:chinesemate/features/chat/engines/voice_mic_recorder.dart';
 import 'package:chinesemate/features/chat/engines/voice_activity_detector.dart';
 import 'package:chinesemate/features/chat/engines/sentence_accumulator.dart';
+import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart' show VipScreen;
 import 'learning_mode_selection_screen.dart';
 
@@ -85,6 +87,14 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   String _transcriptText = '';
   String _aiText = '';
   String _errorMessage = '';
+
+  /// Audit "Safari iOS: TTS khong phat am thanh" (2026-09-04) — dam bao
+  /// webUnlockAudio() CHI duoc goi 1 LAN DUY NHAT trong ca phien Voice (lan
+  /// dau tien bam mic), du webUnlockAudio() BEN TRONG da tu idempotent —
+  /// tranh ca viec goi lai KHONG CAN THIET moi lan bam mic (vd moi lan
+  /// Interrupt) o chinh diem goi, ro rang hon la dua hoan toan vao co che
+  /// ben trong web_utils.
+  bool _audioUnlockAttempted = false;
 
   /// Audit "khong thay CTA mua Voice tren man hinh test noi bo" (2026-09-02)
   /// — true khi server tu choi ket noi vi thieu/het han voice_access (xem
@@ -352,6 +362,26 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
     final isInterruptAttempt = _uiState == _VoiceUiState.aiSpeaking;
     if (!isInterruptAttempt && _uiState != _VoiceUiState.readyToTalk) {
       return; // chi cho bam khi dang san sang HOAC AI dang noi (de ngat)
+    }
+
+    // Audit "Safari iOS: TTS khong phat am thanh" (2026-09-04) — goi
+    // webUnlockAudio() DONG BO ngay tai day (TRUOC bat ky await nao ben
+    // duoi), dung luc con nam trong user gesture that cua onTapDown — xem
+    // docstring webUnlockAudio() (web_utils_impl.dart). CHI 1 LAN DUY NHAT
+    // trong ca phien (lan dau bam mic): _audioUnlockAttempted chan cac lan
+    // bam sau (vd Interrupt) khong goi lai, tranh vo tinh cat ngang audio
+    // dang phat. Khong block ghi am neu that bai — STT/text van hoat dong
+    // binh thuong du audio khong phat duoc, chi bao cho user biet ro thay
+    // vi im lang.
+    if (kIsWeb && !_audioUnlockAttempted) {
+      _audioUnlockAttempted = true;
+      final unlocked = await webUnlockAudio();
+      if (!unlocked && mounted) {
+        setState(() {
+          _errorMessage = 'Trình duyệt không hỗ trợ phát âm thanh cho Voice. '
+              'Vui lòng thử Chrome hoặc dùng app.';
+        });
+      }
     }
 
     _isInterruptAttempt = isInterruptAttempt;

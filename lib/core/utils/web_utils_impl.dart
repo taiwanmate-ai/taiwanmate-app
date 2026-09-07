@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:js' as js;
 import 'package:http/http.dart' as http;
+import 'audio_unlock_gate.dart';
 
 html.MediaRecorder? _mediaRecorder;
 List<html.Blob> _audioChunks = [];
@@ -298,6 +299,63 @@ Completer<bool>? _audioCompleter;
 html.AudioElement? _currentAudioElement;
 String? _currentAudioBlobUrl;
 
+// Audit "Safari iOS: TTS khong phat am thanh" (2026-09-04) — WebKit CHI cho
+// phep 1 <audio> element phat lien tuc BANG LAP TRINH (ngoai user gesture)
+// SAU KHI CHINH element do da tung .play() THANH CONG BEN TRONG 1 user
+// gesture that (cham/bam) — trang thai "unlocked" nay gan VOI TUNG element
+// cu the, KHONG phai toan trang. webPlayAudio() TRUOC DAY tao 1 AudioElement
+// MOI cho MOI segment TTS -> KHONG element nao tung duoc unlock -> Safari
+// lang le chan .play() (Promise reject, khong bao loi) cho gan nhu moi
+// segment. Fix: dung 1 AudioElement DUY NHAT (singleton) cho CA session,
+// unlock 1 LAN qua webUnlockAudio() (goi DONG BO trong user gesture that —
+// xem _onMicPressStart() trong voice_chat_screen.dart), roi TAI SU DUNG
+// CHINH element do (doi src, goi lai play()) cho moi lan phat TTS sau.
+html.AudioElement? _singletonAudio;
+StreamSubscription<html.Event>? _singletonAudioEndedSub;
+StreamSubscription<html.Event>? _singletonAudioErrorSub;
+// Logic THUAN quyet dinh "tao moi hay tai su dung"/"da unlock chua" — tach
+// rieng sang audio_unlock_gate.dart de TEST DUOC tren Dart VM (file nay
+// import dart:html, khong the chay trong `flutter test` mac dinh) — xem
+// docstring AudioUnlockGate.
+final _audioUnlockGate = AudioUnlockGate();
+
+html.AudioElement _getSingletonAudio() {
+  if (_audioUnlockGate.needsElementCreation()) {
+    _singletonAudio = html.AudioElement();
+  }
+  return _singletonAudio!;
+}
+
+/// 1 file WAV im lang cuc ngan (data URI, khong can request mang) — CHI
+/// de kich hoat "user activation" cho singleton AudioElement, khong phai
+/// audio se duoc nghe thay that.
+const _silentWavDataUri =
+    'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
+/// Goi DONG BO (khong await truoc do) BEN TRONG 1 user gesture that (vd
+/// onTapDown cua nut mic) de "mo khoa" AudioElement dung chung cho ca
+/// session. Idempotent — cac lan goi SAU khi da unlock thanh cong la
+/// no-op tuc thi (tra ve true ngay, KHONG dong lai .src/.play() lan nua —
+/// tranh cat ngang audio dang phat neu vo tinh goi lai trong luc phien
+/// truoc van con dang phat, vd bam mic de Interrupt).
+///
+/// Tra ve true neu unlock thanh cong (hoac da tung thanh cong truoc do),
+/// false neu that bai (vd Safari qua cu/chan hoan toan) — CALLER (xem
+/// voice_chat_screen.dart) dung gia tri nay de bao loi RO RANG cho user
+/// thay vi de audio im lang khong hoat dong ma khong ai biet vi sao.
+Future<bool> webUnlockAudio() async {
+  if (_audioUnlockGate.isUnlocked) return true;
+  try {
+    final audio = _getSingletonAudio();
+    audio.src = _silentWavDataUri;
+    await audio.play();
+    _audioUnlockGate.markUnlocked();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 Future<bool> webPlayAudio(String base64Mp3) {
   webStopAudio(); // dừng audio cũ nếu còn đang phát dở
 
@@ -310,18 +368,26 @@ Future<bool> webPlayAudio(String base64Mp3) {
     final url = html.Url.createObjectUrlFromBlob(blob);
     _currentAudioBlobUrl = url;
 
-    final audio = html.AudioElement(url);
+    final audio = _getSingletonAudio();
     _currentAudioElement = audio;
 
-    audio.onEnded.listen((_) {
+    // Huy listener CU truoc khi gan MOI — element nay dung LAI cho moi
+    // lan phat (khac truoc day tao element moi moi lan, tu dong khong
+    // con listener cu) nen phai chu dong don dep, tranh tich luy listener
+    // qua nhieu lan phat trong 1 phien Voice dai.
+    _singletonAudioEndedSub?.cancel();
+    _singletonAudioErrorSub?.cancel();
+    _singletonAudioEndedSub = audio.onEnded.listen((_) {
       if (!completer.isCompleted) completer.complete(true);
       _cleanupAudioUrl(url);
     });
-    audio.onError.listen((_) {
+    _singletonAudioErrorSub = audio.onError.listen((_) {
       if (!completer.isCompleted) completer.complete(false);
       _cleanupAudioUrl(url);
     });
 
+    audio.src = url;
+    audio.load();
     audio.play().catchError((e) {
       if (!completer.isCompleted) completer.complete(false);
       _cleanupAudioUrl(url);

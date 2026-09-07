@@ -204,6 +204,13 @@ void webOpenUrl(String url) {
   // (Facebook, Twitter, LINE đều có thể nhận link/text qua share sheet native)
 }
 
+/// Audit "Safari iOS: TTS khong phat am thanh" (2026-09-04) — chi can thiet
+/// tren web (WebKit audio-unlock policy khong ton tai tren native, package
+/// audioplayers dung o day khong bi han che tuong tu) — luon tra ve true
+/// (khong can "mo khoa" gi ca) de caller (_onMicPressStart trong
+/// voice_chat_screen.dart) KHONG bao loi sai cho user tren app native.
+Future<bool> webUnlockAudio() async => true;
+
 /// Audit "nut mua Voice khong bam duoc tren iOS Safari" (2026-09-02) — CHI
 /// dung tren web (startPolarCheckout() luon gate qua kIsWeb truoc khi goi),
 /// 3 ham nay o day CHI de bien dich duoc tren native, KHONG BAO GIO thuc su
