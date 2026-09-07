@@ -61,7 +61,7 @@ class VoiceChatScreen extends ConsumerStatefulWidget {
   ConsumerState<VoiceChatScreen> createState() => _VoiceChatScreenState();
 }
 
-class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerProviderStateMixin {
+class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   final _storage = const FlutterSecureStorage();
   late final VoiceWebSocketService _wsService;
   late final CompanionVoiceController _voiceController;
@@ -187,6 +187,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _aiSpeakingPulseCtrl = AnimationController(duration: const Duration(milliseconds: 1500), vsync: this)
       ..repeat(reverse: true);
     _learningMode = ref.read(learningModeProvider) ?? 'zh_vi';
@@ -636,8 +637,32 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     });
   }
 
+  /// Audit "20 phut Voice het qua nhanh du chi noi vai cau" (2026-09-06) —
+  /// gioi han 20 phut/ngay tinh theo THOI LUONG KET NOI WebSocket that su
+  /// tu luc connect() toi luc disconnect() (Option B, quyet dinh CO CHU
+  /// DICH da xac nhan voi user — xem docstring _DAILY_VOICE_MINUTES_LIMIT
+  /// trong voice_ws.py), KHONG phai thoi luong noi THAT su. TRUOC DAY man
+  /// hinh nay KHONG theo doi app lifecycle o bat ky dau — neu user dua app
+  /// xuong NEN (chuyen app khac, khoa may) trong luc phien Voice VAN CON
+  /// MO (vd sau khi noi vai cau, chua bam "Dung Voice"), ket noi WebSocket
+  /// VAN SONG va tiep tuc tinh gio TRONG NEN — co the "an" gan het quota
+  /// 20 phut ma user khong he biet vi khong con dang thuc su dung, dan toi
+  /// bao cao that: "chi noi vai cau" nhung da bao het 20 phut. Dung phien
+  /// NGAY khi app bi dua xuong nen thuc su (paused) — CHI paused (KHONG
+  /// dung inactive, xay ra qua thuong xuyen/ngan cho cac giao dien tam
+  /// thoi nhu dialog he thong/control center, se dung nham phien dang
+  /// dung that) — dung LAI _stopSession() co san (dep dep mic/TTS/WS dung
+  /// 1 duong, khong viet logic dong rieng).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused && _sessionActive) {
+      _stopSession();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ampSub?.cancel();
     _aiSpeakingPulseCtrl.dispose();
     _amplitudeNotifier.dispose();
