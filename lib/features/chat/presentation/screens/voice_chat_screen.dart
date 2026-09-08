@@ -171,6 +171,20 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   /// nhu beginner trong instruction moi — xem voice_teaching_instruction.dart).
   String? _chineseLevel;
 
+  /// Audit "Thong ke Voice sau moi phien" (2026-09-08) — so phut Voice DA
+  /// dung hom nay, doc tu /auth/me (backend da tinh lai neu qua ngay moi —
+  /// xem model_validator UserResponse) NGAY luc mo man hinh. Gia tri nay
+  /// KHONG tu dong cap nhat lien tuc trong luc dang noi (backend chi thuc
+  /// su GHI vao DB luc disconnect — xem finally block voice_ws.py) — chi
+  /// doc lai (goi _loadUserProfile() lan nua) SAU KHI 1 phien ket thuc
+  /// (_stopSession()) de phan anh dung so phut MOI vua dung xong.
+  double? _dailyVoiceMinutesUsed;
+
+  /// So cau da noi THANH CONG (co transcript khong rong) trong PHIEN HIEN
+  /// TAI — dem o client, KHONG can goi API rieng. Reset ve 0 moi lan bat
+  /// dau phien moi (_startSession()).
+  int _sessionUtteranceCount = 0;
+
   /// Buoc C (2026-08-20) — dung CHUNG engine voi Chat de xay system_prompt
   /// THAT gui kem audio_end, thay vi prompt co dinh backend tu bia
   /// (_FALLBACK_SYSTEM_PROMPT, xem docstring voice_ws.py). Voice CHUA theo
@@ -200,7 +214,16 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
 
     _wsService.onTranscript = (text) {
       if (!mounted) return;
-      setState(() => _transcriptText = text);
+      setState(() {
+        _transcriptText = text;
+        // Audit "Thong ke Voice sau moi phien" (2026-09-08) — server CHI
+        // gui "transcript" SAU KHI da qua het cac Gate va xac nhan co noi
+        // dung that (xem docstring voice_ws.py: rong/khong ro se la
+        // "transcript_error" rieng, khong phai "transcript") — moi lan
+        // callback nay chay LA 1 cau da noi THANH CONG, dem thang khong
+        // can kiem tra rong them.
+        if (text.isNotEmpty) _sessionUtteranceCount++;
+      });
     };
     _wsService.onShortUtteranceWarning = (message) {
       if (!mounted) return;
@@ -302,9 +325,15 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       );
       if (!mounted) return;
       final chineseLevel = response.data['chinese_level'] as String?;
-      if (chineseLevel != null) {
-        setState(() => _chineseLevel = chineseLevel);
-      }
+      // Audit "Thong ke Voice sau moi phien" (2026-09-08) — 'daily_voice_
+      // minutes_used' la so (int hoac double tuy JSON), ep ve double an
+      // toan qua num roi .toDouble().
+      final minutesUsedRaw = response.data['daily_voice_minutes_used'];
+      final minutesUsed = minutesUsedRaw is num ? minutesUsedRaw.toDouble() : null;
+      setState(() {
+        if (chineseLevel != null) _chineseLevel = chineseLevel;
+        if (minutesUsed != null) _dailyVoiceMinutesUsed = minutesUsed;
+      });
     } catch (e) {}
   }
 
@@ -364,6 +393,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       _transcriptText = '';
       _aiText = '';
       _shortUtteranceWarning = '';
+      _sessionUtteranceCount = 0; // Audit "Thong ke Voice sau moi phien" — dem lai tu dau moi phien
     });
 
     await _wsService.connect();
@@ -635,6 +665,17 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       _isInterruptAttempt = false;
       _interruptConfirmed = false;
     });
+    // Audit "Thong ke Voice sau moi phien" (2026-09-08) — doc lai /auth/me
+    // de cap nhat dung so phut MOI vua dung xong. Backend chi thuc su GHI
+    // daily_voice_minutes_used vao DB trong finally block cua voice_ws.py
+    // KHI no nhan duoc disconnect that (khong dong bo tuc thi voi
+    // _wsService.disconnect() o tren) — cho 1 nhip ngan de tang kha nang
+    // server da kip ghi xong truoc khi doc lai. Khong quan trong neu vAn
+    // le thieu chinh xac o day (chi la 1 con so hien thi tham khao, khong
+    // dung de gate/chan gi ca) nen KHONG can co che dong bo phuc tap hon.
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) _loadUserProfile();
+    });
   }
 
   /// Audit "20 phut Voice het qua nhanh du chi noi vai cau" (2026-09-06) —
@@ -901,6 +942,23 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: stateColor),
                 ),
               ),
+              // Audit "Thong ke Voice sau moi phien" (2026-09-08) — nho, mau
+              // phu (khong canh tranh voi status text chinh phia tren) —
+              // chi hien khi da co du lieu that (khong hien "0/20" gia luc
+              // dang tai /auth/me lan dau, tranh nhap nhay sai thong tin).
+              if (_dailyVoiceMinutesUsed != null || _sessionUtteranceCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    [
+                      if (_dailyVoiceMinutesUsed != null)
+                        'Hôm nay: ${_dailyVoiceMinutesUsed!.toStringAsFixed(1)}/20 phút',
+                      if (_sessionUtteranceCount > 0) 'Phiên này: $_sessionUtteranceCount câu',
+                    ].join(' · '),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: scheme.onSurface.withValues(alpha: 0.5)),
+                  ),
+                ),
               const SizedBox(height: 12),
               if (_sessionActive)
                 // Audit "Layout vo hinh — nut Giu de noi" (2026-08-30, cap
