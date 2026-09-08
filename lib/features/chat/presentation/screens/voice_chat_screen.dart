@@ -152,7 +152,14 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   // xem docstring backend voice_ws.py).
   bool _ignoreCurrentAiTurn = false;
 
-  static const _aiGender = 'female';
+  /// Audit "Voice roadmap — chon giong AI" (2026-09-08) — TRUOC DAY co
+  /// dinh 'female' (static const), khac Chat DA CO san lua chon Yuki(nu)/
+  /// Kai(nam) tu lau (xem chat_screen.dart _showSettings()). Gio la field
+  /// thuong (khong static/const) de user tu doi qua _showVoicePicker().
+  /// KHONG persist (giong dung Chat: chi ton tai trong phien man hinh dang
+  /// mo, mac dinh lai 'female' moi lan mo Voice — nhat quan UX voi Chat,
+  /// KHONG tu y them SharedPreferences ma Chat cung chua co).
+  String _aiGender = 'female';
 
   /// 2026-08-20: doc tu learningModeProvider (nguon duy nhat, dung chung
   /// Chat+Voice — xem docstring learning_mode_provider.dart). TRUOC DAY
@@ -599,6 +606,81 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     _wsService.sendTextInput(trimmed, systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
   }
 
+  /// Audit "Voice roadmap — chon giong AI" (2026-09-08) — bottom sheet don
+  /// gian chon Yuki(nu)/Kai(nam), mirror dung tinh than lua chon da co san
+  /// trong chat_screen.dart (CUNG 2 ten/gioi tinh, KHAC UI — dung theme
+  /// ColorScheme cua man hinh Voice thay vi bang mau _DS rieng cua Chat).
+  /// KHONG anh huong luot Voice DANG PHAT (chi doi cho luot TIEP THEO,
+  /// giong dung cach doi mode hoc qua Icons.settings o tren).
+  Future<void> _showVoicePicker() async {
+    final scheme = Theme.of(context).colorScheme;
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: scheme.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text('Chọn giọng AI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: scheme.onSurface)),
+              const SizedBox(height: 6),
+              // Audit "FIX-TTS-03" (app/services/openai_service.py::_get_voice)
+              // — giong tieng Viet CO CHU DICH dung CHUNG 1 giong (da kiem
+              // chung phat am dung nhat qua Whisper that) bat ke gioi tinh
+              // chon — noi ro de user khong tuong bi loi neu nghe giong Viet
+              // giong nhau du chon Yuki hay Kai.
+              Text(
+                'Giọng tiếng Việt dùng chung cho cả 2 lựa chọn (đã kiểm chứng phát âm chuẩn nhất) — khác biệt rõ nhất khi AI nói tiếng Trung/tiếng Anh.',
+                style: TextStyle(fontSize: 12, color: scheme.onSurface.withValues(alpha: 0.5), height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: _VoiceGenderCard(
+                    name: 'Yuki', sub: 'Giọng nữ', emoji: '👩',
+                    isSelected: _aiGender == 'female',
+                    color: scheme.primary,
+                    onTap: () {
+                      setState(() => _aiGender = 'female');
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _VoiceGenderCard(
+                    name: 'Kai', sub: 'Giọng nam', emoji: '👨',
+                    isSelected: _aiGender == 'male',
+                    color: scheme.tertiary,
+                    onTap: () {
+                      setState(() => _aiGender = 'male');
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// Hien 1 o nhap chu don gian (bottom sheet, KHONG phuc tap — giong ô
   /// chat text binh thuong nhu user yeu cau) de go thay vi noi. Dong lai
   /// va quay ve giao dien Voice binh thuong ngay khi gui (_sendTypedText
@@ -802,6 +884,12 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
               context,
               MaterialPageRoute(builder: (_) => const VoiceHistoryScreen()),
             ),
+          ),
+          // Audit "Voice roadmap — chon giong AI" (2026-09-08).
+          IconButton(
+            icon: const Icon(Icons.record_voice_over_outlined),
+            tooltip: 'Đổi giọng AI',
+            onPressed: _showVoicePicker,
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -1137,6 +1225,49 @@ class _ChatBubble extends StatelessWidget {
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
       decoration: BoxDecoration(color: color, borderRadius: radius),
       child: Text(text, style: TextStyle(fontSize: 15, color: textColor, height: 1.4)),
+    );
+  }
+}
+
+/// Audit "Voice roadmap — chon giong AI" (2026-09-08) — the don gian cho
+/// _showVoicePicker() o tren, tach rieng theo dung pattern _ChatBubble.
+class _VoiceGenderCard extends StatelessWidget {
+  const _VoiceGenderCard({
+    required this.name,
+    required this.sub,
+    required this.emoji,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String name;
+  final String sub;
+  final String emoji;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isSelected ? color : Colors.transparent, width: 2),
+        ),
+        child: Column(children: [
+          Text(emoji, style: const TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: scheme.onSurface)),
+          Text(sub, style: TextStyle(fontSize: 12, color: scheme.onSurface.withValues(alpha: 0.6))),
+        ]),
+      ),
     );
   }
 }
