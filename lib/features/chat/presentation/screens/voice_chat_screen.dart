@@ -33,6 +33,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -104,6 +105,22 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   /// tri cua no duoc SU DUNG trong build() khi _uiState == aiSpeaking, cac
   /// trang thai khac bo qua hoan toan.
   late final AnimationController _aiSpeakingPulseCtrl;
+
+  /// Audit "Voice roadmap — nhan vat AI co mat/bieu cam" (2026-09-08) — mood
+  /// tag [MOOD:...] MA AI TU CHEN (xem mood_tag_parser.dart, da dung san de
+  /// chon SSML giong doc) TRUOC DAY chi dung cho TTS roi bi bo qua — gio
+  /// CUNG dung de chon bieu cam khuon mat nhan vat khi AI dang noi cau do.
+  /// Cap nhat MOI LAN extractMoodTag() chay (2 noi trong appendStreamingSentence
+  /// path — xem _onAiTextResponseChunk()), giu nguyen 'neutral' ngoai luc
+  /// aiSpeaking (khong dung mood cu cho cac trang thai khac).
+  String _currentMood = 'neutral';
+
+  /// Dieu khien chop mat dinh ky (150ms/lan) — tao cam giac nhan vat "song",
+  /// khong phai hinh tinh. Kich hoat boi Timer.periodic trong initState(),
+  /// KHONG chay lien tuc nhu _aiSpeakingPulseCtrl (chop mat lien tuc se
+  /// trong ky quai) — forward() roi tu reverse() khi xong, xem _scheduleBlink().
+  late final AnimationController _blinkCtrl;
+  Timer? _blinkTimer;
 
   _VoiceUiState _uiState = _VoiceUiState.idle;
   String _transcriptText = '';
@@ -212,6 +229,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     WidgetsBinding.instance.addObserver(this);
     _aiSpeakingPulseCtrl = AnimationController(duration: const Duration(milliseconds: 1500), vsync: this)
       ..repeat(reverse: true);
+    _blinkCtrl = AnimationController(duration: const Duration(milliseconds: 150), vsync: this);
+    _scheduleBlink();
     _learningMode = ref.read(learningModeProvider) ?? 'zh_vi';
     _loadUserProfile();
     _wsService = VoiceWebSocketService(tokenProvider: () => _storage.read(key: 'access_token'));
@@ -355,6 +374,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       final remainder = _sentenceAccumulator.flush();
       if (remainder.isNotEmpty) {
         final extracted = extractMoodTag(remainder);
+        if (mounted) setState(() => _currentMood = extracted.mood);
         _voiceController.appendStreamingSentence(extracted.text, aiGender: _aiGender, mood: extracted.mood);
       }
       _voiceController.finishStreamingSpeak();
@@ -380,6 +400,10 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     final sentences = _sentenceAccumulator.addDelta(text);
     for (final s in sentences) {
       final extracted = extractMoodTag(s);
+      // Audit "Voice roadmap — nhan vat AI co mat/bieu cam" (2026-09-08) —
+      // cap nhat bieu cam khuon mat THEO DUNG mood cua CAU dang chuan bi
+      // phat (khop voi hieu ung "tho nhe" _aiSpeakingPulseCtrl da co san).
+      if (mounted) setState(() => _currentMood = extracted.mood);
       _voiceController.appendStreamingSentence(extracted.text, aiGender: _aiGender, mood: extracted.mood);
     }
   }
@@ -389,7 +413,10 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     // chuyen _uiState sang "recording" truoc do trong _onInterruptVadAmplitude(),
     // luc do dieu kien duoi day se KHONG khop, tranh chuyen state sai).
     if (!_voiceController.isSpeaking && _uiState == _VoiceUiState.aiSpeaking && mounted) {
-      setState(() => _uiState = _VoiceUiState.readyToTalk);
+      setState(() {
+        _uiState = _VoiceUiState.readyToTalk;
+        _currentMood = 'neutral'; // AI noi xong — ve bieu cam trung tinh mac dinh
+      });
     }
   }
 
@@ -747,6 +774,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       _shortUtteranceWarning = '';
       _isInterruptAttempt = false;
       _interruptConfirmed = false;
+      _currentMood = 'neutral';
     });
     // Audit "Thong ke Voice sau moi phien" (2026-09-08) — doc lai /auth/me
     // de cap nhat dung so phut MOI vua dung xong. Backend chi thuc su GHI
@@ -784,9 +812,32 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     }
   }
 
+  /// Audit "Voice roadmap — nhan vat AI co mat/bieu cam" (2026-09-08) — 1
+  /// chu ky chop mat: doi 2.5-4.5s ngau nhien (tranh cam giac may moc lap
+  /// lai DUNG 1 chu ky), forward() (nham) roi reverse() (mo lai), tu lap
+  /// lich chinh no cho lan tiep theo — dung Timer + Future thay vi
+  /// AnimationController.repeat() vi can khoang NGHI GIUA 2 lan chop
+  /// (repeat() se chop LIEN TUC khong nghi).
+  void _scheduleBlink() {
+    if (_disposed) return;
+    final delayMs = 2500 + math.Random().nextInt(2000);
+    _blinkTimer = Timer(Duration(milliseconds: delayMs), () async {
+      if (_disposed) return;
+      await _blinkCtrl.forward();
+      if (_disposed) return;
+      await _blinkCtrl.reverse();
+      _scheduleBlink();
+    });
+  }
+
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
+    _blinkTimer?.cancel();
+    _blinkCtrl.dispose();
     _ampSub?.cancel();
     _aiSpeakingPulseCtrl.dispose();
     _amplitudeNotifier.dispose();
@@ -843,16 +894,13 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     }
   }
 
-  IconData get _micIcon {
-    switch (_uiState) {
-      case _VoiceUiState.recording:
-        return Icons.mic;
-      case _VoiceUiState.aiSpeaking:
-        return Icons.graphic_eq;
-      default:
-        return Icons.mic_none;
-    }
-  }
+  // Audit "Voice roadmap — nhan vat AI co mat/bieu cam" (2026-09-08) — TRUOC
+  // DAY co switch theo _uiState (mic/graphic_eq/mic_none) — gio CHI con
+  // dung cho trang thai "recording" (xem AnimatedSwitcher trong build()):
+  // cac trang thai khac (readyToTalk/aiSpeaking/connecting) hien nhan vat
+  // (CustomPaint _AiFacePainter) thay icon, GIU icon that cho luc dang ghi
+  // am — do la thoi diem CAN ro rang "ban dang duoc ghi am", khong nen thay
+  // bang khuon mat cach dieu.
 
   bool get _sessionActive => _uiState != _VoiceUiState.idle && _uiState != _VoiceUiState.error;
 
@@ -1145,7 +1193,36 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
                                     height: 40,
                                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                                   )
-                                : Icon(_micIcon, key: ValueKey(_micIcon), color: Colors.white, size: 48),
+                                : _uiState == _VoiceUiState.recording
+                                    ? const Icon(Icons.mic, key: ValueKey('mic'), color: Colors.white, size: 48)
+                                    // Audit "Voice roadmap — nhan vat AI co
+                                    // mat/bieu cam" (2026-09-08) — cac trang
+                                    // thai con lai (readyToTalk/aiSpeaking/
+                                    // connecting) hien nhan vat: chop mat
+                                    // dinh ky (_blinkCtrl), mieng "noi"
+                                    // theo nhip _aiSpeakingPulseCtrl da co
+                                    // san CHI khi aiSpeaking, bieu cam theo
+                                    // _currentMood (tu [MOOD:...] AI tu
+                                    // chen — CUNG du lieu da dung cho TTS,
+                                    // KHONG thu thap gi moi).
+                                    : AnimatedBuilder(
+                                        key: const ValueKey('face'),
+                                        animation: Listenable.merge([_blinkCtrl, _aiSpeakingPulseCtrl]),
+                                        builder: (context, _) {
+                                          final mouthOpenness = _uiState == _VoiceUiState.aiSpeaking
+                                              ? 0.25 + 0.75 * _aiSpeakingPulseCtrl.value
+                                              : 0.0;
+                                          return CustomPaint(
+                                            size: const Size(132, 132),
+                                            painter: _AiFacePainter(
+                                              eyeOpenness: 1 - _blinkCtrl.value,
+                                              mouthOpenness: mouthOpenness,
+                                              mood: _uiState == _VoiceUiState.aiSpeaking ? _currentMood : 'neutral',
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      ),
                           ),
                         ),
                       ),
@@ -1269,5 +1346,103 @@ class _VoiceGenderCard extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+/// Audit "Voice roadmap — nhan vat AI co mat/bieu cam" (2026-09-08) — ve 2
+/// mat + 1 mieng DON GIAN (khong dung asset/anh — CustomPainter built-in,
+/// dung tinh than "khong them dependency" cua yeu cau thiet ke lai UI ban
+/// dau) len nut mic tron, thay icon tinh trong luc AI chua/da noi. 4 hinh
+/// dang mieng khop CHINH XAC 4 gia tri kValidMoods (mood_tag_parser.dart —
+/// 1 trong 2 "nguon su that" ten mood, xem docstring o do) — AI tu chon
+/// mood cho tung cau (da dung san cho TTS SSML), gio CUNG dung de chon
+/// bieu cam, khong thu thap/doan gi them.
+class _AiFacePainter extends CustomPainter {
+  const _AiFacePainter({
+    required this.eyeOpenness,
+    required this.mouthOpenness,
+    required this.mood,
+    required this.color,
+  });
+
+  /// 0 (nham hoan toan, dang chop mat) .. 1 (mo hoan toan).
+  final double eyeOpenness;
+
+  /// 0 (mieng dong, khong noi) .. 1 (mo to nhat) — CHI > 0 luc aiSpeaking,
+  /// dao dong theo _aiSpeakingPulseCtrl de tao cam giac "dang noi".
+  final double mouthOpenness;
+
+  /// 1 trong kValidMoods (neutral/happy/comforting/playful) — xem
+  /// mood_tag_parser.dart. Cac gia tri khac (khong nen xay ra, tag AI gui
+  /// da duoc chuan hoa ve kDefaultMood neu la gia tri la) roi ve nhanh
+  /// 'neutral' o switch ben duoi.
+  final String mood;
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fillPaint = Paint()..color = color..style = PaintingStyle.fill;
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.045
+      ..strokeCap = StrokeCap.round;
+
+    final cx = size.width / 2;
+    final eyeY = size.height * 0.40;
+    const eyeDx = 0.17;
+    final eyeW = size.width * 0.09;
+    final baseEyeH = size.height * 0.12;
+    final eyeH = (baseEyeH * eyeOpenness).clamp(size.height * 0.012, baseEyeH);
+
+    for (final dxFactor in [-eyeDx, eyeDx]) {
+      final rect = Rect.fromCenter(center: Offset(cx + size.width * dxFactor, eyeY), width: eyeW, height: eyeH);
+      canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(eyeW / 2)), fillPaint);
+    }
+
+    final mouthY = size.height * 0.63;
+    final mouthW = size.width * 0.24;
+
+    switch (mood) {
+      case 'happy':
+        final path = Path()
+          ..moveTo(cx - mouthW / 2, mouthY)
+          ..quadraticBezierTo(cx, mouthY + size.height * (0.11 + 0.05 * mouthOpenness), cx + mouthW / 2, mouthY);
+        canvas.drawPath(path, strokePaint);
+        break;
+      case 'comforting':
+        final w = mouthW * 0.65;
+        final path = Path()
+          ..moveTo(cx - w / 2, mouthY)
+          ..quadraticBezierTo(cx, mouthY + size.height * (0.05 + 0.03 * mouthOpenness), cx + w / 2, mouthY);
+        canvas.drawPath(path, strokePaint);
+        break;
+      case 'playful':
+        final path = Path()
+          ..moveTo(cx - mouthW / 2, mouthY + size.height * 0.015)
+          ..quadraticBezierTo(cx, mouthY + size.height * 0.04, cx + mouthW / 2, mouthY - size.height * 0.045);
+        canvas.drawPath(path, strokePaint);
+        break;
+      default: // neutral
+        if (mouthOpenness > 0.05) {
+          final rect = Rect.fromCenter(
+            center: Offset(cx, mouthY),
+            width: mouthW * 0.6,
+            height: size.height * (0.035 + 0.09 * mouthOpenness),
+          );
+          canvas.drawOval(rect, fillPaint);
+        } else {
+          canvas.drawLine(Offset(cx - mouthW / 2, mouthY), Offset(cx + mouthW / 2, mouthY), strokePaint);
+        }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AiFacePainter oldDelegate) {
+    return oldDelegate.eyeOpenness != eyeOpenness ||
+        oldDelegate.mouthOpenness != mouthOpenness ||
+        oldDelegate.mood != mood ||
+        oldDelegate.color != color;
   }
 }
