@@ -50,6 +50,7 @@ import 'package:chinesemate/features/chat/engines/voice_activity_detector.dart';
 import 'package:chinesemate/features/chat/engines/sentence_accumulator.dart';
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart' show VipScreen;
+import 'voice_history_screen.dart';
 import 'learning_mode_selection_screen.dart';
 
 enum _VoiceUiState { idle, connecting, readyToTalk, recording, processing, aiSpeaking, error }
@@ -791,6 +792,17 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       appBar: AppBar(
         title: const Text('Trò chuyện Voice'),
         actions: [
+          // Audit "Voice roadmap — luu lich su hoi thoai Voice" (2026-09-08)
+          // — diem vao man hinh xem lai cac phien Voice DA LUU (backend gio
+          // ghi ChatSession/ChatMessage source='voice' — xem voice_ws.py).
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Lịch sử Voice',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const VoiceHistoryScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Đổi chế độ học',
