@@ -1167,23 +1167,46 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
                         onTapDown: _micButtonEnabled ? (_) => _onMicPressStart() : null,
                         onTapUp: _micButtonEnabled ? (_) => _onMicPressEnd() : null,
                         onTapCancel: _micButtonEnabled ? _onMicPressEnd : null,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          width: 132,
-                          height: 132,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _uiState == _VoiceUiState.recording ? scheme.error : stateColor,
-                            boxShadow: [
-                              BoxShadow(
-                                color: (_uiState == _VoiceUiState.recording ? scheme.error : stateColor)
-                                    .withValues(alpha: 0.4),
-                                blurRadius: 20,
-                                spreadRadius: 2,
+                        child: Builder(builder: (context) {
+                          // Audit "3d cang tot" (2026-09-08) — KHONG them
+                          // package/asset 3D that (se pha vo rang buoc
+                          // "khong them dependency" cua chinh yeu cau thiet
+                          // ke lai UI ban dau) — thay vao do dung gradient
+                          // + shadow de tao cam giac "hinh cau bong" (ky
+                          // thuat pseudo-3D pho bien, hoan toan Flutter
+                          // built-in): sang o goc tren-trai (nguon sang gia
+                          // dinh), toi dan ra vien — cho nut mic CO CHIEU
+                          // SAU thay vi mau phang tuyet doi nhu truoc.
+                          final baseColor = _uiState == _VoiceUiState.recording ? scheme.error : stateColor;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            width: 132,
+                            height: 132,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                center: const Alignment(-0.35, -0.4),
+                                radius: 0.95,
+                                colors: [
+                                  Color.lerp(baseColor, Colors.white, 0.32)!,
+                                  baseColor,
+                                  Color.lerp(baseColor, Colors.black, 0.22)!,
+                                ],
+                                stops: const [0.0, 0.55, 1.0],
                               ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
+                              boxShadow: [
+                                BoxShadow(color: baseColor.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 2),
+                                // Bong do phia duoi — cung co cam giac "vat
+                                // the noi len khoi nen" thay vi 1 hinh tron
+                                // dan phang tren man hinh.
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
                             child: _uiState == _VoiceUiState.processing
@@ -1212,17 +1235,54 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
                                           final mouthOpenness = _uiState == _VoiceUiState.aiSpeaking
                                               ? 0.25 + 0.75 * _aiSpeakingPulseCtrl.value
                                               : 0.0;
+                                          // Audit "khong muon icon, thay
+                                          // bang 1 chu meo/nhan vat"
+                                          // (2026-09-08) — canvas CAO HON
+                                          // 132 (nut tron that) de tai meo
+                                          // co cho "tho ra" phia tren, xem
+                                          // docstring _AiFacePainter. Container
+                                          // cha (AnimatedContainer 132x132)
+                                          // KHONG dat clipBehavior nao nen
+                                          // phan nhon ra ngoai KHONG bi cat.
                                           return CustomPaint(
-                                            size: const Size(132, 132),
+                                            size: const Size(132, 180),
                                             painter: _AiFacePainter(
                                               eyeOpenness: 1 - _blinkCtrl.value,
                                               mouthOpenness: mouthOpenness,
                                               mood: _uiState == _VoiceUiState.aiSpeaking ? _currentMood : 'neutral',
                                               color: Colors.white,
+                                              containerSize: 132,
                                             ),
                                           );
                                         },
                                       ),
+                          ),
+                          );
+                        }),
+                      ),
+                      // Audit "3d cang tot" (2026-09-08) — 1 vet sang mo
+                      // (glossy highlight) o goc tren-trai nut mic, tang
+                      // them cam giac "be mat bong/hinh cau" cung voi
+                      // RadialGradient nen o tren — ky thuat pho bien cho
+                      // nhan vat/nut bam "3D-ish" phang (Flutter built-in,
+                      // khong asset/dependency moi). IgnorePointer — CHI la
+                      // trang tri, khong duoc chan tap vao nut mic ben duoi.
+                      IgnorePointer(
+                        child: SizedBox(
+                          width: 132,
+                          height: 132,
+                          child: Align(
+                            alignment: const Alignment(-0.5, -0.55),
+                            child: Container(
+                              width: 46,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                gradient: RadialGradient(
+                                  colors: [Colors.white.withValues(alpha: 0.38), Colors.white.withValues(alpha: 0.0)],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1357,12 +1417,21 @@ class _VoiceGenderCard extends StatelessWidget {
 /// 1 trong 2 "nguon su that" ten mood, xem docstring o do) — AI tu chon
 /// mood cho tung cau (da dung san cho TTS SSML), gio CUNG dung de chon
 /// bieu cam, khong thu thap/doan gi them.
+/// Audit "khong muon icon, thay bang 1 chu meo/nhan vat" (2026-09-08) —
+/// nang cap _AiFacePainter cu (chi 2 mat + mieng tren nen tron) thanh 1
+/// NHAN VAT MEO de thuong: tai tam giac + tai trong + rau + mui, VAN ve
+/// bang CustomPainter thuan (khong asset/dependency moi). Kich thuoc canvas
+/// GIO CAO HON chieu rong nut tron (containerSize + earHeight) de tai co
+/// cho "tho ra" phia tren duong vien tron cua nut mic — AnimatedContainer
+/// cha KHONG clip con (khong dat ClipBehavior nao), nen phan nhon ra ngoai
+/// nay hien binh thuong, khong bi cat.
 class _AiFacePainter extends CustomPainter {
   const _AiFacePainter({
     required this.eyeOpenness,
     required this.mouthOpenness,
     required this.mood,
     required this.color,
+    required this.containerSize,
   });
 
   /// 0 (nham hoan toan, dang chop mat) .. 1 (mo hoan toan).
@@ -1380,60 +1449,156 @@ class _AiFacePainter extends CustomPainter {
 
   final Color color;
 
+  /// Duong kinh THAT cua nut tron nen (khong phai canvas nay — canvas cao
+  /// hon de chua tai). Dung de tinh dung vi tri "vanh tron" ma tai phai
+  /// bam vao, bat ke canvas duoc ve rong/cao bao nhieu.
+  final double containerSize;
+
   @override
   void paint(Canvas canvas, Size size) {
     final fillPaint = Paint()..color = color..style = PaintingStyle.fill;
     final strokePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.045
+      ..strokeWidth = containerSize * 0.035
       ..strokeCap = StrokeCap.round;
 
     final cx = size.width / 2;
-    final eyeY = size.height * 0.40;
-    const eyeDx = 0.17;
-    final eyeW = size.width * 0.09;
-    final baseEyeH = size.height * 0.12;
-    final eyeH = (baseEyeH * eyeOpenness).clamp(size.height * 0.012, baseEyeH);
+    // Diem tren cung cua VONG TRON NEN (khong phai canvas) — tai duoc "gan"
+    // vao day, mat/mui/rau tinh theo circleTop (khong phai size.height) de
+    // luon dung ty le voi nut tron du canvas cao hon bao nhieu.
+    final circleTop = (size.height - containerSize) / 2;
 
-    for (final dxFactor in [-eyeDx, eyeDx]) {
-      final rect = Rect.fromCenter(center: Offset(cx + size.width * dxFactor, eyeY), width: eyeW, height: eyeH);
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(eyeW / 2)), fillPaint);
+    // ─── Tai (2 tam giac + tai trong nhat mau hon) ───
+    final earBaseY = circleTop + containerSize * 0.10;
+    final earTipY = circleTop - containerSize * 0.16;
+    for (final side in [-1.0, 1.0]) {
+      final outerBase = Offset(cx + side * containerSize * 0.38, earBaseY + containerSize * 0.10);
+      final innerBase = Offset(cx + side * containerSize * 0.12, earBaseY);
+      final tip = Offset(cx + side * containerSize * 0.27, earTipY);
+      final ear = Path()
+        ..moveTo(outerBase.dx, outerBase.dy)
+        ..lineTo(tip.dx, tip.dy)
+        ..lineTo(innerBase.dx, innerBase.dy)
+        ..close();
+      canvas.drawPath(ear, fillPaint);
+
+      // Tai trong — tam giac nho hon, mau nhat hon (alpha thap) nam giua.
+      final innerFill = Paint()..color = color.withValues(alpha: 0.35)..style = PaintingStyle.fill;
+      final innerOuter = Offset.lerp(outerBase, tip, 0.30)!;
+      final innerInner = Offset.lerp(innerBase, tip, 0.30)!;
+      final innerTip = Offset.lerp(tip, Offset.lerp(outerBase, innerBase, 0.5)!, 0.35)!;
+      final earInner = Path()
+        ..moveTo(innerOuter.dx, innerOuter.dy)
+        ..lineTo(innerTip.dx, innerTip.dy)
+        ..lineTo(innerInner.dx, innerInner.dy)
+        ..close();
+      canvas.drawPath(earInner, innerFill);
     }
 
-    final mouthY = size.height * 0.63;
-    final mouthW = size.width * 0.24;
+    // ─── Ma hong (ve TRUOC mat de nam duoi/sau mat) — kawaii, tao cam giac
+    // than thien thay vi trong rong.
+    final cheekY = circleTop + containerSize * 0.52;
+    final blushPaint = Paint()..color = const Color(0xFFFF9EB5).withValues(alpha: 0.55)..style = PaintingStyle.fill;
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(cx + side * containerSize * 0.30, cheekY), width: containerSize * 0.15, height: containerSize * 0.10),
+        blushPaint,
+      );
+    }
+
+    // ─── Mat — TRON, co con nguoi + diem sang de "co hon" (audit "nhin
+    // kinh qua, lam sinh dong hon" — TRUOC DAY chi la hinh pill dac 1 mau,
+    // trong rong/vo hon; gio co long trang + con nguoi dam + 1 diem sang
+    // nho lech goc, dung ky thuat "eye highlight" pho bien trong nhan vat
+    // hoat hinh de tao cam giac dang nhin/song dong).
+    final eyeY = circleTop + containerSize * 0.42;
+    const eyeDx = 0.17;
+    final fullEyeR = containerSize * 0.075;
+    final pupilPaint = Paint()..color = const Color(0xFF2D2D3A)..style = PaintingStyle.fill;
+    final sparklePaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
+
+    if (eyeOpenness < 0.35) {
+      // Dang chop mat — 1 net cong mong thay vi mat tron day du.
+      final closedH = (containerSize * 0.016 * (eyeOpenness / 0.35)).clamp(containerSize * 0.006, containerSize * 0.016);
+      for (final dxFactor in [-eyeDx, eyeDx]) {
+        final rect = Rect.fromCenter(center: Offset(cx + containerSize * dxFactor, eyeY), width: fullEyeR * 2, height: closedH);
+        canvas.drawOval(rect, fillPaint);
+      }
+    } else {
+      for (final dxFactor in [-eyeDx, eyeDx]) {
+        final ex = cx + containerSize * dxFactor;
+        canvas.drawCircle(Offset(ex, eyeY), fullEyeR, fillPaint);
+        canvas.drawCircle(Offset(ex, eyeY - fullEyeR * 0.05), fullEyeR * 0.55, pupilPaint);
+        canvas.drawCircle(Offset(ex - fullEyeR * 0.22, eyeY - fullEyeR * 0.28), fullEyeR * 0.20, sparklePaint);
+      }
+    }
+
+    // ─── Mui — cham hong nho thay vi tam giac trang (tam giac trang tao
+    // cam giac "rang nanh" tren nen dam, cham hong mem mai va dung mau
+    // mui meo that hon).
+    final noseY = circleTop + containerSize * 0.535;
+    final nosePaint = Paint()..color = const Color(0xFFFF9EB5)..style = PaintingStyle.fill;
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, noseY), width: containerSize * 0.056, height: containerSize * 0.044),
+      nosePaint,
+    );
+
+    // ─── Rau (3 net moi ben, tu giua mat toa ra ngoai) — nhat/mem hon
+    // (alpha thap + mau trang thay vi mau nen) de khong roi/gay.
+    final whiskerY = circleTop + containerSize * 0.565;
+    final whiskerPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = containerSize * 0.010
+      ..strokeCap = StrokeCap.round;
+    for (final side in [-1.0, 1.0]) {
+      for (final rowOffset in [-0.05, 0.0, 0.05]) {
+        final startX = cx + side * containerSize * 0.22;
+        final endX = cx + side * containerSize * 0.42;
+        final y = whiskerY + containerSize * rowOffset;
+        canvas.drawLine(Offset(startX, y), Offset(endX, y + side * containerSize * rowOffset * 0.4), whiskerPaint);
+      }
+    }
+
+    // ─── Mieng (theo mood, giu logic cu, doi moc Y theo circleTop) ───
+    final mouthY = circleTop + containerSize * 0.66;
+    final mouthW = containerSize * 0.22;
 
     switch (mood) {
       case 'happy':
         final path = Path()
           ..moveTo(cx - mouthW / 2, mouthY)
-          ..quadraticBezierTo(cx, mouthY + size.height * (0.11 + 0.05 * mouthOpenness), cx + mouthW / 2, mouthY);
+          ..quadraticBezierTo(cx, mouthY + containerSize * (0.11 + 0.05 * mouthOpenness), cx + mouthW / 2, mouthY);
         canvas.drawPath(path, strokePaint);
         break;
       case 'comforting':
         final w = mouthW * 0.65;
         final path = Path()
           ..moveTo(cx - w / 2, mouthY)
-          ..quadraticBezierTo(cx, mouthY + size.height * (0.05 + 0.03 * mouthOpenness), cx + w / 2, mouthY);
+          ..quadraticBezierTo(cx, mouthY + containerSize * (0.05 + 0.03 * mouthOpenness), cx + w / 2, mouthY);
         canvas.drawPath(path, strokePaint);
         break;
       case 'playful':
         final path = Path()
-          ..moveTo(cx - mouthW / 2, mouthY + size.height * 0.015)
-          ..quadraticBezierTo(cx, mouthY + size.height * 0.04, cx + mouthW / 2, mouthY - size.height * 0.045);
+          ..moveTo(cx - mouthW / 2, mouthY + containerSize * 0.015)
+          ..quadraticBezierTo(cx, mouthY + containerSize * 0.04, cx + mouthW / 2, mouthY - containerSize * 0.045);
         canvas.drawPath(path, strokePaint);
         break;
-      default: // neutral
+      default: // neutral — "w" nho kieu meo: 2 duong cong nho gap nhau giua
         if (mouthOpenness > 0.05) {
           final rect = Rect.fromCenter(
             center: Offset(cx, mouthY),
-            width: mouthW * 0.6,
-            height: size.height * (0.035 + 0.09 * mouthOpenness),
+            width: mouthW * 0.55,
+            height: containerSize * (0.035 + 0.09 * mouthOpenness),
           );
           canvas.drawOval(rect, fillPaint);
         } else {
-          canvas.drawLine(Offset(cx - mouthW / 2, mouthY), Offset(cx + mouthW / 2, mouthY), strokePaint);
+          final path = Path()
+            ..moveTo(cx - mouthW / 2, mouthY - containerSize * 0.01)
+            ..quadraticBezierTo(cx - mouthW * 0.15, mouthY + containerSize * 0.025, cx, mouthY)
+            ..quadraticBezierTo(cx + mouthW * 0.15, mouthY + containerSize * 0.025, cx + mouthW / 2, mouthY - containerSize * 0.01);
+          canvas.drawPath(path, strokePaint);
         }
     }
   }
@@ -1443,6 +1608,7 @@ class _AiFacePainter extends CustomPainter {
     return oldDelegate.eyeOpenness != eyeOpenness ||
         oldDelegate.mouthOpenness != mouthOpenness ||
         oldDelegate.mood != mood ||
-        oldDelegate.color != color;
+        oldDelegate.color != color ||
+        oldDelegate.containerSize != containerSize;
   }
 }
