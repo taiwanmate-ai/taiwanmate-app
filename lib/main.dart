@@ -12,9 +12,29 @@ const _processTextChannel = MethodChannel('com.taiwanmate.chinesemate/process_te
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final fontLoader = FontLoader('NotoSansTC');
-  fontLoader.addFont(rootBundle.load('assets/fonts/NotoSansTC-Regular.ttf'));
-  await fontLoader.load();
+  // Audit "Web production treo mai o man hinh LOADING tinh (index.html),
+  // khong bao gio toi runApp()" (2026-09-09) — XAC NHAN THAT qua production
+  // that: 1 request font NotoSansTC-Regular.ttf bi ERR_CONNECTION_RESET
+  // (mang chap chon/CDN GitHub Pages), va await fontLoader.load() TRUOC DAY
+  // KHONG CO timeout/catch nao — 1 lan fetch font bi treo/that bai la
+  // BLOCK VINH VIEN ca app, khong bao gio goi duoc runApp(), khong loi hien
+  // ra man hinh (nguoi dung chi thay "LOADING" tinh cua index.html mai
+  // mai). Loi nay CO SAN TU TRUOC (main.dart khong bi dung boi 5 tinh
+  // nang Voice roadmap moi day), chi la de bi lo ra khi mang/CDN that
+  // khong on dinh — rollback ve commit cu KHONG sua duoc gi vi code nay
+  // giong het o ca ban cu. Fix dung: gioi han thoi gian cho + bo qua loi
+  // (fallback ve font mac dinh cua he thong TAM THOI, Flutter se tu tai
+  // lai font that ngay sau do trong nen) — runApp() LUON duoc goi, khong
+  // bao gio treo vo thoi han vi 1 asset phu (font) tai cham/loi.
+  try {
+    final fontLoader = FontLoader('NotoSansTC');
+    fontLoader.addFont(rootBundle.load('assets/fonts/NotoSansTC-Regular.ttf'));
+    await fontLoader.load().timeout(const Duration(seconds: 5));
+  } catch (e) {
+    // Im lang bo qua — UI se tam dung font he thong cho tieng Trung, sau
+    // do Flutter tu dong ve lai khi font that su tai xong (khong chan gi
+    // ca). Uu tien "app mo duoc" hon "font dung ngay tu dau".
+  }
 
   _setupProcessTextListener();
 
