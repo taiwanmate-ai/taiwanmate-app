@@ -910,6 +910,147 @@ class _TranslateScreenState extends State<TranslateScreen>
     }
   }
 
+  /// Idea #8 — long-press 1 tu trong ket qua de tra rieng pinyin/nghia,
+  /// KHONG tu dong luu vao tu vung (chi luu khi bam "Luu tu"). Tai dung
+  /// nguyen /translate/text (endpoint da dung cho "Giai thich them"),
+  /// khong them backend moi — chi khac la truyen 1 tu thay vi ca cau.
+  void _showWordLookupSheet(String rawWord) {
+    final word = rawWord.trim();
+    if (word.isEmpty || word.length > 12) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _fetchWordLookup(word),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(
+                    child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2))),
+              );
+            }
+            if (snapshot.hasError) {
+              final err = snapshot.error;
+              if (err is _QuotaExceededError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.pop(sheetCtx);
+                  if (mounted) _showQuotaDialog('học sâu', err.limit);
+                });
+                return const SizedBox.shrink();
+              }
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Lỗi tra từ. Thử lại sau.',
+                    style: TextStyle(color: _DS.textGrey)),
+              );
+            }
+            final data = snapshot.data!;
+            final pinyin = (data['pinyin'] ?? '').toString();
+            final vietnamese = (data['translated_vietnamese'] ??
+                    data['explanation'] ??
+                    '')
+                .toString();
+            final explanation = (data['explanation'] ?? '').toString();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text(word,
+                          style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: _DS.textDark,
+                              fontFamily: 'NotoSansTC')),
+                      if (pinyin.isNotEmpty) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                            child: Text(pinyin,
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    color: _DS.indigo,
+                                    fontStyle: FontStyle.italic))),
+                      ],
+                    ]),
+                    if (vietnamese.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(vietnamese,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              color: _DS.textDark,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                    if (explanation.isNotEmpty && explanation != vietnamese) ...[
+                      const SizedBox(height: 6),
+                      Text(explanation,
+                          style: const TextStyle(
+                              fontSize: 13, color: _DS.textGrey, height: 1.5)),
+                    ],
+                    const SizedBox(height: 16),
+                    Row(children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _speak(word, lang: 'zh-TW'),
+                          icon: const Icon(Icons.volume_up_rounded, size: 16),
+                          label: const Text('Nghe'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(sheetCtx);
+                            _saveVocabulary(word, pinyin, vietnamese);
+                          },
+                          icon: const Icon(Icons.bookmark_add_rounded,
+                              size: 16),
+                          label: const Text('Lưu từ'),
+                        ),
+                      ),
+                    ]),
+                  ]),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchWordLookup(String word) async {
+    final token = await _storage.read(key: 'access_token');
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ));
+    try {
+      final response = await dio.post(
+        '${ApiConstants.baseUrl}/translate/text',
+        data: {'text': word},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return Map<String, dynamic>.from(response.data as Map);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          throw _QuotaExceededError(detail['limit'] ?? 20);
+        }
+      }
+      rethrow;
+    }
+  }
+
   void _showQuotaDialog(String featureName, int limit) {
     showDialog(
       context: context,
@@ -1550,6 +1691,12 @@ class _TranslateScreenState extends State<TranslateScreen>
                   fontWeight: FontWeight.w700,
                   height: 1.6,
                   fontFamily: 'NotoSansTC'),
+              onSelectionChanged: (selection, cause) {
+                if (cause == SelectionChangedCause.longPress &&
+                    !selection.isCollapsed) {
+                  _showWordLookupSheet(selection.textInside(_extractedText));
+                }
+              },
             ),
           ),
           const Padding(
@@ -2773,6 +2920,15 @@ class _TranslateScreenState extends State<TranslateScreen>
                 height: 1.3,
                 fontFamily: isChinese ? 'NotoSansTC' : null,
               ),
+              onSelectionChanged: isChinese && displayText.isNotEmpty
+                  ? (selection, cause) {
+                      if (cause == SelectionChangedCause.longPress &&
+                          !selection.isCollapsed) {
+                        _showWordLookupSheet(
+                            selection.textInside(displayText));
+                      }
+                    }
+                  : null,
             ),
             if (explanation.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -2887,6 +3043,11 @@ class _TranslateScreenState extends State<TranslateScreen>
       ),
     );
   }
+}
+
+class _QuotaExceededError implements Exception {
+  _QuotaExceededError(this.limit);
+  final int limit;
 }
 
 class _PulseRing extends StatefulWidget {
