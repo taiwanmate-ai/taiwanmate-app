@@ -175,6 +175,11 @@ class _TranslateScreenState extends State<TranslateScreen>
     {'vi': 'Tôi cần thông dịch viên', 'icon': '🗣️'},
   ];
 
+  /// Idea #3 — ban dich (zh+pinyin) + duong dan audio da dong goi san
+  /// trong app luc build, xem assets/data/emergency_phrases.json — nap 1
+  /// lan trong initState() (_loadOfflineEmergencyPhrases).
+  List<Map<String, dynamic>> _offlineEmergencyPhrases = [];
+
   static const _quickPhrases = [
     {'vi': 'Tôi không hiểu', 'icon': '🤔'},
     {'vi': 'Bao nhiêu tiền?', 'icon': '💰'},
@@ -189,6 +194,37 @@ class _TranslateScreenState extends State<TranslateScreen>
     _inputController.addListener(() => setState(() {}));
     IncomingTextState.pendingText.addListener(_handleIncomingText);
     _handleIncomingText(); // xử lý trường hợp text đã có sẵn khi màn hình này build lần đầu
+    _loadOfflineEmergencyPhrases();
+  }
+
+  /// Idea #3 — cau khan cap dong goi san (dich + TTS tao 1 LAN luc build,
+  /// xem assets/data/emergency_phrases.json) de HOAT DONG 100% OFFLINE,
+  /// khac voi _quickPhrases/_translate() (goi API moi lan, can mang).
+  Future<void> _loadOfflineEmergencyPhrases() async {
+    try {
+      final raw = await rootBundle.loadString('assets/data/emergency_phrases.json');
+      final parsed = jsonDecode(raw) as List;
+      if (mounted) {
+        setState(() =>
+            _offlineEmergencyPhrases = parsed.cast<Map<String, dynamic>>());
+      }
+    } catch (_) {
+      // Neu asset loi/thieu (khong nen xay ra), giu danh sach rong —
+      // dialog se fallback ve hien thi vi ban dich cu (xem _showEmergencyDialog).
+    }
+  }
+
+  Future<void> _playOfflinePhraseAudio(String assetPath) async {
+    try {
+      final data = await rootBundle.load(assetPath);
+      final bytes = data.buffer.asUint8List();
+      await webPlayAudio(base64Encode(bytes));
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không phát được âm thanh.')),
+        );
+    }
   }
 
   void _handleIncomingText() {
@@ -1216,48 +1252,74 @@ class _TranslateScreenState extends State<TranslateScreen>
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                       color: Colors.white)),
-              Text('Tap để dịch và phát âm ngay',
+              Text('Hoạt động không cần mạng — bấm để nghe ngay',
                   style: TextStyle(fontSize: 12, color: Colors.white70)),
             ]),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: _emergencyPhrases
-                  .map((p) => GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context);
-                          _inputController.text = p['vi'] as String;
-                          _translate(overrideText: p['vi'] as String);
-                          _tabController.animateTo(0);
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: _DS.redLight,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: _DS.red.withOpacity(0.2)),
-                          ),
-                          child: Row(children: [
-                            Text(p['icon'] as String,
-                                style: const TextStyle(fontSize: 22)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Text(p['vi'] as String,
-                                    style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: _DS.textDark))),
-                            const Icon(Icons.translate_rounded,
-                                size: 18, color: _DS.red),
-                          ]),
-                        ),
-                      ))
+              children: (_offlineEmergencyPhrases.isNotEmpty
+                      ? _offlineEmergencyPhrases
+                      : _emergencyPhrases)
+                  .map(_buildEmergencyPhraseRow)
                   .toList(),
             ),
           ),
           const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
+  /// Idea #3 — 1 dong trong dialog Cau khan cap. Neu co du lieu dong goi
+  /// san (audio_asset — truong hop binh thuong), bam de PHAT AM OFFLINE
+  /// ngay, khong goi API nao ca. Chi khi asset that bai load (hiem, xem
+  /// _loadOfflineEmergencyPhrases) moi fallback ve hanh vi cu (dich qua
+  /// mang trong tab Van ban).
+  Widget _buildEmergencyPhraseRow(Map<String, dynamic> p) {
+    final hasOffline = p.containsKey('audio_asset');
+    return GestureDetector(
+      onTap: hasOffline
+          ? () => _playOfflinePhraseAudio(p['audio_asset'] as String)
+          : () {
+              Navigator.pop(context);
+              _inputController.text = p['vi'] as String;
+              _translate(overrideText: p['vi'] as String);
+              _tabController.animateTo(0);
+            },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _DS.redLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _DS.red.withOpacity(0.2)),
+        ),
+        child: Row(children: [
+          Text(p['icon'] as String, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(p['vi'] as String,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.textDark)),
+                if (hasOffline) ...[
+                  const SizedBox(height: 2),
+                  Text('${p['zh']}   ${p['pinyin']}',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: _DS.red,
+                          fontFamily: 'NotoSansTC',
+                          fontStyle: FontStyle.italic)),
+                ],
+              ])),
+          Icon(hasOffline ? Icons.volume_up_rounded : Icons.translate_rounded,
+              size: 18, color: _DS.red),
         ]),
       ),
     );
