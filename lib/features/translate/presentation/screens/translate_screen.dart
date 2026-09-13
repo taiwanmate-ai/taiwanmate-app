@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'package:chinesemate/core/state/incoming_text_state.dart';
 import 'package:chinesemate/core/constants/api_constants.dart';
+import 'package:chinesemate/features/translate/presentation/screens/translate_history_screen.dart';
 
 class _DS {
   static const bg = Color(0xFFF0F4FF);
@@ -1144,6 +1145,26 @@ class _TranslateScreenState extends State<TranslateScreen>
                     color: _DS.textDark,
                     letterSpacing: -0.5)),
             const Spacer(),
+            GestureDetector(
+              onTap: () async {
+                final picked = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TranslateHistoryScreen()));
+                if (picked != null && picked.isNotEmpty && mounted) {
+                  _tabController.animateTo(0);
+                  _translate(overrideText: picked);
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: _DS.indigoLight, shape: BoxShape.circle),
+                child: const Icon(Icons.history_rounded,
+                    size: 18, color: _DS.indigo),
+              ),
+            ),
             GestureDetector(
               onTap: _showEmergencyDialog,
               child: Container(
