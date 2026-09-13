@@ -16,6 +16,7 @@ import 'package:chinesemate/core/utils/image_resize.dart';
 import 'dart:async';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'package:chinesemate/core/state/incoming_text_state.dart';
+import 'package:chinesemate/core/constants/api_constants.dart';
 
 class _DS {
   static const bg = Color(0xFFF0F4FF);
@@ -87,6 +88,11 @@ class _TranslateScreenState extends State<TranslateScreen>
   bool _imageLoading = false;
   String _imageTargetLang = 'zh-TW';
   String _imageLoadingMsg = 'Đang xử lý...';
+  bool _imageAiLearningLoading = false;
+  bool _imageAiLearningLoaded = false;
+  bool _contractMode = false;
+  List<dynamic> _riskAnalysis = [];
+  String _contractRecommendation = '';
 
   bool _isRecording = false;
   bool _voiceLoading = false;
@@ -254,7 +260,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         receiveTimeout: const Duration(seconds: 15),
       ));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/fast',
+        '${ApiConstants.baseUrl}/translate/fast',
         data: {'text': text, 'target_lang': _targetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -305,7 +311,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         receiveTimeout: const Duration(seconds: 60),
       ));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
+        '${ApiConstants.baseUrl}/translate/text',
         data: {'text': text, 'target_lang': _targetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -348,6 +354,12 @@ class _TranslateScreenState extends State<TranslateScreen>
         final temp = _sourceLang;
         _sourceLang = _targetLang;
         _targetLang = temp;
+      } else {
+        // Nguồn là 'auto' nên không biết chính xác ngôn ngữ đã phát hiện,
+        // nhưng chắc chắn kết quả đang ở _targetLang — dùng nó làm nguồn
+        // mới, đích mới mặc định về ngôn ngữ còn lại thường dùng nhất.
+        _sourceLang = _targetLang;
+        _targetLang = _targetLang == 'vi' ? 'zh-TW' : 'vi';
       }
       _inputController.text = _result;
       _result = '';
@@ -371,6 +383,9 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageResultVietnamese = '';
       _imagePinyin = '';
       _imageExplanation = '';
+      _imageAiLearningLoaded = false;
+      _riskAnalysis = [];
+      _contractRecommendation = '';
       _extractedText = '';
       _showOcrEditor = false;
     });
@@ -389,6 +404,9 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageResultVietnamese = '';
       _imagePinyin = '';
       _imageExplanation = '';
+      _imageAiLearningLoaded = false;
+      _riskAnalysis = [];
+      _contractRecommendation = '';
       _extractedText = '';
       _showOcrEditor = false;
     });
@@ -398,7 +416,9 @@ class _TranslateScreenState extends State<TranslateScreen>
   /// Phase 2: Android dung ML Kit OCR truoc, cho user chinh sua text truoc
   /// khi dich nhanh. Web/iOS (chua test duoc that) GIU NGUYEN luong cu 100%.
   Future<void> _tryOnDeviceOcrFirst(String base64Image) async {
-    if (kIsWeb || !isOnDeviceOcrSupported) {
+    // Contract Scanner can phan tich AI toan van (risk_analysis) — bo qua
+    // luong OCR-nhanh-truoc vi /translate/fast khong the tao risk_analysis.
+    if (_contractMode || kIsWeb || !isOnDeviceOcrSupported) {
       await _translateImage();
       return;
     }
@@ -501,6 +521,9 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageResultVietnamese = '';
       _imagePinyin = '';
       _imageExplanation = '';
+      _imageAiLearningLoaded = false;
+      _riskAnalysis = [];
+      _contractRecommendation = '';
     });
   }
 
@@ -511,6 +534,12 @@ class _TranslateScreenState extends State<TranslateScreen>
     setState(() {
       _imageLoading = true;
       _imageResult = '';
+      _imageResultVietnamese = '';
+      _imagePinyin = '';
+      _imageExplanation = '';
+      _imageAiLearningLoaded = false;
+      _riskAnalysis = [];
+      _contractRecommendation = '';
     });
     try {
       final token = await _storage.read(key: 'access_token');
@@ -518,7 +547,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 15)));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/fast',
+        '${ApiConstants.baseUrl}/translate/fast',
         data: {'text': text, 'target_lang': _imageTargetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -543,6 +572,70 @@ class _TranslateScreenState extends State<TranslateScreen>
     }
   }
 
+  /// Uu tien nhanh: chon path dich re nhat dang co san — neu OCR-tren-may
+  /// da chay xong va dang hien editor (Android/iOS) thi dung lai text do
+  /// qua /translate/fast (khong goi lai /translate/image dat tien); chi
+  /// khi chua co OCR nao san (web / thiet bi khong ho tro) moi phai goi
+  /// /translate/image (duy nhat 1 lua chon kha thi tren cac nen tang do).
+  Future<void> _handleTranslateImageTap() async {
+    if (!_contractMode &&
+        _showOcrEditor &&
+        _ocrTextController.text.trim().isNotEmpty) {
+      await _translateOcrText();
+    } else {
+      await _translateImage();
+    }
+  }
+
+  /// AI LEARNING cho tab Anh — CHI goi khi user chu dong bam "Giai thich
+  /// them", khong preload. Tai dung /translate/text (giong text/voice tab).
+  Future<void> _loadImageAiLearning(String text) async {
+    if (text.isEmpty || _imageAiLearningLoading) return;
+    setState(() => _imageAiLearningLoading = true);
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ));
+      final response = await dio.post(
+        '${ApiConstants.baseUrl}/translate/text',
+        data: {'text': text, 'target_lang': _imageTargetLang},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      setState(() {
+        _imageResultSimplified = response.data['translated_simplified'] ?? '';
+        _imageResultEnglish = response.data['translated_english'] ?? '';
+        _imageResultVietnamese = response.data['translated_vietnamese'] ??
+            response.data['explanation'] ??
+            '';
+        _imagePinyin = response.data['pinyin'] ?? '';
+        _imageExplanation = response.data['explanation'] ?? '';
+        _imageAiLearningLoaded = true;
+      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 20;
+          if (mounted) _showQuotaDialog('học sâu', limit);
+          return;
+        }
+      }
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+        );
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
+        );
+    } finally {
+      if (mounted) setState(() => _imageAiLearningLoading = false);
+    }
+  }
+
   /// Phase 2: "Quet nang cao" — chi chay khi user bam, dung Cloud Vision
   Future<void> _advancedScan() async {
     if (_imageBase64 == null) return;
@@ -553,7 +646,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 15)));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/ocr-advanced',
+        '${ApiConstants.baseUrl}/translate/ocr-advanced',
         data: {'image_base64': _imageBase64},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -585,6 +678,9 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageLoading = true;
       _imageResult = '';
       _imageLoadingMsg = 'Đang đọc văn bản trong ảnh...';
+      _imageAiLearningLoaded = false;
+      _riskAnalysis = [];
+      _contractRecommendation = '';
     });
     final msgs = [
       'Đang đọc văn bản trong ảnh...',
@@ -605,14 +701,15 @@ class _TranslateScreenState extends State<TranslateScreen>
         receiveTimeout: const Duration(seconds: 90),
       ));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/image',
+        '${ApiConstants.baseUrl}/translate/image',
         data: {
           'image_base64': _imageBase64,
           'target_lang': _imageTargetLang,
-          'image_type': 'general'
+          'image_type': _contractMode ? 'contract' : 'general',
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      final riskAnalysis = response.data['risk_analysis'];
       setState(() {
         _extractedText = response.data['extracted_text'] ?? '';
         _imageResult = response.data['translated'] ?? '';
@@ -623,7 +720,22 @@ class _TranslateScreenState extends State<TranslateScreen>
             '';
         _imagePinyin = response.data['pinyin'] ?? '';
         _imageExplanation = response.data['explanation'] ?? '';
+        // /translate/image la duy nhat 1 cuoc goi lay het OCR+dich+pinyin+
+        // giai thich (khong tach re duoc voi quota "image" hien tai), nen
+        // du lieu deep-learning da co san — khong can bam "Giai thich them"
+        // lai nua, chi platform khong ho tro OCR tren may (web/fallback)
+        // moi di qua duong nay.
+        _imageAiLearningLoaded = true;
+        _riskAnalysis = riskAnalysis is List ? riskAnalysis : [];
+        _contractRecommendation = response.data['recommendation'] ?? '';
       });
+      // Backend chi tra risk_analysis khi user la VIP (xem check is_vip
+      // trong translate.py) — neu bam Contract Scanner ma khong co
+      // risk_analysis nghia la tai khoan Free, hien upsell thay vi im
+      // lang tra ve ban dich thuong khien user tuong Contract Scanner loi.
+      if (_contractMode && (riskAnalysis is! List || riskAnalysis.isEmpty)) {
+        if (mounted) _showContractVipUpsellDialog();
+      }
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
@@ -686,7 +798,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 30)));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/voice-fast',
+        '${ApiConstants.baseUrl}/translate/voice-fast',
         data: {
           'audio_base64': audioBase64,
           'target_lang': _voiceTargetLang,
@@ -733,7 +845,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           connectTimeout: const Duration(seconds: 60),
           receiveTimeout: const Duration(seconds: 60)));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/text',
+        '${ApiConstants.baseUrl}/translate/text',
         data: {'text': text, 'target_lang': _voiceTargetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -763,7 +875,7 @@ class _TranslateScreenState extends State<TranslateScreen>
       final token = await _storage.read(key: 'access_token');
       final dio = Dio();
       await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/vocabulary',
+        '${ApiConstants.baseUrl}/vocabulary',
         data: {
           'chinese': chinese,
           'pinyin': pinyin,
@@ -816,6 +928,56 @@ class _TranslateScreenState extends State<TranslateScreen>
                 'Gói Free giới hạn $limit lượt/ngày.\nNâng VIP để dùng không giới hạn!',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _DS.textGrey)),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const VipScreen()));
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [_DS.indigo, _DS.indigoDark]),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                    '⭐ Nâng lên VIP — NT\$199/tháng · NT\$1,499/· tiết kiệm 37%',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Để sau',
+                    style: TextStyle(color: _DS.textGrey))),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  void _showContractVipUpsellDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('📄', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 12),
+            const Text('Phân tích rủi ro hợp đồng là tính năng VIP',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            const Text(
+                'Nâng VIP để AI tự động highlight điều khoản nguy hiểm, có lợi và đưa ra khuyến nghị cho từng hợp đồng bạn ký.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _DS.textGrey)),
             const SizedBox(height: 20),
             GestureDetector(
               onTap: () {
@@ -932,7 +1094,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         responseType: ResponseType.bytes,
       ));
       final response = await dio.post(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tts',
+        '${ApiConstants.baseUrl}/translate/tts',
         data: {'text': text, 'lang': lang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -1358,6 +1520,105 @@ class _TranslateScreenState extends State<TranslateScreen>
               padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
+        // ── 1b. Phân tích rủi ro hợp đồng (Contract Scanner, VIP) ──────
+        if (_riskAnalysis.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: _DS.redLight,
+                    borderRadius: BorderRadius.circular(20)),
+                child: const Text('⚠️ Phân tích rủi ro hợp đồng',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _DS.red)),
+              ),
+              const SizedBox(height: 8),
+              ..._riskAnalysis.map((raw) {
+                final item = raw is Map ? raw : {};
+                final level = (item['level'] ?? 'BINH_THUONG') as String;
+                final clause = (item['clause'] ?? '').toString();
+                final note = (item['note'] ?? '').toString();
+                late final Color bg, fg;
+                late final String icon;
+                if (level == 'NGUY_HIEM') {
+                  bg = _DS.redLight;
+                  fg = _DS.red;
+                  icon = '🔴';
+                } else if (level == 'CO_LOI') {
+                  bg = _DS.greenLight;
+                  fg = _DS.green;
+                  icon = '🟢';
+                } else {
+                  bg = _DS.bg;
+                  fg = _DS.textGrey;
+                  icon = '⚪';
+                }
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: bg, borderRadius: BorderRadius.circular(10)),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text(icon, style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                              child: Text(clause,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: fg))),
+                        ]),
+                        if (note.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(note,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _DS.textGrey,
+                                  height: 1.4)),
+                        ],
+                      ]),
+                );
+              }),
+              if (_contractRecommendation.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: _DS.yellowLight,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('💡 Khuyến nghị',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _DS.orange)),
+                        const SizedBox(height: 4),
+                        Text(_contractRecommendation,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: _DS.textDark,
+                                height: 1.5)),
+                      ]),
+                ),
+              ],
+            ]),
+          ),
+          const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+        ],
+
         // ── 2. Pinyin ─────────────────────────────────────
         if (_imagePinyin.isNotEmpty) ...[
           Padding(
@@ -1477,6 +1738,29 @@ class _TranslateScreenState extends State<TranslateScreen>
         ] else ...[
           const SizedBox(height: 16),
         ],
+
+        // ── Giải thích thêm (pinyin/nghĩa sâu) — chỉ chạy khi user bấm ──
+        if (_extractedText.isNotEmpty && !_imageAiLearningLoaded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _imageAiLearningLoading
+                    ? null
+                    : () => _loadImageAiLearning(_extractedText),
+                icon: _imageAiLearningLoading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.school_rounded, size: 16),
+                label: Text(_imageAiLearningLoading
+                    ? 'Đang tải...'
+                    : 'Giải thích thêm (pinyin, ngữ pháp...)'),
+              ),
+            ),
+          ),
 
         // ── Action buttons ────────────────────────────────
         Padding(
@@ -1805,33 +2089,58 @@ class _TranslateScreenState extends State<TranslateScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
-        // Contract scanner banner
-        Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient:
-                const LinearGradient(colors: [Color(0xFF1A1A4E), _DS.indigo]),
-            borderRadius: BorderRadius.circular(16),
+        // Contract scanner banner — bam de bat/tat che do phan tich rui ro
+        // hop dong (image_type: 'contract'), thay vi chi nam im khong lam gi.
+        GestureDetector(
+          onTap: () {
+            setState(() => _contractMode = !_contractMode);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_contractMode
+                  ? 'Đã bật Contract Scanner — chọn ảnh hợp đồng để AI phân tích rủi ro'
+                  : 'Đã tắt Contract Scanner'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 2),
+            ));
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [Color(0xFF1A1A4E), _DS.indigo]),
+              borderRadius: BorderRadius.circular(16),
+              border: _contractMode
+                  ? Border.all(color: Colors.white, width: 2)
+                  : null,
+            ),
+            child: Row(children: [
+              const Text('📄', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Text('Contract Scanner',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white)),
+                    Text(
+                        _contractMode
+                            ? 'Đang BẬT — chọn ảnh hợp đồng bên dưới'
+                            : 'AI tự động highlight điều khoản nguy hiểm',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.white70)),
+                  ])),
+              _contractMode
+                  ? const Icon(Icons.check_circle_rounded,
+                      size: 20, color: Colors.white)
+                  : const Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: Colors.white54),
+            ]),
           ),
-          child: const Row(children: [
-            Text('📄', style: TextStyle(fontSize: 24)),
-            SizedBox(width: 12),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('Contract Scanner',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white)),
-                  Text('AI tự động highlight điều khoản nguy hiểm',
-                      style: TextStyle(fontSize: 11, color: Colors.white70)),
-                ])),
-            Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: Colors.white54),
-          ]),
         ),
 
         _buildSingleLangSelector(
@@ -1910,7 +2219,7 @@ class _TranslateScreenState extends State<TranslateScreen>
             icon: Icons.translate_rounded,
             loading: _imageLoading,
             enabled: _imageBase64 != null,
-            onTap: _translateImage,
+            onTap: _handleTranslateImageTap,
           )),
         ]),
 
