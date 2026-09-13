@@ -1112,6 +1112,20 @@ class _TranslateScreenState extends State<TranslateScreen>
     }
   }
 
+  /// Idea #4 — "Hiển thị cho người khác xem": phóng to bản dịch toàn màn
+  /// hình, chữ lớn, nền sáng, de doc tu xa hoac dua cho nguoi Dai Loan doc.
+  void _showBigDisplay(String original, String translated,
+      {String pinyin = ''}) {
+    if (original.isEmpty && translated.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _BigDisplayScreen(
+            original: original, translated: translated, pinyin: pinyin),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1464,6 +1478,7 @@ class _TranslateScreenState extends State<TranslateScreen>
                 _sourceLang == 'zh-TW' ? _inputController.text : _result,
             vietnameseForSave:
                 _sourceLang == 'vi' ? _inputController.text : _resultVietnamese,
+            originalForDisplay: _inputController.text.trim(),
             onLoadAiLearning: () =>
                 _loadAiLearning(_inputController.text.trim()),
             aiLearningLoading: _aiLearningLoading,
@@ -1793,6 +1808,15 @@ class _TranslateScreenState extends State<TranslateScreen>
                 label: 'Nghe',
                 onTap: () => _speak(_imageResult, lang: 'zh-TW'),
               ),
+            if (_imageResult.isNotEmpty || _extractedText.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _buildActionBtn(
+                icon: Icons.fullscreen_rounded,
+                label: 'Hiển thị to',
+                onTap: () => _showBigDisplay(_extractedText, _imageResult,
+                    pinyin: _imagePinyin),
+              ),
+            ],
             const SizedBox(width: 8),
             _buildActionBtn(
               icon: Icons.copy_rounded,
@@ -2533,6 +2557,7 @@ class _TranslateScreenState extends State<TranslateScreen>
             explanation: _voiceExplanation,
             chineseForSave: _voiceResult,
             vietnameseForSave: _transcript,
+            originalForDisplay: _transcript,
             onLoadAiLearning: () => _loadVoiceAiLearning(_transcript),
             aiLearningLoading: _voiceAiLearningLoading,
             aiLearningLoaded: _voiceAiLearningLoaded,
@@ -2661,6 +2686,7 @@ class _TranslateScreenState extends State<TranslateScreen>
     required String explanation,
     String chineseForSave = '',
     String vietnameseForSave = '',
+    String originalForDisplay = '',
     VoidCallback? onLoadAiLearning,
     bool aiLearningLoading = false,
     bool aiLearningLoaded = false,
@@ -2791,6 +2817,15 @@ class _TranslateScreenState extends State<TranslateScreen>
                   icon: Icons.volume_up_rounded,
                   label: 'Nghe',
                   onTap: () => _speak(displayText, lang: displayLang)),
+            if (displayText.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _buildActionBtn(
+                icon: Icons.fullscreen_rounded,
+                label: 'Hiển thị to',
+                onTap: () => _showBigDisplay(originalForDisplay, displayText,
+                    pinyin: pinyin),
+              ),
+            ],
             const SizedBox(width: 8),
             _buildActionBtn(
               icon: Icons.copy_rounded,
@@ -2902,6 +2937,113 @@ class _PulseRingState extends State<_PulseRing>
             shape: BoxShape.circle,
             color: widget.color.withOpacity(_fade.value),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Man hinh phong to toan man hinh — chu lon, nen sang, de dua may cho
+/// nguoi Dai Loan doc truc tiep (Idea #4). Bam vao giua man hinh de dao
+/// nguoc thu tu tren/duoi, tien cho nguoi ngoi doi dien doc.
+class _BigDisplayScreen extends StatefulWidget {
+  const _BigDisplayScreen(
+      {required this.original, required this.translated, this.pinyin = ''});
+  final String original;
+  final String translated;
+  final String pinyin;
+
+  @override
+  State<_BigDisplayScreen> createState() => _BigDisplayScreenState();
+}
+
+class _BigDisplayScreenState extends State<_BigDisplayScreen> {
+  bool _flipped = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final topText = _flipped ? widget.translated : widget.original;
+    final bottomText = _flipped ? widget.original : widget.translated;
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: () => setState(() => _flipped = !_flipped),
+          behavior: HitTestBehavior.opaque,
+          child: Stack(children: [
+            Column(children: [
+              Expanded(
+                child: RotatedBox(
+                  quarterTurns: 2,
+                  child: Container(
+                    width: double.infinity,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.all(24),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        topText,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w800,
+                            color: _DS.textDark,
+                            fontFamily: 'NotoSansTC',
+                            height: 1.4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(height: 1, thickness: 1, color: _DS.indigoLight),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(24),
+                  child: SingleChildScrollView(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(
+                        bottomText,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w800,
+                            color: _DS.textDark,
+                            fontFamily: 'NotoSansTC',
+                            height: 1.4),
+                      ),
+                      if (!_flipped && widget.pinyin.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(widget.pinyin,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                color: _DS.indigo,
+                                fontStyle: FontStyle.italic)),
+                      ],
+                    ]),
+                  ),
+                ),
+              ),
+            ]),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: _DS.textGrey),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton(
+                icon: const Icon(Icons.swap_vert_rounded, color: _DS.indigo),
+                tooltip: 'Đổi vị trí trên/dưới',
+                onPressed: () => setState(() => _flipped = !_flipped),
+              ),
+            ),
+          ]),
         ),
       ),
     );
