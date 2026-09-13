@@ -94,6 +94,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   bool _contractMode = false;
   List<dynamic> _riskAnalysis = [];
   String _contractRecommendation = '';
+  bool _scamWarning = false;
+  List<dynamic> _scamPatterns = [];
 
   bool _isRecording = false;
   bool _voiceLoading = false;
@@ -387,6 +389,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageAiLearningLoaded = false;
       _riskAnalysis = [];
       _contractRecommendation = '';
+      _scamWarning = false;
+      _scamPatterns = [];
       _extractedText = '';
       _showOcrEditor = false;
     });
@@ -408,6 +412,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageAiLearningLoaded = false;
       _riskAnalysis = [];
       _contractRecommendation = '';
+      _scamWarning = false;
+      _scamPatterns = [];
       _extractedText = '';
       _showOcrEditor = false;
     });
@@ -525,6 +531,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageAiLearningLoaded = false;
       _riskAnalysis = [];
       _contractRecommendation = '';
+      _scamWarning = false;
+      _scamPatterns = [];
     });
   }
 
@@ -541,6 +549,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageAiLearningLoaded = false;
       _riskAnalysis = [];
       _contractRecommendation = '';
+      _scamWarning = false;
+      _scamPatterns = [];
     });
     try {
       final token = await _storage.read(key: 'access_token');
@@ -682,6 +692,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageAiLearningLoaded = false;
       _riskAnalysis = [];
       _contractRecommendation = '';
+      _scamWarning = false;
+      _scamPatterns = [];
     });
     final msgs = [
       'Đang đọc văn bản trong ảnh...',
@@ -711,6 +723,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       final riskAnalysis = response.data['risk_analysis'];
+      final scamPatterns = response.data['scam_patterns'];
       setState(() {
         _extractedText = response.data['extracted_text'] ?? '';
         _imageResult = response.data['translated'] ?? '';
@@ -729,20 +742,24 @@ class _TranslateScreenState extends State<TranslateScreen>
         _imageAiLearningLoaded = true;
         _riskAnalysis = riskAnalysis is List ? riskAnalysis : [];
         _contractRecommendation = response.data['recommendation'] ?? '';
+        // Idea #6 — user KHONG VIP bam Contract Scanner gio nhan duoc
+        // scam_warning/scam_patterns (kiem tra dau hieu lua dao, backend
+        // dung quota "scam_check" rieng) THAY VI im lang tra ve ban dich
+        // thuong nhu truoc — khong con can hien upsell mac dinh nua, day
+        // la ket qua HOP LE cho Free, khong phai loi.
+        _scamWarning = response.data['scam_warning'] == true;
+        _scamPatterns = scamPatterns is List ? scamPatterns : [];
       });
-      // Backend chi tra risk_analysis khi user la VIP (xem check is_vip
-      // trong translate.py) — neu bam Contract Scanner ma khong co
-      // risk_analysis nghia la tai khoan Free, hien upsell thay vi im
-      // lang tra ve ban dich thuong khien user tuong Contract Scanner loi.
-      if (_contractMode && (riskAnalysis is! List || riskAnalysis.isEmpty)) {
-        if (mounted) _showContractVipUpsellDialog();
-      }
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
           final limit = detail['limit'] ?? 5;
           setState(() => _imageResult = '');
+          if (detail['feature'] == 'scam_check') {
+            if (mounted) _showQuotaDialog('kiểm tra lừa đảo', limit);
+            return;
+          }
           if (mounted) _showQuotaDialog('dịch ảnh', limit);
           return;
         }
@@ -1817,6 +1834,112 @@ class _TranslateScreenState extends State<TranslateScreen>
                       ]),
                 ),
               ],
+            ]),
+          ),
+          const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+        ],
+
+        // ── 1c. Kiểm tra dấu hiệu lừa đảo (Contract Scanner, Free) ─────
+        if (_scamPatterns.isNotEmpty || _scamWarning) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: _scamWarning ? _DS.redLight : _DS.greenLight,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(
+                    _scamWarning
+                        ? '🚩 Phát hiện dấu hiệu lừa đảo'
+                        : '✅ Không phát hiện dấu hiệu lừa đảo',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _scamWarning ? _DS.red : _DS.green)),
+              ),
+              const SizedBox(height: 8),
+              ..._scamPatterns.map((raw) {
+                final item = raw is Map ? raw : {};
+                final pattern = (item['pattern'] ?? '').toString();
+                final evidence = (item['evidence'] ?? '').toString();
+                final note = (item['note'] ?? '').toString();
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: _DS.redLight,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          const Text('🔴', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                              child: Text(pattern,
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: _DS.red))),
+                        ]),
+                        if (evidence.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text('"$evidence"',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _DS.textDark,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.4)),
+                        ],
+                        if (note.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(note,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _DS.textGrey,
+                                  height: 1.4)),
+                        ],
+                      ]),
+                );
+              }),
+              if (_contractRecommendation.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: _DS.yellowLight,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('💡 Khuyến nghị',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _DS.orange)),
+                        const SizedBox(height: 4),
+                        Text(_contractRecommendation,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: _DS.textDark,
+                                height: 1.5)),
+                      ]),
+                ),
+              ],
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _showContractVipUpsellDialog,
+                  icon: const Icon(Icons.workspace_premium_rounded, size: 16),
+                  label: const Text('Phân tích rủi ro pháp lý đầy đủ (VIP)'),
+                ),
+              ),
             ]),
           ),
           const Padding(
