@@ -807,6 +807,27 @@ class _TranslateScreenState extends State<TranslateScreen>
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      // Idea #7 — STT Quality Gates (Pre-Whisper/Confidence/Sanity, tai
+      // dung tu Voice Chat) gio co the tu choi luot nay: "error" (gate
+      // reject/Whisper rong — khong co gi de dich) hoac "low_confidence"
+      // (nghe duoc nhung khong chac chan — hien transcript tho, KHONG
+      // dich bay bung, hoi lai user).
+      final errorMsg = response.data['error'] as String?;
+      if (errorMsg != null && errorMsg.isNotEmpty) {
+        setState(() => _transcript = '');
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(errorMsg)));
+        return;
+      }
+      if (response.data['low_confidence'] == true) {
+        setState(() => _transcript = response.data['transcript'] ?? '');
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(response.data['message'] ??
+                  'Mình nghe chưa rõ lắm, bạn nói lại được không?')));
+        return;
+      }
       final voiceTranslatedText = response.data['translated'] ?? '';
       setState(() {
         _transcript = response.data['transcript'] ?? '';
