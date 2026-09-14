@@ -2,10 +2,19 @@
 
 class AppTheme {
   static ThemeData darkTheme(Color primary) {
+    // Audit "Web tai font NotoSansTC 2 lan" (2026-09-14): darkTheme
+    // KHONG BAO GIO duoc hien thi that su (main.dart ep cung
+    // themeMode: ThemeMode.light, va khong co UI nao goi
+    // ThemeNotifier.setThemeMode() de bat dark mode) — nhung ThemeData
+    // nay VAN duoc dung (MaterialApp.router truyen no vao du khong active),
+    // nen fontFamily khai bao rieng o day van khien Flutter dang ky/tai
+    // NotoSansTC lan thu 2 doc lap voi lightTheme. Bo fontFamily o day
+    // (KHONG xoa ca ham — giu cau truc mau/theme cho lan bat lai dark
+    // mode sau nay, xem theme_provider.dart) de chi CON 1 ThemeData
+    // (lightTheme) tham chieu font nay.
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: 'NotoSansTC',
       scaffoldBackgroundColor: const Color(0xFF0B0F1A),
       colorScheme: ColorScheme.dark(
         primary: primary,
