@@ -68,6 +68,13 @@ class _TranslateScreenState extends State<TranslateScreen>
   final List<Map<String, String>> _history = [];
   bool _aiLearningLoading = false;
   bool _aiLearningLoaded = false;
+  // Bug pinyin le doi cau (2026-09-15): tang moi lan bat dau 1 hanh dong
+  // dich/giai thich MOI cho tab nay (_translate/_loadAiLearning) — response
+  // tra ve CHAM (vd "Giai thich them" cua cau A dang cho, user da dich
+  // sang cau B) chi duoc ap dung neu request id NO CON la id MOI NHAT,
+  // tranh de setState cua 1 request CU ghi de len ket qua cua cau dang
+  // hien thi that su. Ap dung dong nhat cho ca tab Anh/Giong noi ben duoi.
+  int _textRequestId = 0;
 
   String? _imageBase64;
   final TextEditingController _ocrTextController = TextEditingController();
@@ -96,6 +103,7 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _contractRecommendation = '';
   bool _scamWarning = false;
   List<dynamic> _scamPatterns = [];
+  int _imageRequestId = 0;
 
   bool _isRecording = false;
   bool _voiceLoading = false;
@@ -110,6 +118,7 @@ class _TranslateScreenState extends State<TranslateScreen>
   bool _isSpeaking = false;
   bool _voiceAiLearningLoading = false;
   bool _voiceAiLearningLoaded = false;
+  int _voiceRequestId = 0;
 
   // Idea #2 — Hoi thoai 2 chieu (push-to-talk luan phien, xem
   // _translateVoiceConversationTurn). Co dinh cap ngon ngu vi<->zh-TW
@@ -289,6 +298,7 @@ class _TranslateScreenState extends State<TranslateScreen>
     final text = overrideText ?? _inputController.text.trim();
     if (text.isEmpty) return;
     if (overrideText != null) _inputController.text = overrideText;
+    final requestId = ++_textRequestId;
     setState(() {
       _isLoading = true;
       _result = '';
@@ -311,6 +321,11 @@ class _TranslateScreenState extends State<TranslateScreen>
         data: {'text': text, 'target_lang': _targetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      // Bug pinyin le doi cau: neu user da bat dau 1 hanh dong MOI (dich
+      // cau khac / bam Giai thich them) trong luc request nay dang cho,
+      // requestId da lac hau — bo qua ket qua nay, KHONG ghi de len cau
+      // dang hien thi that su.
+      if (requestId != _textRequestId) return;
       final translatedText = response.data['translated'] ?? '';
       setState(() {
         if (_targetLang == 'en') {
@@ -329,6 +344,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         });
       }
     } on DioException catch (e) {
+      if (requestId != _textRequestId) return;
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
@@ -340,8 +356,12 @@ class _TranslateScreenState extends State<TranslateScreen>
       }
       setState(() => _result = 'Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
+      if (requestId != _textRequestId) return;
       setState(() => _result = 'Lỗi kết nối. Vui lòng thử lại.');
     } finally {
+      // KHONG gate boi requestId — _isLoading la co rieng cua ham nay,
+      // luon phai tat khi CHINH request nay xong, bat ke co request nao
+      // khac (vd _loadAiLearning) da tang _textRequestId hay chua.
       setState(() => _isLoading = false);
     }
   }
@@ -350,6 +370,10 @@ class _TranslateScreenState extends State<TranslateScreen>
   /// KHÔNG chạy ngầm. Tái dùng nguyên endpoint /translate/text cũ (GPT).
   Future<void> _loadAiLearning(String text) async {
     if (text.isEmpty || _aiLearningLoading) return;
+    // Dung CHUNG _textRequestId voi _translate(): neu user dich 1 cau
+    // MOI trong luc cho ket qua "Giai thich them" cua cau CU, request nay
+    // tu dong bi coi la lac hau, tranh ghi de pinyin sai cau len man hinh.
+    final requestId = ++_textRequestId;
     setState(() => _aiLearningLoading = true);
     try {
       final token = await _storage.read(key: 'access_token');
@@ -362,6 +386,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         data: {'text': text, 'target_lang': _targetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (requestId != _textRequestId) return;
       setState(() {
         _resultSimplified = response.data['translated_simplified'] ?? '';
         _resultEnglish = response.data['translated_english'] ?? '';
@@ -381,16 +406,22 @@ class _TranslateScreenState extends State<TranslateScreen>
           return;
         }
       }
-      if (mounted)
+      if (requestId == _textRequestId && mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
         );
     } catch (e) {
-      if (mounted)
+      if (requestId == _textRequestId && mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
         );
     } finally {
+      // KHONG gate boi requestId — day la co re-entrancy CUC BO cua rieng
+      // ham nay (dong _aiLearningLoading || return o dau ham), khong lien
+      // quan toi viec du lieu co con hop le de hien thi hay khong. Neu
+      // gate nham, sau 1 lan bi "lac hau" (vd user dich cau moi trong luc
+      // cho) co the ket qua la _aiLearningLoading ket "true" mai mai vi
+      // khong con request nao khac reset lai no.
       if (mounted) setState(() => _aiLearningLoading = false);
     }
   }
@@ -584,6 +615,10 @@ class _TranslateScreenState extends State<TranslateScreen>
   Future<void> _translateOcrText() async {
     final text = _ocrTextController.text.trim();
     if (text.isEmpty) return;
+    // Bug pinyin le doi cau (2026-09-15): tang moi lan bat dau 1 hanh dong
+    // dich/giai thich MOI cho tab Anh — xem _textRequestId (tab Van ban)
+    // cho giai thich day du ve nguyen nhan/co che.
+    final requestId = ++_imageRequestId;
     setState(() {
       _imageLoading = true;
       _imageResult = '';
@@ -606,6 +641,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         data: {'text': text, 'target_lang': _imageTargetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (requestId != _imageRequestId) return;
       setState(() {
         _extractedText = text;
         _imageResult = response.data['translated'] ?? '';
@@ -618,7 +654,7 @@ class _TranslateScreenState extends State<TranslateScreen>
           return;
         }
       }
-      if (mounted)
+      if (requestId == _imageRequestId && mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lỗi kết nối. Vui lòng thử lại.')),
         );
@@ -646,6 +682,7 @@ class _TranslateScreenState extends State<TranslateScreen>
   /// them", khong preload. Tai dung /translate/text (giong text/voice tab).
   Future<void> _loadImageAiLearning(String text) async {
     if (text.isEmpty || _imageAiLearningLoading) return;
+    final requestId = ++_imageRequestId;
     setState(() => _imageAiLearningLoading = true);
     try {
       final token = await _storage.read(key: 'access_token');
@@ -658,6 +695,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         data: {'text': text, 'target_lang': _imageTargetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (requestId != _imageRequestId) return;
       setState(() {
         _imageResultSimplified = response.data['translated_simplified'] ?? '';
         _imageResultEnglish = response.data['translated_english'] ?? '';
@@ -677,16 +715,18 @@ class _TranslateScreenState extends State<TranslateScreen>
           return;
         }
       }
-      if (mounted)
+      if (requestId == _imageRequestId && mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
         );
     } catch (e) {
-      if (mounted)
+      if (requestId == _imageRequestId && mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
         );
     } finally {
+      // KHONG gate boi requestId — xem giai thich tuong tu trong
+      // _loadAiLearning() (tab Van ban).
       if (mounted) setState(() => _imageAiLearningLoading = false);
     }
   }
@@ -729,6 +769,7 @@ class _TranslateScreenState extends State<TranslateScreen>
 
   Future<void> _translateImage() async {
     if (_imageBase64 == null) return;
+    final requestId = ++_imageRequestId;
     setState(() {
       _imageLoading = true;
       _imageResult = '';
@@ -766,6 +807,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (requestId != _imageRequestId) return;
       final riskAnalysis = response.data['risk_analysis'];
       final scamPatterns = response.data['scam_patterns'];
       setState(() {
@@ -799,7 +841,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
           final limit = detail['limit'] ?? 5;
-          setState(() => _imageResult = '');
+          if (requestId == _imageRequestId) setState(() => _imageResult = '');
           if (detail['feature'] == 'scam_check') {
             if (mounted) _showQuotaDialog('kiểm tra lừa đảo', limit);
             return;
@@ -808,16 +850,21 @@ class _TranslateScreenState extends State<TranslateScreen>
           return;
         }
       }
-      if (e.type == DioExceptionType.receiveTimeout) {
-        setState(() => _imageResult =
-            '⚠️ Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
-      } else {
-        setState(() => _imageResult = '⚠️ Lỗi kết nối. Vui lòng thử lại.');
+      if (requestId == _imageRequestId) {
+        if (e.type == DioExceptionType.receiveTimeout) {
+          setState(() => _imageResult =
+              '⚠️ Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
+        } else {
+          setState(() => _imageResult = '⚠️ Lỗi kết nối. Vui lòng thử lại.');
+        }
       }
     } catch (e) {
-      setState(() => _imageResult = '⚠️ Lỗi: $e');
+      if (requestId == _imageRequestId) setState(() => _imageResult = '⚠️ Lỗi: $e');
     } finally {
       msgTimer.cancel();
+      // KHONG gate boi requestId — _imageLoading la co chung cho ca
+      // _translateOcrText/_translateImage, luon phai tat khi CHINH
+      // request nay xong.
       setState(() => _imageLoading = false);
     }
   }
@@ -857,6 +904,9 @@ class _TranslateScreenState extends State<TranslateScreen>
   }
 
   Future<void> _translateVoice(String audioBase64) async {
+    // Bug pinyin le doi cau (2026-09-15): xem _textRequestId (tab Van
+    // ban) cho giai thich day du. Ap dung tuong tu cho tab Giong noi.
+    final requestId = ++_voiceRequestId;
     setState(() => _voiceAiLearningLoaded = false);
     try {
       final token = await _storage.read(key: 'access_token');
@@ -872,6 +922,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (requestId != _voiceRequestId) return;
       // Idea #7 — STT Quality Gates (Pre-Whisper/Confidence/Sanity, tai
       // dung tu Voice Chat) gio co the tu choi luot nay: "error" (gate
       // reject/Whisper rong — khong co gi de dich) hoac "low_confidence"
@@ -905,6 +956,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         }
       });
     } on DioException catch (e) {
+      if (requestId != _voiceRequestId) return;
       if (e.response?.statusCode == 403) {
         final detail = e.response?.data?['detail'];
         if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
@@ -916,8 +968,10 @@ class _TranslateScreenState extends State<TranslateScreen>
       }
       setState(() => _voiceResult = 'Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
+      if (requestId != _voiceRequestId) return;
       setState(() => _voiceResult = 'Lỗi: $e');
     } finally {
+      // KHONG gate boi requestId — co rieng cua ham nay.
       setState(() => _voiceLoading = false);
     }
   }
@@ -996,6 +1050,7 @@ class _TranslateScreenState extends State<TranslateScreen>
   /// AI LEARNING cho tab Giọng nói — CHỈ khi user bấm, tái dùng /translate/text
   Future<void> _loadVoiceAiLearning(String text) async {
     if (text.isEmpty || _voiceAiLearningLoading) return;
+    final requestId = ++_voiceRequestId;
     setState(() => _voiceAiLearningLoading = true);
     try {
       final token = await _storage.read(key: 'access_token');
@@ -1007,6 +1062,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         data: {'text': text, 'target_lang': _voiceTargetLang},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      if (requestId != _voiceRequestId) return;
       setState(() {
         _voiceResultSimplified = response.data['translated_simplified'] ?? '';
         _voiceResultEnglish = response.data['translated_english'] ?? '';
@@ -1018,11 +1074,12 @@ class _TranslateScreenState extends State<TranslateScreen>
         _voiceAiLearningLoaded = true;
       });
     } catch (e) {
-      if (mounted)
+      if (requestId == _voiceRequestId && mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lỗi tải giải thích. Thử lại sau.')),
         );
     } finally {
+      // KHONG gate boi requestId — co rieng cua ham nay.
       if (mounted) setState(() => _voiceAiLearningLoading = false);
     }
   }
