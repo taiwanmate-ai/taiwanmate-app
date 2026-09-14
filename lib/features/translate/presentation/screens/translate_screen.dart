@@ -111,6 +111,14 @@ class _TranslateScreenState extends State<TranslateScreen>
   bool _voiceAiLearningLoading = false;
   bool _voiceAiLearningLoaded = false;
 
+  // Idea #2 — Hoi thoai 2 chieu (push-to-talk luan phien, xem
+  // _translateVoiceConversationTurn). Co dinh cap ngon ngu vi<->zh-TW
+  // (dung tam nhin cot loi cua app), KHONG dung chung state voi tab
+  // Giong noi 1 chieu binh thuong o tren.
+  bool _conversationMode = false;
+  bool _conversationTurnIsVi = true;
+  final List<Map<String, String>> _conversationTurns = [];
+
   int _selectedSituation = -1;
 
   static const _situations = [
@@ -817,16 +825,20 @@ class _TranslateScreenState extends State<TranslateScreen>
   Future<void> _startRecording() async {
     setState(() {
       _isRecording = true;
-      _transcript = '';
-      _voiceResult = '';
-      _voiceResultSimplified = '';
-      _voiceResultEnglish = '';
-      _voiceResultVietnamese = '';
-      _voicePinyin = '';
-      _voiceExplanation = '';
+      if (!_conversationMode) {
+        _transcript = '';
+        _voiceResult = '';
+        _voiceResultSimplified = '';
+        _voiceResultEnglish = '';
+        _voiceResultVietnamese = '';
+        _voicePinyin = '';
+        _voiceExplanation = '';
+      }
     });
     await webStartRecording(
-      (audioBase64) => _translateVoice(audioBase64),
+      (audioBase64) => _conversationMode
+          ? _translateVoiceConversationTurn(audioBase64)
+          : _translateVoice(audioBase64),
       (error) {
         setState(() => _isRecording = false);
         if (mounted)
@@ -905,6 +917,77 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() => _voiceResult = 'Lỗi kết nối. Vui lòng thử lại.');
     } catch (e) {
       setState(() => _voiceResult = 'Lỗi: $e');
+    } finally {
+      setState(() => _voiceLoading = false);
+    }
+  }
+
+  /// Idea #2 — 1 luot trong Hoi thoai 2 chieu (push-to-talk luan phien).
+  /// Tai dung NGUYEN /translate/voice-fast (da co STT Quality Gates tu
+  /// Idea #7) — chi khac _translateVoice() o cho: dich theo chieu cua
+  /// nguoi dang noi (_conversationTurnIsVi), them 1 dong vao transcript
+  /// hoi thoai thay vi ghi de 1 o ket qua duy nhat, va TU DONG doi luot
+  /// sau moi cau dich thanh cong (khong tu dong phat am — user tu bam
+  /// "Nghe" tren tung dong, dung theo quyet dinh thiet ke).
+  Future<void> _translateVoiceConversationTurn(String audioBase64) async {
+    final speakerIsVi = _conversationTurnIsVi;
+    final targetLang = speakerIsVi ? 'zh-TW' : 'vi';
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30)));
+      final response = await dio.post(
+        '${ApiConstants.baseUrl}/translate/voice-fast',
+        data: {
+          'audio_base64': audioBase64,
+          'target_lang': targetLang,
+          'audio_format': getRecordingMimeType(),
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final errorMsg = response.data['error'] as String?;
+      if (errorMsg != null && errorMsg.isNotEmpty) {
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(errorMsg)));
+        return;
+      }
+      if (response.data['low_confidence'] == true) {
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(response.data['message'] ??
+                  'Mình nghe chưa rõ lắm, bạn nói lại được không?')));
+        return;
+      }
+      final transcript = (response.data['transcript'] ?? '') as String;
+      final translated = (response.data['translated'] ?? '') as String;
+      setState(() {
+        _conversationTurns.add({
+          'speakerLang': speakerIsVi ? 'vi' : 'zh-TW',
+          'original': transcript,
+          'translated': translated,
+        });
+        // Luan phien: nguoi vua noi xong, den luot nguoi con lai.
+        _conversationTurnIsVi = !speakerIsVi;
+      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final detail = e.response?.data?['detail'];
+        if (detail is Map && detail['code'] == 'QUOTA_EXCEEDED') {
+          final limit = detail['limit'] ?? 100;
+          if (mounted) _showQuotaDialog('dịch giọng nói', limit);
+          return;
+        }
+      }
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi kết nối. Vui lòng thử lại.')),
+        );
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     } finally {
       setState(() => _voiceLoading = false);
     }
@@ -2787,9 +2870,60 @@ class _TranslateScreenState extends State<TranslateScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
-        _buildSingleLangSelector(
-            value: _voiceTargetLang,
-            onChanged: (v) => setState(() => _voiceTargetLang = v)),
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          if (_conversationMode && _conversationTurns.isNotEmpty) ...[
+            GestureDetector(
+              onTap: () => setState(() => _conversationTurns.clear()),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text('Xóa hội thoại',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: _DS.textGrey,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+          GestureDetector(
+            onTap: () => setState(() {
+              _conversationMode = !_conversationMode;
+              if (_conversationMode) {
+                _conversationTurnIsVi = true;
+                _transcript = '';
+                _voiceResult = '';
+                _voiceResultEnglish = '';
+                _voiceResultVietnamese = '';
+              }
+            }),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _conversationMode ? _DS.indigo : _DS.indigoLight,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.sync_alt_rounded,
+                    size: 14,
+                    color: _conversationMode ? Colors.white : _DS.indigo),
+                const SizedBox(width: 5),
+                Text('Hội thoại 2 chiều',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            _conversationMode ? Colors.white : _DS.indigo)),
+              ]),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        if (_conversationMode)
+          _buildConversationTurnIndicator()
+        else
+          _buildSingleLangSelector(
+              value: _voiceTargetLang,
+              onChanged: (v) => setState(() => _voiceTargetLang = v)),
         const SizedBox(height: 48),
         SizedBox(
           width: 180,
@@ -2848,7 +2982,11 @@ class _TranslateScreenState extends State<TranslateScreen>
         Text(
           _isRecording
               ? '● Đang ghi âm...'
-              : (_voiceLoading ? 'Đang xử lý...' : 'Nhấn để bắt đầu'),
+              : (_voiceLoading
+                  ? 'Đang xử lý...'
+                  : (_conversationMode
+                      ? 'Lượt của ${_conversationTurnIsVi ? "🇻🇳 Tiếng Việt" : "🇹🇼 Tiếng Trung"}'
+                      : 'Nhấn để bắt đầu')),
           style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -2861,6 +2999,9 @@ class _TranslateScreenState extends State<TranslateScreen>
                   TextStyle(fontSize: 12, color: Colors.red.withOpacity(0.7))),
         ],
         const SizedBox(height: 32),
+        if (_conversationMode) ...[
+          _buildConversationTranscript(),
+        ] else ...[
         if (_transcript.isNotEmpty) ...[
           Container(
             width: double.infinity,
@@ -2915,7 +3056,125 @@ class _TranslateScreenState extends State<TranslateScreen>
             aiLearningLoading: _voiceAiLearningLoading,
             aiLearningLoaded: _voiceAiLearningLoaded,
           ),
+        ],
       ]),
+    );
+  }
+
+  Widget _buildConversationTurnIndicator() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: _DS.white,
+        borderRadius: BorderRadius.circular(_DS.radiusSm),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+            child: _buildConversationSideChip(
+                label: '🇻🇳 Tiếng Việt',
+                isVi: true,
+                active: _conversationTurnIsVi)),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6),
+          child: Icon(Icons.sync_alt_rounded, size: 16, color: _DS.indigo),
+        ),
+        Expanded(
+            child: _buildConversationSideChip(
+                label: '🇹🇼 Tiếng Trung',
+                isVi: false,
+                active: !_conversationTurnIsVi)),
+      ]),
+    );
+  }
+
+  Widget _buildConversationSideChip(
+      {required String label, required bool isVi, required bool active}) {
+    return GestureDetector(
+      onTap: () => setState(() => _conversationTurnIsVi = isVi),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? _DS.indigo : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: active ? Colors.white : _DS.textGrey)),
+      ),
+    );
+  }
+
+  /// Idea #2 — lich su cac luot trong Hoi thoai 2 chieu, dang bubble chat
+  /// (trai/phai theo nguoi noi) — CHI hien chu, khong tu dong phat am
+  /// (dung theo quyet dinh thiet ke), moi dong co nut "Nghe" rieng.
+  Widget _buildConversationTranscript() {
+    if (_conversationTurns.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: _DS.white, borderRadius: BorderRadius.circular(_DS.radius)),
+        child: const Text(
+            'Bấm micro để bắt đầu hội thoại — dịch xong sẽ tự động đổi lượt cho người kia.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: _DS.textGrey)),
+      );
+    }
+    return Column(
+      children: _conversationTurns.map((turn) {
+        final isVi = turn['speakerLang'] == 'vi';
+        final original = turn['original'] ?? '';
+        final translated = turn['translated'] ?? '';
+        final translatedLang = isVi ? 'zh-TW' : 'vi';
+        return Align(
+          alignment: isVi ? Alignment.centerLeft : Alignment.centerRight,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 320),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isVi ? _DS.white : _DS.indigoLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isVi ? '🇻🇳 $original' : '🇹🇼 $original',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: _DS.textGrey,
+                          fontFamily: 'NotoSansTC')),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Expanded(
+                        child: Text(translated,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: _DS.textDark,
+                                fontFamily: 'NotoSansTC'))),
+                    GestureDetector(
+                      onTap: () => _speak(translated, lang: translatedLang),
+                      child: const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Icon(Icons.volume_up_rounded,
+                            size: 18, color: _DS.indigo),
+                      ),
+                    ),
+                  ]),
+                ]),
+          ),
+        );
+      }).toList(),
     );
   }
 
