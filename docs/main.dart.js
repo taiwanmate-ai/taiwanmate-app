@@ -74599,13 +74599,13 @@ case 2:return A.n(o.at(-1),r)}})
 return A.p($async$$1,r)},
 $S:361}
 A.XQ.prototype={
-r7(a,b){var s,r,q=null,p="NotoSansTC",o=b.eW($.bnT(),t.bk).a,n=A.kS(q,q,o,q,q,q,q,q,q,B.e,q,q,B.xE,q,new A.bY(A.y(12),B.C),q,q,q,q,q),m=A.bjC(new A.es(4,A.y(12),B.p8),q,q,new A.es(4,A.y(12),B.p8),B.ST,!0,new A.es(4,A.y(12),new A.bg(o,2,B.W,-1)))
-m=A.zj(B.O9,new A.w_(B.e,0,q,q,o,B.Tr,q,q,q,q,B.p9,q,q,q),B.br,new A.rV(q,B.e,q,q,0,q,new A.bY(A.y(16),B.p8)),new A.rY(B.br,o,B.e,q,q,q,q,q,q,B.pV,B.m,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.i2,B.e,q,q,B.e,B.m,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.e,B.m),new A.wt(n),p,m,B.wz,!0)
-n=A.boj(B.lR,!0,q,q,0,B.a_b,B.au6)
-s=A.kS(q,q,o,q,q,q,q,q,q,B.e,q,q,B.xE,q,new A.bY(A.y(12),B.C),q,q,q,q,q)
-r=A.bjC(new A.es(4,A.y(12),B.p7),q,q,new A.es(4,A.y(12),B.p7),B.SM,!0,new A.es(4,A.y(12),new A.bg(o,2,B.W,-1)))
-r=A.zj(n,new A.w_(B.lR,0,q,q,o,B.T_,q,q,q,q,B.p9,q,q,q),B.bF,new A.rV(q,B.lR,q,q,0,q,new A.bY(A.y(16),B.p7)),new A.rY(B.bF,o,B.m,q,q,q,q,q,q,B.pV,B.m,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.i2,B.m,q,q,B.lR,B.e,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.SH,B.e),new A.wt(s),p,r,B.T0,!0)
-return new A.D0($.aiZ(),"ChineseMate AI",m,r,B.aGN,!1,q)}}
+r7(a,b){var s,r,q=null,p=b.eW($.bnT(),t.bk).a,o=A.kS(q,q,p,q,q,q,q,q,q,B.e,q,q,B.xE,q,new A.bY(A.y(12),B.C),q,q,q,q,q),n=A.bjC(new A.es(4,A.y(12),B.p8),q,q,new A.es(4,A.y(12),B.p8),B.ST,!0,new A.es(4,A.y(12),new A.bg(p,2,B.W,-1)))
+n=A.zj(B.O9,new A.w_(B.e,0,q,q,p,B.Tr,q,q,q,q,B.p9,q,q,q),B.br,new A.rV(q,B.e,q,q,0,q,new A.bY(A.y(16),B.p8)),new A.rY(B.br,p,B.e,q,q,q,q,q,q,B.pV,B.m,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.i2,B.e,q,q,B.e,B.m,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.e,B.m),new A.wt(o),"NotoSansTC",n,B.wz,!0)
+o=A.boj(B.lR,!0,q,q,0,B.a_b,B.au6)
+s=A.kS(q,q,p,q,q,q,q,q,q,B.e,q,q,B.xE,q,new A.bY(A.y(12),B.C),q,q,q,q,q)
+r=A.bjC(new A.es(4,A.y(12),B.p7),q,q,new A.es(4,A.y(12),B.p7),B.SM,!0,new A.es(4,A.y(12),new A.bg(p,2,B.W,-1)))
+r=A.zj(o,new A.w_(B.lR,0,q,q,p,B.T_,q,q,q,q,B.p9,q,q,q),B.bF,new A.rV(q,B.lR,q,q,0,q,new A.bY(A.y(16),B.p7)),new A.rY(B.bF,p,B.m,q,q,q,q,q,q,B.pV,B.m,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.i2,B.m,q,q,B.lR,B.e,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,q,B.SH,B.e),new A.wt(s),q,r,B.T0,!0)
+return new A.D0($.aiZ(),"ChineseMate AI",n,r,B.aGN,!1,q)}}
 A.xy.prototype={
 a2(){return new A.Rw()}}
 A.Rw.prototype={
