@@ -1,0 +1,56 @@
+[
+  {
+    "id": "emergency_doctor",
+    "group": "emergency",
+    "icon": "🏥",
+    "vi": "Tôi cần bác sĩ ngay!",
+    "zh": "我需要醫生！",
+    "pinyin": "Wǒ xūyào yīshēng!",
+    "audio_asset": "assets/audio/emergency/emergency_doctor.mp3"
+  },
+  {
+    "id": "emergency_police",
+    "group": "emergency",
+    "icon": "🚔",
+    "vi": "Gọi cảnh sát giúp tôi!",
+    "zh": "叫警察幫我！",
+    "pinyin": "jiào jǐngchá bāng wǒ!",
+    "audio_asset": "assets/audio/emergency/emergency_police.mp3"
+  },
+  {
+    "id": "emergency_accident",
+    "group": "emergency",
+    "icon": "🚨",
+    "vi": "Tôi bị tai nạn!",
+    "zh": "我出事了！",
+    "pinyin": "Wǒ chū shì le!",
+    "audio_asset": "assets/audio/emergency/emergency_accident.mp3"
+  },
+  {
+    "id": "emergency_address",
+    "group": "emergency",
+    "icon": "📍",
+    "vi": "Địa chỉ của tôi là...",
+    "zh": "地址是...",
+    "pinyin": "Dìzhǐ shì...",
+    "audio_asset": "assets/audio/emergency/emergency_address.mp3"
+  },
+  {
+    "id": "emergency_no_chinese",
+    "group": "emergency",
+    "icon": "🤷",
+    "vi": "Tôi không hiểu tiếng Trung",
+    "zh": "我不懂中文",
+    "pinyin": "Wǒ bù dǒng zhōng wén",
+    "audio_asset": "assets/audio/emergency/emergency_no_chinese.mp3"
+  },
+  {
+    "id": "emergency_interpreter",
+    "group": "emergency",
+    "icon": "🗣️",
+    "vi": "Tôi cần thông dịch viên",
+    "zh": "我需要翻譯員",
+    "pinyin": "Wǒ xūyào fānyìyuán",
+    "audio_asset": "assets/audio/emergency/emergency_interpreter.mp3"
+  }
+]
