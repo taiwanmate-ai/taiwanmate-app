@@ -2,6 +2,7 @@
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 // ignore: avoid_web_libraries_in_flutter
@@ -95,6 +96,34 @@ class ScoreResult {
   );
 }
 
+// ─── Ghost Run — "Đua Bóng Ma" (idea #2) ────────────────────────
+// Ban chay NHANH NHAT (moi cau >=70 diem) tung duoc ghi nhan cho 1 Boss —
+// xem BossGhostRun/backend. Client dung phraseTimestamps de ve tien do
+// "bong ma" song song voi tien do that cua nguoi choi hien tai, KHONG can
+// dong bo real-time/WebSocket (xem phan tich 4 y tuong da trinh bay).
+class GhostRun {
+  final String displayName;
+  final int totalTimeSeconds;
+  final List<double> phraseTimestamps;
+  final int totalScore;
+  final bool isMine;
+
+  GhostRun({required this.displayName, required this.totalTimeSeconds,
+    required this.phraseTimestamps, required this.totalScore, required this.isMine});
+
+  factory GhostRun.fromJson(Map<String, dynamic> j) => GhostRun(
+    displayName: j['display_name'] ?? 'Ẩn danh',
+    totalTimeSeconds: j['total_time_seconds'] ?? 0,
+    phraseTimestamps: (j['phrase_timestamps'] as List? ?? []).map((e) => (e as num).toDouble()).toList(),
+    totalScore: j['total_score'] ?? 0,
+    isMine: j['is_mine'] ?? false,
+  );
+
+  /// So voi thoi diem elapsedSeconds hien tai, bong ma da xong bao nhieu cau.
+  int phrasesCompletedAt(double elapsedSeconds) =>
+      phraseTimestamps.where((t) => t <= elapsedSeconds).length;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // LIVE CHAT SCREEN — Entry point
 // ═══════════════════════════════════════════════════════════════
@@ -112,6 +141,11 @@ class _LiveChatScreenState extends State<LiveChatScreen> with AutomaticKeepAlive
   int? _dailyBossId;
   bool _isLoading = true;
   bool _loadFailed = false;
+  // "Boss nói trước" (idea #3, 2026-09-16) — chế độ NGHE ĐOÁN: ẩn chữ Hán
+  // + pinyin, Boss đọc TRƯỚC bằng TTS, user phải NGHE rồi mới nói lại
+  // (xem _BattleScreenState._revealed). Mặc định tắt để không đổi hành vi
+  // cũ (đọc theo mẫu hiển thị sẵn) — user tự bật khi muốn luyện nghe.
+  bool _listenMode = false;
 
   @override
   void initState() {
@@ -150,6 +184,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> with AutomaticKeepAlive
 
   Future<void> _startBattle(Boss boss, {required bool isDaily}) async {
     Boss battleBoss = boss;
+    GhostRun? ghost;
     try {
       final token = await _storage.read(key: 'access_token');
       final dio = Dio();
@@ -158,12 +193,21 @@ class _LiveChatScreenState extends State<LiveChatScreen> with AutomaticKeepAlive
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       battleBoss = Boss.fromJson(res.data);
+      // Bong ma — best-effort, KHONG chan tran dau neu loi/chua co ghost.
+      try {
+        final ghostRes = await dio.get(
+          '${ApiConstants.baseUrl}/pronunciation/boss/${boss.id}/ghost',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        if (ghostRes.data['ghost'] != null) ghost = GhostRun.fromJson(ghostRes.data['ghost']);
+      } catch (_) {}
     } catch (_) {
       // Nếu lỗi, dùng tạm boss gốc (5 câu đầu) để không chặn user chơi
     }
     if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => _BattleScreen(boss: battleBoss, storage: _storage, isDaily: isDaily),
+      builder: (_) => _BattleScreen(boss: battleBoss, storage: _storage, isDaily: isDaily,
+          listenMode: _listenMode, ghost: ghost),
     ));
   }
 
@@ -177,28 +221,70 @@ class _LiveChatScreenState extends State<LiveChatScreen> with AutomaticKeepAlive
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Row(children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('🏟️ Đấu Trường', style: TextStyle(fontSize: 11, color: _DS.textGrey, fontWeight: FontWeight.w700, letterSpacing: 1)),
-                const SizedBox(height: 4),
-                const Text('Chinh phục Boss', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _DS.white)),
-              ]),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _LeaderboardScreen(storage: _storage))),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _DS.yellow.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _DS.yellow.withOpacity(0.3)),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Color(0xFF181830), _DS.bg],
+              ),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('🏟️ Đấu Trường', style: TextStyle(fontSize: 11, color: _DS.textGrey, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                  const SizedBox(height: 4),
+                  const Text('Chinh phục Boss', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _DS.white)),
+                ]),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _SurvivalScreen())),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _DS.red.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _DS.red.withOpacity(0.3)),
+                    ),
+                    child: const Row(children: [
+                      Text('🌊', style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Text('Sinh Tồn', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.red)),
+                    ]),
                   ),
-                  child: const Row(children: [
-                    Text('🏆', style: TextStyle(fontSize: 14)),
-                    SizedBox(width: 6),
-                    Text('BXH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.yellow)),
-                  ]),
                 ),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _LeaderboardScreen(storage: _storage))),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _DS.yellow.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _DS.yellow.withOpacity(0.3)),
+                    ),
+                    child: const Row(children: [
+                      Text('🏆', style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Text('BXH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _DS.yellow)),
+                    ]),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 14),
+              // Mode toggle — "Đọc theo" (mac dinh, hien san chu+pinyin) vs
+              // "Nghe đoán" (Boss noi truoc, an chu toi khi tra loi — idea #3).
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: _DS.card, borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [
+                  Expanded(child: _ModeTab(
+                    label: '🗣️ Đọc theo', selected: !_listenMode,
+                    onTap: () => setState(() => _listenMode = false),
+                  )),
+                  Expanded(child: _ModeTab(
+                    label: '🎧 Nghe đoán', selected: _listenMode,
+                    onTap: () => setState(() => _listenMode = true),
+                  )),
+                ]),
               ),
             ]),
           ),
@@ -298,18 +384,22 @@ class _BossCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _DS.card,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [_DS.card, Color.lerp(_DS.card, boss.color, 0.08)!],
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isDaily ? boss.color.withOpacity(0.5) : Colors.white.withOpacity(0.05), width: isDaily ? 2 : 1),
-          boxShadow: [BoxShadow(color: boss.color.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))],
+          border: Border.all(color: isDaily ? boss.color.withOpacity(0.5) : Colors.white.withOpacity(0.06), width: isDaily ? 2 : 1),
+          boxShadow: [BoxShadow(color: boss.color.withOpacity(0.15), blurRadius: 14, offset: const Offset(0, 5))],
         ),
         child: Row(children: [
           Container(
             width: 60, height: 60,
             decoration: BoxDecoration(
-              color: boss.color.withOpacity(0.15),
+              gradient: RadialGradient(colors: [boss.color.withOpacity(0.25), boss.color.withOpacity(0.1)]),
               shape: BoxShape.circle,
-              border: Border.all(color: boss.color.withOpacity(0.3), width: 2),
+              border: Border.all(color: boss.color.withOpacity(0.4), width: 2),
+              boxShadow: [BoxShadow(color: boss.color.withOpacity(0.25), blurRadius: 10)],
             ),
             child: Center(child: Text(boss.emoji, style: const TextStyle(fontSize: 28))),
           ),
@@ -353,7 +443,10 @@ class _BattleScreen extends StatefulWidget {
   final Boss boss;
   final FlutterSecureStorage storage;
   final bool isDaily;
-  const _BattleScreen({required this.boss, required this.storage, this.isDaily = false});
+  final bool listenMode;
+  final GhostRun? ghost;
+  const _BattleScreen({required this.boss, required this.storage, this.isDaily = false,
+    this.listenMode = false, this.ghost});
 
   @override
   State<_BattleScreen> createState() => _BattleScreenState();
@@ -389,6 +482,23 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
   bool _isSavingResult = false;
   bool _resultSaveFailed = false;
 
+  // "Dua bong ma" (2026-09-16) — dong ho bam gio tu luc vao tran, ghi lai
+  // moc thoi gian (giay) tai thoi diem HOAN THANH moi cau (dan toi
+  // _advancePhrase) de sau tran nop len /boss/{id}/ghost neu du dieu
+  // kien. _ghostTimer chi de ep UI ve lai moi 500ms cho thanh tien do
+  // "dang truoc/sau bong ma" chay muot, KHONG lien quan logic cham diem.
+  final Stopwatch _stopwatch = Stopwatch();
+  final List<double> _myTimestamps = [];
+  Timer? _ghostTimer;
+  bool _newGhostRecord = false;
+
+  // "Boss noi truoc" / che do Nghe doan (2026-09-16) — khi listenMode bat,
+  // an chu Han + pinyin cho toi khi user nop CAU TRA LOI DAU TIEN cho cau
+  // hien tai (ke ca bi Gate tu choi cung tinh la da "thu"), giup ep nghe
+  // truoc khi doc. _isSpeaking khoa nut phat de tranh bam chong TTS.
+  bool _revealed = true;
+  bool _isSpeaking = false;
+
   late AnimationController _critHitCtrl;
   late Animation<double> _critHitAnim;
   late AnimationController _shakeCtrl;
@@ -402,6 +512,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
   void initState() {
     super.initState();
     _startTime = DateTime.now();
+    _revealed = !widget.listenMode;
 
     // Vi tuoc bug (2026-09-15): AnimationController nay TRUOC DAY khong
     // bao gio duoc .forward(), tao ra nhung khong dung — thanh HP da tu
@@ -416,6 +527,16 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
 
     _comboCtrl = AnimationController(duration: const Duration(milliseconds: 600), vsync: this);
     _comboAnim = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _comboCtrl, curve: Curves.elasticOut));
+
+    _stopwatch.start();
+    if (widget.ghost != null) {
+      _ghostTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+        if (mounted && !_battleFinished) setState(() {});
+      });
+    }
+    if (widget.listenMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _speakCurrentPhrase());
+    }
   }
 
   @override
@@ -423,7 +544,36 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
     _critHitCtrl.dispose();
     _shakeCtrl.dispose();
     _comboCtrl.dispose();
+    _ghostTimer?.cancel();
+    _stopwatch.stop();
     super.dispose();
+  }
+
+  Future<void> _speakCurrentPhrase() async {
+    if (_isSpeaking || !mounted) return;
+    setState(() => _isSpeaking = true);
+    try {
+      final phrase = widget.boss.phrases[_currentIndex];
+      final token = await widget.storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        responseType: ResponseType.bytes,
+      ));
+      final response = await dio.post(
+        '${ApiConstants.baseUrl}/translate/tts',
+        data: {'text': phrase.text, 'lang': 'zh-TW'},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final b64 = base64Encode(response.data as List<int>);
+      await webPlayAudio(b64);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi phát âm Boss. Thử lại nhé!')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
   }
 
   Future<void> _startRecording() async {
@@ -465,7 +615,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
       // 1 lan phat am that su — khong tinh vao lich su cau tra loi, khong
       // pha combo, khong tinh vao so lan "phan cong" bat buoc thu lai.
       if (result.gateRejected) {
-        setState(() { _lastResult = result; _isScoring = false; });
+        setState(() { _lastResult = result; _isScoring = false; _revealed = true; });
         return;
       }
 
@@ -509,6 +659,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
           _lastResult = result;
           _totalScore += earned;
           _isScoring = false;
+          _revealed = true;
         });
       } else {
         _combo = 0;
@@ -518,6 +669,7 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
         setState(() {
           _lastResult = result;
           _isScoring = false;
+          _revealed = true;
         });
       }
 
@@ -551,15 +703,20 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
     // "Bo qua") moi duoc tinh — tranh _results.length vuot qua so cau
     // thuc te (xem ghi chu trong _submitAudio).
     if (_lastResult != null) _results.add(_lastResult!);
+    _myTimestamps.add(_stopwatch.elapsed.inMilliseconds / 1000.0);
     _retryFailCount = 0;
     if (_currentIndex + 1 >= widget.boss.phrases.length) {
+      _stopwatch.stop();
+      _ghostTimer?.cancel();
       setState(() => _battleFinished = true);
       _submitResult();
     } else {
       setState(() {
         _currentIndex++;
         _lastResult = null;
+        _revealed = !widget.listenMode;
       });
+      if (widget.listenMode) _speakCurrentPhrase();
     }
   }
 
@@ -603,6 +760,31 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
       if (mounted) setState(() { _isSavingResult = false; _resultSaveFailed = true; });
     }
     _loadNextAction();
+    _submitGhost();
+  }
+
+  /// "Dua bong ma" — nop lam ghost moi cho Boss nay, best-effort (khong
+  /// bao loi neu that bai, khong anh huong flow chinh cua man ket qua).
+  /// Backend TU quyet dinh co luu hay khong (phai dat moi cau >=70 diem
+  /// VA nhanh hon ghost hien tai) — client chi gui du lieu that.
+  Future<void> _submitGhost() async {
+    if (_results.length < widget.boss.phrases.length) return;
+    try {
+      final token = await widget.storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.post(
+        '${ApiConstants.baseUrl}/pronunciation/boss/${widget.boss.id}/ghost',
+        data: {
+          'phrase_scores': _results.map((r) => r.score).toList(),
+          'total_time_seconds': _myTimestamps.isNotEmpty ? _myTimestamps.last.round() : 0,
+          'phrase_timestamps': _myTimestamps,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted && res.data['saved'] == true) {
+        setState(() => _newGhostRecord = true);
+      }
+    } catch (e) {}
   }
 
   Future<void> _loadNextAction() async {
@@ -729,7 +911,9 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
                     ]),
                     const SizedBox(height: 16),
 
-                    // Phrase to pronounce
+                    // Phrase to pronounce — che do "Nghe đoán" (listenMode)
+                    // an chu Han + pinyin toi khi user nop lan thu DAU
+                    // TIEN cho cau nay (_revealed), buoc nghe TTS truoc.
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -738,18 +922,53 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: widget.boss.color.withOpacity(0.2)),
                       ),
-                      child: Column(children: [
-                        Text(phrase.text, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w500, color: _DS.white, fontFamily: 'NotoSansTC')),
-                        const SizedBox(height: 6),
-                        Text(phrase.pinyin, style: TextStyle(fontSize: 14, color: widget.boss.color, fontStyle: FontStyle.italic)),
-                        const SizedBox(height: 4),
-                        Text(phrase.meaning, style: const TextStyle(fontSize: 13, color: _DS.textGrey)),
-                      ]),
+                      child: _revealed
+                          ? Column(children: [
+                              Text(phrase.text, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w500, color: _DS.white, fontFamily: 'NotoSansTC')),
+                              const SizedBox(height: 6),
+                              Text(phrase.pinyin, style: TextStyle(fontSize: 14, color: widget.boss.color, fontStyle: FontStyle.italic)),
+                              const SizedBox(height: 4),
+                              Text(phrase.meaning, style: const TextStyle(fontSize: 13, color: _DS.textGrey)),
+                            ])
+                          : Column(children: [
+                              Text(phrase.meaning, style: const TextStyle(fontSize: 15, color: _DS.textGrey, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 12),
+                              GestureDetector(
+                                onTap: _speakCurrentPhrase,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: [widget.boss.color, widget.boss.color.withOpacity(0.7)]),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(_isSpeaking ? Icons.volume_up_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(_isSpeaking ? 'Đang phát...' : 'Nghe Boss nói',
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+                                  ]),
+                                ),
+                              ),
+                            ]),
                     ),
                   ]),
                 ),
               ),
             ),
+
+            // "Dua bong ma" — thanh tien do song song, chi hien khi co
+            // ghost VA tran dau chua ket thuc (sau khi ket thuc chuyen
+            // sang hien banner ky luc moi trong man ket qua).
+            if (widget.ghost != null && !_battleFinished)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: _GhostProgressBar(
+                  ghost: widget.ghost!,
+                  myPhrasesDone: _currentIndex,
+                  totalPhrases: widget.boss.phrases.length,
+                  elapsedSeconds: _stopwatch.elapsed.inMilliseconds / 1000.0,
+                ),
+              ),
 
             // Combo display
             if (_combo >= 3)
@@ -1031,6 +1250,28 @@ class _BattleScreenState extends State<_BattleScreen> with TickerProviderStateMi
             const SizedBox(height: 8),
             Text(msg, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: _DS.white)),
             const SizedBox(height: 24),
+
+            // "Dua bong ma" — chi hien khi backend XAC NHAN da luu ghost
+            // moi (xem _submitGhost, dieu kien: moi cau >=70 diem VA
+            // nhanh hon ghost cu).
+            if (_newGhostRecord) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF7C4DFF), Color(0xFF5B5FEF)]),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('👻', style: TextStyle(fontSize: 20)),
+                  SizedBox(width: 8),
+                  Text('Bạn vừa lập kỷ lục Bóng Ma mới cho Boss này!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+                ]),
+              ),
+            ],
 
             // Bug "mat trang ket qua tran dau" — bao ro neu /submit that
             // bai, cho nut thu luu lai thay vi im lang mat het diem/combo.
@@ -1322,6 +1563,389 @@ class _LeaderboardScreenState extends State<_LeaderboardScreen> {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// SURVIVAL SCREEN — "Chế độ Sinh Tồn" (idea #1, 2026-09-16)
+// ═══════════════════════════════════════════════════════════════
+// Vong choi VO HAN, cau lay tu TOAN BO 100 cau (5 Boss gop chung), uu
+// tien chu de nguoi dung dang YEU nhat qua /survival/next-phrase (tai su
+// dung THANG du lieu user_topic_mastery da co san — xem phan tich 4 y
+// tuong da trinh bay). Khac Dau Truong: KHONG co combo/critical hit/che
+// do nghe doan — giu MVP gon, dung 3 mang (lives), sai 1 cau mat 1 mang,
+// het mang thi ket thuc va luu STREAK (so cau dung LIEN TIEP tot nhat)
+// len BXH rieng (/survival/submit, xem backend — score = MAX khong cong
+// don qua nhieu luot).
+Color _parseHexColor(String hex) => Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+
+class _SurvivalScreen extends StatefulWidget {
+  const _SurvivalScreen();
+  @override
+  State<_SurvivalScreen> createState() => _SurvivalScreenState();
+}
+
+class _SurvivalScreenState extends State<_SurvivalScreen> {
+  final _storage = const FlutterSecureStorage();
+  static const _maxLives = 3;
+
+  int _lives = _maxLives;
+  int _streak = 0;
+  int _bestStreakThisRun = 0;
+  int _totalScore = 0;
+  bool _isLoadingPhrase = true;
+  bool _loadFailed = false;
+  bool _isRecording = false;
+  bool _isScoring = false;
+  bool _gameOver = false;
+  Map<String, dynamic>? _phrase;
+  ScoreResult? _lastResult;
+  late DateTime _startTime;
+  bool _isSavingResult = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTime = DateTime.now();
+    _loadNextPhrase();
+  }
+
+  Future<void> _loadNextPhrase() async {
+    setState(() { _isLoadingPhrase = true; _loadFailed = false; _lastResult = null; });
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      final res = await dio.get(
+        '${ApiConstants.baseUrl}/pronunciation/survival/next-phrase',
+        queryParameters: _phrase != null ? {'exclude_id': _phrase!['id']} : null,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (mounted) setState(() { _phrase = res.data; _isLoadingPhrase = false; });
+    } catch (e) {
+      if (mounted) setState(() { _isLoadingPhrase = false; _loadFailed = true; });
+    }
+  }
+
+  Future<void> _startRecording() async {
+    if (_isRecording || _isScoring || _phrase == null) return;
+    setState(() => _isRecording = true);
+    HapticFeedback.lightImpact();
+    await webStartRecording(
+      (audioBase64) => _submitAudio(audioBase64),
+      (error) => setState(() => _isRecording = false),
+    );
+  }
+
+  void _stopRecording() {
+    webStopRecording();
+    setState(() => _isRecording = false);
+  }
+
+  Future<void> _submitAudio(String audioBase64) async {
+    if (_phrase == null) return;
+    setState(() { _isRecording = false; _isScoring = true; });
+    try {
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)));
+      final res = await dio.post(
+        '${ApiConstants.baseUrl}/pronunciation/score',
+        data: {
+          'audio_base64': audioBase64,
+          'phrase_id': _phrase!['id'],
+          'phrase_text': _phrase!['text'],
+          'phrase_pinyin': _phrase!['pinyin'],
+          'phrase_meaning': _phrase!['meaning'],
+          'boss_id': _phrase!['boss_id'],
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final result = ScoreResult.fromJson(res.data);
+      setState(() { _lastResult = result; _isScoring = false; });
+
+      // Bi Gate tu choi — KHONG mat mang, chi can noi lai CUNG cau nay.
+      if (result.gateRejected) return;
+
+      if (result.score >= 70) {
+        HapticFeedback.lightImpact();
+        setState(() {
+          _streak++;
+          if (_streak > _bestStreakThisRun) _bestStreakThisRun = _streak;
+          _totalScore += result.score;
+        });
+        await Future.delayed(const Duration(milliseconds: 900));
+        if (mounted && !_gameOver) _loadNextPhrase();
+      } else {
+        HapticFeedback.heavyImpact();
+        _streak = 0;
+        final newLives = _lives - 1;
+        setState(() => _lives = newLives);
+        await Future.delayed(const Duration(milliseconds: 900));
+        if (!mounted) return;
+        if (newLives <= 0) {
+          _endGame();
+        } else {
+          _loadNextPhrase();
+        }
+      }
+    } on DioException catch (e) {
+      setState(() => _isScoring = false);
+      if (e.response?.statusCode == 403) {
+        if (mounted) showDialog(context: context, builder: (_) => const PaywallScreen());
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi chấm điểm. Thử lại!'), backgroundColor: Colors.red));
+      }
+    } catch (e) {
+      setState(() => _isScoring = false);
+    }
+  }
+
+  Future<void> _endGame() async {
+    setState(() { _gameOver = true; _isSavingResult = true; });
+    try {
+      final elapsed = DateTime.now().difference(_startTime).inSeconds;
+      final token = await _storage.read(key: 'access_token');
+      final dio = Dio();
+      await dio.post(
+        '${ApiConstants.baseUrl}/pronunciation/survival/submit',
+        data: {'streak': _bestStreakThisRun, 'total_score': _totalScore, 'time_seconds': elapsed},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {}
+    if (mounted) setState(() => _isSavingResult = false);
+  }
+
+  void _restart() {
+    setState(() {
+      _lives = _maxLives; _streak = 0; _bestStreakThisRun = 0; _totalScore = 0;
+      _gameOver = false; _phrase = null; _startTime = DateTime.now();
+    });
+    _loadNextPhrase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_gameOver) return _buildGameOver();
+
+    final bossColor = _phrase != null ? _parseHexColor(_phrase!['boss_color']) : _DS.red;
+
+    return Scaffold(
+      backgroundColor: _DS.bg,
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.close_rounded, color: _DS.white, size: 20),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('🌊 Sinh Tồn', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _DS.white)),
+              const Spacer(),
+              _HeartRow(lives: _lives, maxLives: _maxLives),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(color: _DS.orange.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+              child: Row(children: [
+                const Text('🔥', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text('Streak: $_streak', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.orange)),
+              ]),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(color: _DS.yellow.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+              child: Row(children: [
+                const Text('⭐', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text('$_totalScore', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.yellow)),
+              ]),
+            ),
+          ]),
+          Expanded(
+            child: Center(
+              child: _isLoadingPhrase
+                  ? const CircularProgressIndicator(color: _DS.red)
+                  : _loadFailed
+                      ? Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Text('😢 Không tải được câu tiếp theo.', style: TextStyle(color: _DS.textGrey)),
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: _loadNextPhrase,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              decoration: BoxDecoration(color: _DS.red, borderRadius: BorderRadius.circular(14)),
+                              child: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ])
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(color: bossColor.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                              child: Text('${_phrase!['boss_emoji']} ${_phrase!['boss_name']}',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: bossColor)),
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: bossColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: bossColor.withOpacity(0.2)),
+                              ),
+                              child: Column(children: [
+                                Text(_phrase!['text'], textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w500, color: _DS.white, fontFamily: 'NotoSansTC')),
+                                const SizedBox(height: 6),
+                                Text(_phrase!['pinyin'], style: TextStyle(fontSize: 14, color: bossColor, fontStyle: FontStyle.italic)),
+                                const SizedBox(height: 4),
+                                Text(_phrase!['meaning'], style: const TextStyle(fontSize: 13, color: _DS.textGrey)),
+                              ]),
+                            ),
+                            const SizedBox(height: 20),
+                            if (_lastResult != null) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: (_lastResult!.gateRejected ? _DS.yellow : (_lastResult!.isCorrect ? _DS.green : _DS.red)).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: _lastResult!.gateRejected
+                                    ? Text(_lastResult!.feedbackVi, textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 13, color: _DS.white, fontWeight: FontWeight.w700))
+                                    : Column(children: [
+                                        Text('${_lastResult!.score}/100', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                                            color: _lastResult!.isCorrect ? _DS.green : _DS.red)),
+                                        const SizedBox(height: 4),
+                                        Text(_lastResult!.feedbackVi, style: const TextStyle(fontSize: 12, color: _DS.white)),
+                                      ]),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            GestureDetector(
+                              onTapDown: (_) => _startRecording(),
+                              onTapUp: (_) => _stopRecording(),
+                              onTapCancel: () => _stopRecording(),
+                              child: _isScoring
+                                  ? Container(
+                                      width: 90, height: 90,
+                                      decoration: const BoxDecoration(shape: BoxShape.circle, color: _DS.card),
+                                      child: const Center(child: CircularProgressIndicator(color: _DS.red, strokeWidth: 3)),
+                                    )
+                                  : AnimatedContainer(
+                                      duration: const Duration(milliseconds: 150),
+                                      width: _isRecording ? 100 : 90,
+                                      height: _isRecording ? 100 : 90,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: LinearGradient(colors: _isRecording
+                                            ? [_DS.red, const Color(0xFFB71C1C)]
+                                            : [bossColor, bossColor.withOpacity(0.7)]),
+                                        boxShadow: [BoxShadow(
+                                          color: (_isRecording ? _DS.red : bossColor).withOpacity(0.5),
+                                          blurRadius: _isRecording ? 26 : 14, spreadRadius: _isRecording ? 3 : 0,
+                                        )],
+                                      ),
+                                      child: Icon(_isRecording ? Icons.stop_rounded : Icons.mic_rounded, color: Colors.white, size: 34),
+                                    ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(_isRecording ? 'Thả để gửi' : 'Giữ để nói',
+                                style: const TextStyle(fontSize: 11, color: _DS.textGrey, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 24),
+                          ]),
+                        ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildGameOver() {
+    return Scaffold(
+      backgroundColor: _DS.bg,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('💀', style: TextStyle(fontSize: 72)),
+              const SizedBox(height: 12),
+              const Text('Hết mạng rồi!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: _DS.white)),
+              const SizedBox(height: 24),
+              Row(children: [
+                Expanded(child: _StatBox(label: '🔥 Streak tốt nhất', value: '$_bestStreakThisRun', color: _DS.orange)),
+                const SizedBox(width: 10),
+                Expanded(child: _StatBox(label: '⭐ Điểm', value: '$_totalScore', color: _DS.yellow)),
+              ]),
+              const SizedBox(height: 24),
+              if (_isSavingResult) const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _DS.red)),
+              ),
+              GestureDetector(
+                onTap: _restart,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [_DS.red, Color(0xFFB71C1C)]),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text('Chơi lại', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+                  ]),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                  child: const Text('Thoát', textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _DS.white)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeartRow extends StatelessWidget {
+  final int lives;
+  final int maxLives;
+  const _HeartRow({required this.lives, required this.maxLives});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: List.generate(maxLives, (i) => Padding(
+      padding: const EdgeInsets.only(left: 3),
+      child: Text(i < lives ? '❤️' : '🖤', style: const TextStyle(fontSize: 18)),
+    )),
+  );
+}
+
 // ─── Helper Widgets ───────────────────────────────────────────
 class _FeedbackChip extends StatelessWidget {
   final String label;
@@ -1359,4 +1983,84 @@ class _StatBox extends StatelessWidget {
       Text(label, style: TextStyle(fontSize: 10, color: color.withOpacity(0.8), fontWeight: FontWeight.w700), textAlign: TextAlign.center),
     ]),
   );
+}
+
+class _ModeTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ModeTab({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? _DS.indigo : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      alignment: Alignment.center,
+      child: Text(label, style: TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w800,
+        color: selected ? Colors.white : _DS.textGrey,
+      )),
+    ),
+  );
+}
+
+class _GhostProgressBar extends StatelessWidget {
+  final GhostRun ghost;
+  final int myPhrasesDone;
+  final int totalPhrases;
+  final double elapsedSeconds;
+  const _GhostProgressBar({required this.ghost, required this.myPhrasesDone,
+    required this.totalPhrases, required this.elapsedSeconds});
+
+  @override
+  Widget build(BuildContext context) {
+    final ghostDone = ghost.phrasesCompletedAt(elapsedSeconds);
+    final diff = myPhrasesDone - ghostDone;
+    final leading = diff > 0 ? 'Bạn đang dẫn trước!' : diff < 0 ? 'Bóng ma đang dẫn trước!' : 'Đang ngang bóng ma!';
+    final leadColor = diff > 0 ? _DS.green : diff < 0 ? _DS.red : _DS.yellow;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7C4DFF).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF7C4DFF).withOpacity(0.25)),
+      ),
+      child: Column(children: [
+        Row(children: [
+          const Text('👻', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 6),
+          Expanded(child: Text('Bóng ma của ${ghost.displayName}',
+              style: const TextStyle(fontSize: 11, color: _DS.textGrey, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis)),
+          Text(leading, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: leadColor)),
+        ]),
+        const SizedBox(height: 8),
+        Stack(children: [
+          Container(height: 8, decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(4))),
+          // Vach danh dau vi tri bong ma
+          FractionallySizedBox(
+            widthFactor: totalPhrases == 0 ? 0 : (ghostDone / totalPhrases).clamp(0.0, 1.0),
+            child: Container(height: 8, decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: Colors.white.withOpacity(0.5), width: 2)),
+            )),
+          ),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 8,
+            width: (MediaQuery.of(context).size.width - 64) * (totalPhrases == 0 ? 0 : (myPhrasesDone / totalPhrases).clamp(0.0, 1.0)),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF7C4DFF), _DS.indigo]),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
 }
