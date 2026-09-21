@@ -393,7 +393,18 @@ class _TranslateScreenState extends State<TranslateScreen>
       ));
       final response = await dio.post(
         '${ApiConstants.baseUrl}/translate/text',
-        data: {'text': text, 'target_lang': _targetLang},
+        data: {
+          'text': text,
+          'target_lang': _targetLang,
+          // Bug "pinyin lech nghia voi chu Han hien thi" (2026-09-21) — gui
+          // kem ban dich DA HIEN THI SAN (tu /translate/fast, Google
+          // Translate) de backend KHONG tu dich lai bang GPT (co the chon
+          // tu dong nghia KHAC, vd 廁所 thay vi 洗手間, khien pinyin sinh ra
+          // mo ta 1 cau KHAC voi chu Han dang hien tren man hinh). CHI gui
+          // khi dang dich sang zh-TW va da co ket qua hien thi.
+          if (_targetLang == 'zh-TW' && _result.isNotEmpty)
+            'existing_translation': _result,
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (requestId != _textRequestId) return;
@@ -716,7 +727,15 @@ class _TranslateScreenState extends State<TranslateScreen>
       ));
       final response = await dio.post(
         '${ApiConstants.baseUrl}/translate/text',
-        data: {'text': text, 'target_lang': _imageTargetLang},
+        data: {
+          'text': text,
+          'target_lang': _imageTargetLang,
+          // Xem giai thich day du o _loadAiLearning() (tab Van ban) — cung
+          // 1 bug/fix, chi khac nguon: _imageResult o day tung duoc
+          // /translate/fast (Google Translate) dien qua _translateOcrText().
+          if (_imageTargetLang == 'zh-TW' && _imageResult.isNotEmpty)
+            'existing_translation': _imageResult,
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (requestId != _imageRequestId) return;
@@ -1091,7 +1110,15 @@ class _TranslateScreenState extends State<TranslateScreen>
           receiveTimeout: const Duration(seconds: 60)));
       final response = await dio.post(
         '${ApiConstants.baseUrl}/translate/text',
-        data: {'text': text, 'target_lang': _voiceTargetLang},
+        data: {
+          'text': text,
+          'target_lang': _voiceTargetLang,
+          // Xem giai thich day du o _loadAiLearning() (tab Van ban) — cung
+          // 1 bug/fix, chi khac nguon: _voiceResult o day tung duoc
+          // /translate/voice-fast (Google Translate) dien qua _translateVoice().
+          if (_voiceTargetLang == 'zh-TW' && _voiceResult.isNotEmpty)
+            'existing_translation': _voiceResult,
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       if (requestId != _voiceRequestId) return;
