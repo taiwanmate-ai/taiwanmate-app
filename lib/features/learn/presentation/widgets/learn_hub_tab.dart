@@ -2,7 +2,7 @@
 // LEARN HUB TAB
 // File: lib/features/learn/presentation/widgets/learn_hub_tab.dart
 //
-// Màn hình gốc của tab "Lộ trình" — chỉ có 2 thẻ chọn:
+// Màn hình gốc của tab "Lộ trình" — thẻ CAT tùy chọn (PlacementCard) + 2 thẻ chọn:
 // 1. Học theo Lộ trình (mở CurriculumTab)
 // 2. 30 Ngày Sinh Tồn (mở JourneyTab)
 // ═══════════════════════════════════════════════════════════════
@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/curriculum_tab.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/journey.dart';
+import 'package:chinesemate/features/learn/presentation/widgets/placement_card.dart';
 
 class LearnHubTab extends StatelessWidget {
   final String lang;
@@ -21,7 +22,7 @@ class LearnHubTab extends StatelessWidget {
   static const _purple = Color(0xFF5B5FEF);
   static const _orange = Color(0xFFFF6B35);
 
-  void _openCurriculum(BuildContext context) {
+  void _openCurriculum(BuildContext context, {String? language, String? level}) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -30,7 +31,7 @@ class LearnHubTab extends StatelessWidget {
         title: const Text('Lộ trình học',
             style: TextStyle(color: _textDark, fontWeight: FontWeight.w800, fontSize: 16)),
       ),
-      body: const CurriculumTab(),
+      body: CurriculumTab(initialLanguage: language, initialLevel: level),
     )));
   }
 
@@ -52,6 +53,11 @@ class LearnHubTab extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
+        // CAT đầu vào TÙY CHỌN (không chặn) — tự ẩn nếu bài kiểm tra chưa sẵn sàng / lỗi mạng.
+        PlacementCard(
+          lang: lang,
+          onStartFromLevel: (language, level) => _openCurriculum(context, language: language, level: level),
+        ),
         _buildCard(
           context: context,
           emoji: '📚',

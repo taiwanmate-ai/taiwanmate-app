@@ -60,7 +60,21 @@ class CatTestTab extends StatefulWidget {
   /// quyết định theo ngôn ngữ user đang học. Khi có giá trị này, bỏ qua màn chọn loại đề thủ công.
   final String? requiredTestType;
 
-  const CatTestTab({super.key, this.onCompleted, this.isRequiredPlacement = false, this.requiredTestType});
+  /// Placement TÙY CHỌN (thẻ CAT ở tab Lộ trình): false = KHÔNG tự chuyển đi sau vài giây, để
+  /// user đọc kết quả rồi tự bấm nút. true (mặc định) giữ hành vi cũ của CAT đầu vào bắt buộc.
+  final bool autoAdvance;
+
+  /// Nhãn nút hoàn tất ở màn kết quả (mặc định: "Tiếp tục vào Học tập").
+  final String completeLabel;
+
+  const CatTestTab({
+    super.key,
+    this.onCompleted,
+    this.isRequiredPlacement = false,
+    this.requiredTestType,
+    this.autoAdvance = true,
+    this.completeLabel = 'Tiếp tục vào Học tập',
+  });
   @override
   State<CatTestTab> createState() => _CatTestTabState();
 }
@@ -293,7 +307,7 @@ class _CatTestTabState extends State<CatTestTab> {
       } else {
         _loadCombinedResult().then((_) {
           // CAT đầu vào bắt buộc: ưu tiên tự động chuyển vào Learning Hub sau khi user kịp xem kết quả.
-          if (widget.isRequiredPlacement && widget.onCompleted != null) {
+          if (widget.isRequiredPlacement && widget.autoAdvance && widget.onCompleted != null) {
             _autoAdvanceTimer?.cancel();
             _autoAdvanceTimer = Timer(const Duration(seconds: 4), _notifyCompleted);
           }
@@ -789,8 +803,8 @@ class _CatTestTabState extends State<CatTestTab> {
           const SizedBox(height: 20),
         ],
         if (widget.onCompleted != null) ...[
-          _buildCta('Tiếp tục vào Học tập', _notifyCompleted, primary: true),
-          if (widget.isRequiredPlacement) ...[
+          _buildCta(widget.completeLabel, _notifyCompleted, primary: true),
+          if (widget.isRequiredPlacement && widget.autoAdvance) ...[
             const SizedBox(height: 10),
             const Text('Sẽ tự động chuyển vào Học tập sau ít giây...',
                 textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: _CatDS.textGrey)),

@@ -24,7 +24,11 @@ const _curBaseUrl = 'https://taiwanmate-backend-production.up.railway.app/api/v1
 enum _CurStage { pickLang, levelList, unitList, unitDetail, practice, complete }
 
 class CurriculumTab extends StatefulWidget {
-  const CurriculumTab({super.key});
+  /// Mở thẳng vào danh sách bài của cấp `initialLevel` (vd từ kết quả placement CAT). Cả 2 phải
+  /// có mới có tác dụng; thiếu 1 trong 2 thì hiện màn chọn ngôn ngữ như thường.
+  final String? initialLanguage;
+  final String? initialLevel;
+  const CurriculumTab({super.key, this.initialLanguage, this.initialLevel});
   @override
   State<CurriculumTab> createState() => _CurriculumTabState();
 }
@@ -52,6 +56,18 @@ class _CurriculumTabState extends State<CurriculumTab> {
   int _quizIndex = 0;
   int? _quizSelected;
   List<Map<String, dynamic>> _quizPool = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final lang = widget.initialLanguage, level = widget.initialLevel;
+    if (lang != null && level != null) {
+      _pickLanguage(lang).then((_) {
+        // _pickLanguage nuốt lỗi và để _errorMsg — chỉ đi tiếp khi đã có danh sách cấp độ.
+        if (mounted && _stage == _CurStage.levelList) _pickLevel(level);
+      });
+    }
+  }
 
   Future<Options> get _authOptions async {
     final token = await _storage.read(key: 'access_token');

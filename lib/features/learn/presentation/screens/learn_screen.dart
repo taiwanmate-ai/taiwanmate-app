@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chinesemate/core/providers/hanzi_mode_provider.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/vocab_detail_screen.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/my_mistakes_screen.dart';
-import 'package:chinesemate/features/learn/presentation/widgets/cat_test_tab.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/curriculum_tab.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/learn_hub_tab.dart';
@@ -42,10 +41,6 @@ class _DS {
   static const radius = 20.0;
   static const radiusSm = 14.0;
 }
-
-// ─── CAT Test gate ────────────────────────────────────────────
-// Trạng thái cổng CAT Test bắt buộc trước khi vào Learning Hub.
-enum _CatGateStatus { checking, needsCat, hubUnlocked, error, testTypeUnavailable }
 
 // ─── Topic data ───────────────────────────────────────────────
 const _topics = [
@@ -86,9 +81,6 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
   int _currentTab = 0;
   bool _headerCollapsed = false;
 
-  // CAT Test gate — bắt buộc trước khi vào Learning Hub
-  _CatGateStatus _catGateStatus = _CatGateStatus.checking;
-
   // Mood selector
   int _selectedMood = -1;
   static const _moods = [
@@ -103,9 +95,6 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
   int _survivalTimeLeft = 60;
   int _survivalCorrect = 0;
   Timer? _survivalTimer;
-
-  // Calendar data — 30 ngày
-  final List<double> _calendarData = List.generate(30, (i) => 0.0);
 
   // Yuki message
   String get _meiMessage {
@@ -127,53 +116,10 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
       }
     });
     _loadDailyVocabulary();
-    _loadCalendarData();
     _checkStreakStatus();
-    _checkCatGateStatus();
     ref.listenManual(hanziModeProvider, (previous, next) {
       if (previous != next) _refreshHanziCache();
     });
-  }
-
-  // ── CAT TEST GATE ─────────────────────────────────────────
-  // Map ngôn ngữ đang học (_lang) sang test_type của CAT đầu vào.
-  String get _requiredCatTestType => _lang == 'en' ? 'english' : 'tocfl';
-
-  Future<void> _checkCatGateStatus() async {
-    if (mounted) setState(() => _catGateStatus = _CatGateStatus.checking);
-    try {
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio();
-
-      // Nguồn sự thật duy nhất cho việc ngân hàng câu hỏi đã đủ hay chưa — KHÔNG tự giữ
-      // hằng số readiness riêng ở Flutter, luôn hỏi backend (GET /cat-test/availability).
-      final availabilityRes = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/cat-test/availability',
-        queryParameters: {'test_type': _requiredCatTestType},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      if (availabilityRes.data['available'] != true) {
-        if (mounted) setState(() => _catGateStatus = _CatGateStatus.testTypeUnavailable);
-        return;
-      }
-
-      final statusRes = await dio.get(
-        'https://taiwanmate-backend-production.up.railway.app/api/v1/cat-test/status',
-        queryParameters: {'test_type': _requiredCatTestType},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      final completed = statusRes.data['completed'] == true;
-      if (mounted) {
-        setState(() => _catGateStatus = completed ? _CatGateStatus.hubUnlocked : _CatGateStatus.needsCat);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _catGateStatus = _CatGateStatus.error);
-    }
-  }
-
-  void _onCatCompleted() {
-    if (_catGateStatus == _CatGateStatus.hubUnlocked) return;
-    setState(() => _catGateStatus = _CatGateStatus.hubUnlocked);
   }
 
   @override
@@ -234,13 +180,6 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
     }
   }
 
-  void _loadCalendarData() {
-    // Simulate data — trong thực tế load từ storage
-    final today = DateTime.now().day;
-    for (int i = 0; i < today && i < 30; i++) {
-      _calendarData[i] = (i % 3 == 0) ? 1.0 : (i % 3 == 1) ? 0.6 : 0.3;
-    }
-  }
   Future<void> _checkStreakStatus() async {
     try {
       final token = await _storage.read(key: 'access_token');
@@ -381,87 +320,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
   Widget build(BuildContext context) {
     super.build(context);
 
-    // Cổng CAT Test bắt buộc — chặn Learning Hub cho tới khi biết chắc trạng thái,
-    // để tránh nhấp nháy Learning Hub trước khi xác định user đã hoàn thành CAT hay chưa.
-    if (_catGateStatus == _CatGateStatus.checking) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF0F4FF),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF5B5FEF))),
-      );
-    }
-    if (_catGateStatus == _CatGateStatus.error) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF0F4FF),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.error_outline_rounded, size: 44, color: _DS.red),
-              const SizedBox(height: 12),
-              const Text('Không kiểm tra được trạng thái CAT Test.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark)),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: _checkCatGateStatus,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(color: _DS.blue, borderRadius: BorderRadius.circular(14)),
-                  child: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ]),
-          ),
-        ),
-      );
-    }
-    if (_catGateStatus == _CatGateStatus.testTypeUnavailable) {
-      // Có thể do ngân hàng câu hỏi (Reading) chưa đủ HOẶC (từ PROMPT 8.1) do audio Listening
-      // chưa có bản thu thật (chỉ mới tiếng bíp fixture) — backend chỉ trả available=true khi CẢ
-      // Reading lẫn Listening đều sẵn sàng. Hiện tại điều này có thể xảy ra ở CẢ tiếng Trung lẫn
-      // tiếng Anh cùng lúc, nên không còn gợi ý "chuyển sang tiếng Trung" (không chắc còn dùng
-      // được) — chỉ còn nút thử lại chung.
-      return Scaffold(
-        backgroundColor: const Color(0xFFF0F4FF),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('🚧', style: TextStyle(fontSize: 48)),
-              const SizedBox(height: 12),
-              const Text('CAT đầu vào đang được hoàn thiện',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _DS.textDark)),
-              const SizedBox(height: 8),
-              const Text(
-                  'Phần Đọc hiểu hoặc Nghe hiểu của bài kiểm tra chưa sẵn sàng (đang hoàn thiện âm thanh). Vui lòng quay lại sau nhé!',
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: _DS.textGrey)),
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: _checkCatGateStatus,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(color: _DS.blue, borderRadius: BorderRadius.circular(14)),
-                  child: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ]),
-          ),
-        ),
-      );
-    }
-    if (_catGateStatus == _CatGateStatus.needsCat) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF0F4FF),
-        body: SafeArea(child: CatTestTab(
-          onCompleted: _onCatCompleted,
-          isRequiredPlacement: true,
-          requiredTestType: _requiredCatTestType,
-        )),
-      );
-    }
-
-    // _CatGateStatus.hubUnlocked — Learning Hub với đúng 4 tab
+    // Learning Hub với đúng 4 tab. CAT KHÔNG còn chặn ở đây — xem PlacementCard (learn_hub_tab.dart).
     final bool tall = MediaQuery.of(context).size.height > 700;
     final bool showDashboard = !_headerCollapsed;
     return Scaffold(
@@ -479,7 +338,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      LearnHubTab(lang: _lang),
+                      LearnHubTab(key: ValueKey(_lang), lang: _lang),
                       Column(children: [
                         _buildQuickAccessRow(),
                         Expanded(child: VocabularyListTab(storage: _storage, lang: _lang)),
@@ -548,7 +407,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               GestureDetector(
-                onTap: () { if (_lang != 'zh') { setState(() => _lang = 'zh'); _loadDailyVocabulary(); _checkCatGateStatus(); } },
+                onTap: () { if (_lang != 'zh') { setState(() => _lang = 'zh'); _loadDailyVocabulary(); } },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -562,7 +421,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
                 ),
               ),
               GestureDetector(
-                onTap: () { if (_lang != 'en') { setState(() => _lang = 'en'); _loadDailyVocabulary(); _checkCatGateStatus(); } },
+                onTap: () { if (_lang != 'en') { setState(() => _lang = 'en'); _loadDailyVocabulary(); } },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -686,7 +545,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
     );
   }
 
-  // ── DAILY RING + CALENDAR ─────────────────────────────────
+  // ── DAILY RING ─────────────────────────────────
   Widget _buildDailyRing() {
     final progress = _dailyDone / _dailyGoal;
     final isDone = _dailyDone >= _dailyGoal;
@@ -733,32 +592,6 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
             const SizedBox(height: 4),
             Text('$_dailyDone / $_dailyGoal từ · $_reviewDue cần ôn',
                 style: const TextStyle(fontSize: 11, color: Color(0xFF8A8FA3))),
-            const SizedBox(height: 6),
-
-            // 30-day calendar mini
-            Row(children: List.generate(30, (i) {
-              final val = _calendarData[i];
-              Color dotColor;
-              if (val >= 0.8) dotColor = const Color(0xFF00C853);
-              else if (val >= 0.4) dotColor = const Color(0xFFFFD166);
-              else if (val > 0) dotColor = const Color(0xFF5B5FEF).withOpacity(0.4);
-              else dotColor = Colors.grey.shade200;
-
-              final isToday = i == DateTime.now().day - 1;
-              return Container(
-                width: isToday ? 7 : 5,
-                height: isToday ? 7 : 5,
-                margin: const EdgeInsets.only(right: 2),
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                  border: isToday ? Border.all(color: const Color(0xFF5B5FEF), width: 1.5) : null,
-                ),
-              );
-            }),
-            ),
-            const SizedBox(height: 2),
-            const Text('30 ngày qua', style: TextStyle(fontSize: 9, color: Color(0xFF8A8FA3))),
           ])),
         ]),
       ),
