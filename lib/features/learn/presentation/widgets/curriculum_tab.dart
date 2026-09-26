@@ -160,10 +160,18 @@ class _CurriculumTabState extends State<CurriculumTab> {
     });
   }
 
+  // Điểm quiz/điền từ của bài (gửi kèm khi hoàn thành để server ghi năng lực chủ đề — Phase 1).
+  Map<String, int>? _unitScore;
+
+  void _onQuizScore(int correct, int total) => _unitScore = unitScoreBody(correct, total);
+
   Future<void> _completeUnit() async {
     setState(() => _loading = true);
     try {
-      final res = await _dio.post('$_curBaseUrl/unit/${_unitDetail!['unit_id']}/complete', options: await _authOptions);
+      final score = _unitScore;
+      _unitScore = null; // mỗi lần hoàn thành dùng điểm của CHÍNH lượt đó
+      final res = await _dio.post('$_curBaseUrl/unit/${_unitDetail!['unit_id']}/complete',
+          data: score, options: await _authOptions);
       setState(() {
         _unitDetail!['_nextUnitId'] = res.data['next_unit_id'];
         _unitDetail!['_levelCompleted'] = res.data['level_completed'];
@@ -607,6 +615,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
       getWord: _cGetWord, getPinyin: _cGetPinyin, getMeaning: _cGetMeaning,
       getExample: _cGetExample, getVocabId: _cGetVocabId, onUpdateSRS: _cUpdateSRS,
       steps: const [PracticeStepType.quiz, PracticeStepType.fillBlank],
+      onQuizScore: _onQuizScore,
       onAllStepsComplete: _completeUnit,
     );
   }

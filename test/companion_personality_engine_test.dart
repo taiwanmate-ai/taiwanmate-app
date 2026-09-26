@@ -249,6 +249,12 @@ void main() {
       expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ: beginner'), isTrue);
     });
 
+    test('chineseLevel="basic" (gia tri CAT A2 ghi vao ho so, Phase 1) — prompt chua dung gia tri nay', () {
+      final prompt = _buildPrompt(userType: 'adult', chineseLevel: 'basic');
+      expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ: basic'), isTrue);
+      expect(prompt.contains('theo hồ sơ: beginner'), isFalse);
+    });
+
     test('chineseLevel="intermediate" — prompt PHAI chua dung gia tri nay (khong hard-code beginner)', () {
       final prompt = _buildPrompt(userType: 'adult', chineseLevel: 'intermediate');
       expect(prompt.contains('Trình độ tiếng Trung hiện tại của user theo hồ sơ: intermediate'), isTrue);

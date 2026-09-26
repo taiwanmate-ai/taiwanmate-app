@@ -18,6 +18,31 @@ import 'package:chinesemate/features/learn/presentation/widgets/stroke_practice_
 
 enum PracticeStepType { flashcard, listen, quiz, fillBlank }
 
+/// Đếm đúng/sai của các bước CÓ CHẤM ĐIỂM THẬT (Quiz, Điền từ). Flashcard là tự đánh giá,
+/// Nghe không tính — chỉ điểm quiz/điền từ mới gửi lên server làm "điểm unit" (Phase 1).
+class QuizScoreCounter {
+  int correct = 0;
+  int total = 0;
+  void record(bool isCorrect) {
+    total++;
+    if (isCorrect) correct++;
+  }
+}
+
+/// Server chỉ nhận 1 <= total <= 50 và 0 <= correct <= total (POST /curriculum/unit/{id}/complete).
+/// Trả null khi chưa có câu nào được chấm (khi đó KHÔNG gửi điểm, server chỉ đánh dấu hoàn thành).
+Map<String, int>? unitScoreBody(int correct, int total) {
+  if (total <= 0) return null;
+  const maxTotal = 50;
+  var c = correct.clamp(0, total);
+  var t = total;
+  if (t > maxTotal) {
+    c = (c * maxTotal / t).round();
+    t = maxTotal;
+  }
+  return {'correct': c, 'total': t};
+}
+
 extension _StepMeta on PracticeStepType {
   String get label {
     switch (this) {
@@ -49,6 +74,8 @@ class UnitPracticeScreen extends StatefulWidget {
   final Future<void> Function(String, bool) onUpdateSRS;
   final List<PracticeStepType> steps; // ví dụ: [flashcard, listen] hoặc [quiz, fillBlank]
   final VoidCallback onAllStepsComplete;
+  /// Gọi ngay TRƯỚC onAllStepsComplete khi có ít nhất 1 câu Quiz/Điền từ được chấm.
+  final void Function(int correct, int total)? onQuizScore;
 
   const UnitPracticeScreen({
     super.key,
@@ -62,6 +89,7 @@ class UnitPracticeScreen extends StatefulWidget {
     required this.onUpdateSRS,
     required this.steps,
     required this.onAllStepsComplete,
+    this.onQuizScore,
   });
 
   @override
@@ -71,6 +99,18 @@ class UnitPracticeScreen extends StatefulWidget {
 class _UnitPracticeScreenState extends State<UnitPracticeScreen> {
   int _activeIndex = 0;
   bool _showWriteOffer = false;
+  final QuizScoreCounter _score = QuizScoreCounter();
+
+  /// onUpdateSRS cho bước Quiz/Điền từ: vừa đếm điểm vừa chuyển tiếp xuống SRS như cũ.
+  Future<void> _scoredUpdateSRS(String vocabId, bool isCorrect) {
+    _score.record(isCorrect);
+    return widget.onUpdateSRS(vocabId, isCorrect);
+  }
+
+  void _finishAllSteps() {
+    if (_score.total > 0) widget.onQuizScore?.call(_score.correct, _score.total);
+    widget.onAllStepsComplete();
+  }
 
   static const _purple = Color(0xFF5B5FEF);
   static const _green = Color(0xFF00C853);
@@ -87,7 +127,7 @@ class _UnitPracticeScreenState extends State<UnitPracticeScreen> {
       return;
     }
     if (isLastStep) {
-      widget.onAllStepsComplete();
+      _finishAllSteps();
     } else {
       setState(() { _activeIndex++; _showWriteOffer = false; });
     }
@@ -96,7 +136,7 @@ class _UnitPracticeScreenState extends State<UnitPracticeScreen> {
   void _continueAfterWriteOffer() {
     setState(() => _showWriteOffer = false);
     if (_activeIndex + 1 >= widget.steps.length) {
-      widget.onAllStepsComplete();
+      _finishAllSteps();
     } else {
       setState(() => _activeIndex++);
     }
@@ -143,7 +183,7 @@ class _UnitPracticeScreenState extends State<UnitPracticeScreen> {
           getPinyin: widget.getPinyin,
           getMeaning: widget.getMeaning,
           getVocabId: widget.getVocabId,
-          onUpdateSRS: widget.onUpdateSRS,
+          onUpdateSRS: _scoredUpdateSRS,
           onXpEarned: (_) {},
           onFinished: _onStepDone,
         );
@@ -157,7 +197,7 @@ class _UnitPracticeScreenState extends State<UnitPracticeScreen> {
           getMeaning: widget.getMeaning,
           getExample: widget.getExample,
           getVocabId: widget.getVocabId,
-          onUpdateSRS: widget.onUpdateSRS,
+          onUpdateSRS: _scoredUpdateSRS,
           onXpEarned: (_) {},
           onFinished: _onStepDone,
         );
