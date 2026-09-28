@@ -149,18 +149,19 @@ class _MockExamListScreenState extends ConsumerState<MockExamListScreen> {
     final eligAsync = ref.watch(mockExamEligibilityProvider);
     return eligAsync.when(
       data: (elig) {
-        // Audit Mock Exam 2026-09-28: quota Free gio RIENG theo ngon ngu — ghi ro TEN NGON NGU
-        // trong thong bao de user khong hieu nham "het luot" la het CA HAI ngon ngu.
+        // Audit Mock Exam 2026-09-28 (phan 4, chi doi chu): quota RIENG theo ngon ngu cho CA
+        // Free lan VIP — moi cau deu neu ro "mỗi ngôn ngữ" (khong chi dua vao $langName cua
+        // ngon ngu dang xem) de user khong hieu nham "het luot" la het CA HAI ngon ngu.
         final langName = languageDisplayName(elig.languageCode);
         String text;
         Color bg;
         if (!elig.vipRequired) {
           text = elig.periodType == 'half_month'
-              ? 'Bạn là VIP — có thể thi $langName mỗi nửa tháng.'
-              : 'Bạn còn 1 lượt thi thử miễn phí cho $langName.';
+              ? 'Bạn là VIP — có thể thi $langName mỗi nửa tháng (mỗi ngôn ngữ có 1 lượt riêng).'
+              : 'Bạn còn 1 lượt thi thử miễn phí cho $langName (mỗi ngôn ngữ có 1 lượt riêng).';
           bg = ExamDS.greenLight;
         } else if (elig.nextAvailableAt != null) {
-          text = 'Đã dùng hết lượt $langName kỳ này. Lượt tiếp theo: '
+          text = 'Đã dùng hết lượt $langName kỳ này (mỗi ngôn ngữ có 1 lượt/nửa tháng riêng). Lượt tiếp theo: '
               '${DateFormat('dd/MM/yyyy HH:mm').format(elig.nextAvailableAt!.toLocal())}';
           bg = ExamDS.redLight;
         } else {
