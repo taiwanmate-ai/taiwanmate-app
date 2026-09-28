@@ -149,19 +149,23 @@ class _MockExamListScreenState extends ConsumerState<MockExamListScreen> {
     final eligAsync = ref.watch(mockExamEligibilityProvider);
     return eligAsync.when(
       data: (elig) {
+        // Audit Mock Exam 2026-09-28: quota Free gio RIENG theo ngon ngu — ghi ro TEN NGON NGU
+        // trong thong bao de user khong hieu nham "het luot" la het CA HAI ngon ngu.
+        final langName = languageDisplayName(elig.languageCode);
         String text;
         Color bg;
         if (!elig.vipRequired) {
           text = elig.periodType == 'half_month'
-              ? 'Bạn là VIP — có thể thi mỗi nửa tháng.'
-              : 'Bạn còn 1 lượt thi thử miễn phí.';
+              ? 'Bạn là VIP — có thể thi $langName mỗi nửa tháng.'
+              : 'Bạn còn 1 lượt thi thử miễn phí cho $langName.';
           bg = ExamDS.greenLight;
         } else if (elig.nextAvailableAt != null) {
-          text = 'Đã dùng hết lượt. Lượt tiếp theo: '
+          text = 'Đã dùng hết lượt $langName kỳ này. Lượt tiếp theo: '
               '${DateFormat('dd/MM/yyyy HH:mm').format(elig.nextAvailableAt!.toLocal())}';
           bg = ExamDS.redLight;
         } else {
-          text = 'Đã dùng hết lượt thi thử miễn phí. Nâng cấp VIP để thi định kỳ mỗi nửa tháng.';
+          text = 'Đã dùng hết lượt thi thử miễn phí cho $langName. Nâng cấp VIP để thi định kỳ mỗi nửa tháng, '
+              'hoặc chuyển sang ngôn ngữ khác ở trên — mỗi ngôn ngữ có 1 lượt miễn phí riêng.';
           bg = ExamDS.redLight;
         }
         return Container(

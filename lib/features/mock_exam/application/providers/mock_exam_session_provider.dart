@@ -16,6 +16,18 @@ class MockExamSessionNotifier extends StateNotifier<MockExamSessionState> {
     state = MockExamSessionState(phase: ExamPhase.loading, totalQuestionCount: totalQuestionCount);
     try {
       final result = await _repository.start(assessmentVersionId);
+      // Audit Mock Exam 2026-09-28: TRUOC DAY tin tuyet doi ket qua tra ve — bug backend da sua
+      // (start_or_resume co the tra nham attempt cua NGON NGU/version KHAC neu quota tinh sai)
+      // khien client mo bai tieng Trung trong khi tuong dang mo bai tieng Anh. Kiem tra CHINH
+      // CLIENT truoc khi dung ket qua, khong chi dua vao backend da sua — phong hong neu backend
+      // co loi tuong tu sau nay.
+      if (result.assessmentVersionId != assessmentVersionId) {
+        state = state.copyWith(
+          phase: ExamPhase.error,
+          errorMessage: 'Kỳ thi trả về không khớp với kỳ thi đã chọn — vui lòng thử lại.',
+        );
+        return;
+      }
       if (result.isCompleted) {
         // Da lam xong ky nay tu truoc (het luot, server tra nguyen ket qua cu).
         state = state.copyWith(phase: ExamPhase.finished, attemptId: result.attemptId, finalResult: result);

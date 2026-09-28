@@ -9,7 +9,7 @@ import 'package:chinesemate/features/mock_exam/domain/models/mock_exam_models.da
 /// can/khong duoc viet rieng). Dung DioClient.instance (co san Authorization
 /// interceptor tu SecureStorage) thay vi tu quan ly token nhu vai repository cu.
 abstract class MockExamRepository {
-  Future<MockExamEligibility> getEligibility();
+  Future<MockExamEligibility> getEligibility(String languageCode);
   Future<List<MockExamPeriod>> listPeriods({String? languageId});
   Future<MockExamResult> start(String assessmentVersionId);
   Future<({bool hasNext, ExamQuestion? question})> getNextQuestion(String attemptId);
@@ -27,8 +27,9 @@ class MockExamRepositoryImpl implements MockExamRepository {
   MockExamRepositoryImpl({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
   @override
-  Future<MockExamEligibility> getEligibility() async {
-    final resp = await _dio.get('/mock-exam/eligibility');
+  Future<MockExamEligibility> getEligibility(String languageCode) async {
+    // Audit Mock Exam 2026-09-28: language_code BAT BUOC — quota Free gio RIENG theo ngon ngu.
+    final resp = await _dio.get('/mock-exam/eligibility', queryParameters: {'language_code': languageCode});
     return MockExamEligibility.fromJson(resp.data as Map<String, dynamic>);
   }
 

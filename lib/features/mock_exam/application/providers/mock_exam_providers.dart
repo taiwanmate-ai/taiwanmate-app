@@ -10,9 +10,17 @@ final mockExamRepositoryProvider = Provider<MockExamRepository>((ref) {
 /// cua learn_v2 (tranh phu thuoc cheo giua 2 feature doc lap).
 final selectedMockExamLanguageProvider = StateProvider<String>((ref) => 'zh');
 
+/// 'zh'/'en' (chip cua tab nay) -> language_code THAT ma backend hieu — dung CHUNG boi ca
+/// eligibility lan loc periods, tranh 2 noi tu suy dien ra 2 gia tri khac nhau.
+String mockExamBackendLanguageCode(String lang) => lang == 'en' ? 'en' : 'zh-Hant-TW';
+
+/// Audit Mock Exam 2026-09-28: phu thuoc THEM vao selectedMockExamLanguageProvider — quota
+/// Free gio RIENG theo ngon ngu nen PHAI goi lai API moi khi doi chip (truoc day goi 1 lan
+/// dung chung ca 2 chip, sai — xem bao cao).
 final mockExamEligibilityProvider = FutureProvider.autoDispose<MockExamEligibility>((ref) async {
   final repo = ref.watch(mockExamRepositoryProvider);
-  return repo.getEligibility();
+  final lang = ref.watch(selectedMockExamLanguageProvider);
+  return repo.getEligibility(mockExamBackendLanguageCode(lang));
 });
 
 /// Danh sach ky thi dang mo cho ngon ngu dang chon. language_id THAT (UUID)
@@ -22,7 +30,7 @@ final mockExamPeriodsProvider = FutureProvider.autoDispose<List<MockExamPeriod>>
   final repo = ref.watch(mockExamRepositoryProvider);
   final lang = ref.watch(selectedMockExamLanguageProvider);
   final all = await repo.listPeriods();
-  final wantedCode = lang == 'en' ? 'en' : 'zh-Hant-TW';
+  final wantedCode = mockExamBackendLanguageCode(lang);
   return all.where((p) => p.languageCode == wantedCode).toList()
     ..sort((a, b) => a.versionLabel.compareTo(b.versionLabel));
 });

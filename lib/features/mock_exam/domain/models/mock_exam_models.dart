@@ -9,6 +9,10 @@ class MockExamEligibility {
   final DateTime? nextAvailableAt;
   final String periodType; // 'lifetime' (Free) | 'half_month' (VIP)
   final String periodKey;
+  // Audit Mock Exam 2026-09-28: quota Free gio RIENG theo ngon ngu (backend bat buoc
+  // language_id o /eligibility) — field nay xac nhan dung ket qua tra ve la CUA NGON NGU nao,
+  // tranh hien nham trang thai cua ngon ngu khac len UI.
+  final String languageCode;
 
   const MockExamEligibility({
     required this.trialUsed,
@@ -16,6 +20,7 @@ class MockExamEligibility {
     required this.nextAvailableAt,
     required this.periodType,
     required this.periodKey,
+    required this.languageCode,
   });
 
   factory MockExamEligibility.fromJson(Map<String, dynamic> json) {
@@ -27,6 +32,7 @@ class MockExamEligibility {
           : DateTime.parse(json['next_available_at'] as String),
       periodType: (json['period_type'] ?? '') as String,
       periodKey: (json['period_key'] ?? '') as String,
+      languageCode: (json['language_code'] ?? '') as String,
     );
   }
 }
@@ -216,6 +222,11 @@ class MockExamRecommendation {
 
 class MockExamResult {
   final String attemptId;
+  // Audit Mock Exam 2026-09-28: them 2 field nay de client TU KIEM TRA attempt tra ve tu
+  // start()/resume co dung assessment_version_id/ngon ngu vua yeu cau khong — KHONG con tin
+  // mu quang ket qua backend tra ve (xem MockExamTakingScreen._startOrResume).
+  final String assessmentVersionId;
+  final String? languageCode;
   final String status; // 'in_progress' | 'completed'
   final String? periodType;
   final String? periodKey;
@@ -229,6 +240,8 @@ class MockExamResult {
 
   const MockExamResult({
     required this.attemptId,
+    required this.assessmentVersionId,
+    this.languageCode,
     required this.status,
     this.periodType,
     this.periodKey,
@@ -246,6 +259,8 @@ class MockExamResult {
   factory MockExamResult.fromJson(Map<String, dynamic> json) {
     return MockExamResult(
       attemptId: json['attempt_id'] as String,
+      assessmentVersionId: (json['assessment_version_id'] ?? '') as String,
+      languageCode: json['language_code'] as String?,
       status: (json['status'] ?? '') as String,
       periodType: json['period_type'] as String?,
       periodKey: json['period_key'] as String?,
