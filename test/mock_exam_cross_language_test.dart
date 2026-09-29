@@ -46,7 +46,7 @@ class _FakeRepo implements MockExamRepository {
   @override
   Future<MockExamResult> getResult(String attemptId) => throw UnimplementedError();
   @override
-  Future<MockExamResult?> getLatest() => throw UnimplementedError();
+  Future<MockExamResult?> getLatest([String? languageCode]) => throw UnimplementedError();
   @override
   Future<List<MockExamResult>> getHistory() => throw UnimplementedError();
 }

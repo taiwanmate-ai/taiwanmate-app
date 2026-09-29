@@ -17,7 +17,7 @@ abstract class MockExamRepository {
   Future<StimulusPlayResult> playStimulus(String attemptId, String stimulusId);
   Future<MockExamResult> finish(String attemptId);
   Future<MockExamResult> getResult(String attemptId);
-  Future<MockExamResult?> getLatest();
+  Future<MockExamResult?> getLatest([String? languageCode]);
   Future<List<MockExamResult>> getHistory();
 }
 
@@ -101,8 +101,11 @@ class MockExamRepositoryImpl implements MockExamRepository {
   }
 
   @override
-  Future<MockExamResult?> getLatest() async {
-    final resp = await _dio.get('/mock-exam/latest');
+  Future<MockExamResult?> getLatest([String? languageCode]) async {
+    // Audit Mock Exam 2026-09-28 (phan 6): languageCode tuy chon — bug tim thay khi khong loc
+    // theo ngon ngu, nut "Bắt đầu" cua CA 2 ngon ngu bi khoa oan chi vi 1 ngon ngu dang lam do.
+    final resp = await _dio.get('/mock-exam/latest',
+        queryParameters: languageCode == null ? null : {'language_code': languageCode});
     if (resp.data == null) return null;
     return MockExamResult.fromJson(resp.data as Map<String, dynamic>);
   }

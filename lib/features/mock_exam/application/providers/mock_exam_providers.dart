@@ -35,9 +35,16 @@ final mockExamPeriodsProvider = FutureProvider.autoDispose<List<MockExamPeriod>>
     ..sort((a, b) => a.versionLabel.compareTo(b.versionLabel));
 });
 
+/// Audit Mock Exam 2026-09-28 (phan 6) — bug tim thay: KHONG loc theo ngon ngu truoc day khien
+/// hasInProgress (dung o _buildPeriodsList/_buildInProgressBanner, mock_exam_list_screen.dart)
+/// bi TRUE cho CA 2 chip moi khi 1 ngon ngu dang lam do, khoa oan nut "Bắt đầu" cua ngon ngu
+/// con lai (tai hien qua HTTP that, xem bao cao audit). Gio phu thuoc selectedMockExamLanguageProvider,
+/// GIONG mockExamEligibilityProvider/mockExamPeriodsProvider — banner "bài chưa nộp" va nut
+/// "Bắt đầu" gio CHI phan anh dung ngon ngu dang xem.
 final mockExamLatestProvider = FutureProvider.autoDispose<MockExamResult?>((ref) async {
   final repo = ref.watch(mockExamRepositoryProvider);
-  return repo.getLatest();
+  final lang = ref.watch(selectedMockExamLanguageProvider);
+  return repo.getLatest(mockExamBackendLanguageCode(lang));
 });
 
 final mockExamHistoryProvider = FutureProvider.autoDispose<List<MockExamResult>>((ref) async {

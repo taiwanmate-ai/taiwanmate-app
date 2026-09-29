@@ -149,18 +149,25 @@ class _MockExamListScreenState extends ConsumerState<MockExamListScreen> {
     final eligAsync = ref.watch(mockExamEligibilityProvider);
     return eligAsync.when(
       data: (elig) {
-        // Audit Mock Exam 2026-09-28 (phan 4, chi doi chu): quota RIENG theo ngon ngu cho CA
-        // Free lan VIP — moi cau deu neu ro "mỗi ngôn ngữ" (khong chi dua vao $langName cua
-        // ngon ngu dang xem) de user khong hieu nham "het luot" la het CA HAI ngon ngu.
+        // Audit Mock Exam 2026-09-28 (phan 5) — bug da sua: vip_required CHI co y nghia voi
+        // Free (backend LUON tra false cho VIP, xem check_eligibility) nen dieu kien cu
+        // "if (!elig.vipRequired)" TRUOC DAY luon dung voi VIP BAT KE con luot hay het, khien
+        // VIP da dung het luot ky nay VAN thay dong "co the thi..." nhu con luot. Tach RIENG
+        // theo periodType roi dung dung field bao "con luot" cua TUNG tier: VIP (half_month)
+        // dung `nextAvailableAt` (null = con luot ky nay, co gia tri = da dung), Free (lifetime)
+        // dung `vipRequired`/`trialUsed` (nextAvailableAt LUON null cho Free nen KHONG dung duoc
+        // cho Free — xem check_eligibility() backend).
         final langName = languageDisplayName(elig.languageCode);
+        final isVipPeriod = elig.periodType == 'half_month';
+        final hasQuota = isVipPeriod ? elig.nextAvailableAt == null : !elig.vipRequired;
         String text;
         Color bg;
-        if (!elig.vipRequired) {
-          text = elig.periodType == 'half_month'
+        if (hasQuota) {
+          text = isVipPeriod
               ? 'Bạn là VIP — có thể thi $langName mỗi nửa tháng (mỗi ngôn ngữ có 1 lượt riêng).'
               : 'Bạn còn 1 lượt thi thử miễn phí cho $langName (mỗi ngôn ngữ có 1 lượt riêng).';
           bg = ExamDS.greenLight;
-        } else if (elig.nextAvailableAt != null) {
+        } else if (isVipPeriod) {
           text = 'Đã dùng hết lượt $langName kỳ này (mỗi ngôn ngữ có 1 lượt/nửa tháng riêng). Lượt tiếp theo: '
               '${DateFormat('dd/MM/yyyy HH:mm').format(elig.nextAvailableAt!.toLocal())}';
           bg = ExamDS.redLight;
