@@ -20,6 +20,11 @@ import 'package:chinesemate/features/tools/presentation/screens/grammar_tool_scr
 ///    nhom) + CTA bam duoc cho dong CO dich hanh dong that (dung field feature_type/reference_id/
 ///    cta_text da co san tu backend, KHONG tu hardcode lai 1 ban sao bang topic_feature_mapping
 ///    o day — tranh 2 nguon su that lech nhau ve sau).
+///
+/// Muc E (2026-10-02) — Lich hoat dong THAT (GET /mastery/activity-calendar), thay the heatmap
+/// gia (i%3) da bi XOA HOAN TOAN khoi learn_screen.dart o commit 78fab8d (khong con ton tai o
+/// dau trong app ca, day la xay moi chu khong phai sua lai). Widget PHU — tai doc lap voi
+/// _topics/_isLoading/_error, loi o day khong chan ca tab. Xem docstring _buildActivityCalendarCard.
 class MasteryProfileTab extends StatefulWidget {
   // Chi de test: thay phu thuoc mang/luu tru/dieu huong (dung y het mau da co o placement_card.dart).
   final Dio? dio;
@@ -66,10 +71,17 @@ class _MasteryProfileTabState extends State<MasteryProfileTab> with AutomaticKee
   static const _textGrey = Color(0xFF8A8FA3);
   static const _bg = Color(0xFFF0F4FF);
 
+  // Lich hoat dong (muc E, 2026-10-02) — widget PHU, doc lap voi _topics/_isLoading/_error o
+  // tren: loi/cham o day KHONG duoc chan ca tab (khac han _load() voi "Thu lai"), chi lang le
+  // khong hien ra gi (_firstEventAt == null). Du lieu that tu GET /mastery/activity-calendar.
+  List<Map<String, dynamic>> _calendarDays = [];
+  DateTime? _firstEventAt;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadActivityCalendar();
   }
 
   Future<void> _load() async {
@@ -87,6 +99,26 @@ class _MasteryProfileTabState extends State<MasteryProfileTab> with AutomaticKee
       setState(() => _error = 'Không tải được dữ liệu, thử lại nhé.');
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadActivityCalendar() async {
+    try {
+      final token = await (widget.readToken ?? () => _storage.read(key: 'access_token'))();
+      final res = await _dio.get(
+        'https://taiwanmate-backend-production.up.railway.app/api/v1/mastery/activity-calendar?days=30',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final firstRaw = res.data is Map ? res.data['first_event_at'] as String? : null;
+      if (!mounted) return;
+      setState(() {
+        _firstEventAt = firstRaw != null ? DateTime.parse(firstRaw).toUtc() : null;
+        _calendarDays = res.data is Map
+            ? List<Map<String, dynamic>>.from(res.data['days'] ?? [])
+            : [];
+      });
+    } catch (_) {
+      // Widget phu — im lang bo qua, khong anh huong phan con lai cua tab (xem ghi chu o field).
     }
   }
 
@@ -199,14 +231,76 @@ class _MasteryProfileTabState extends State<MasteryProfileTab> with AutomaticKee
     ];
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () => Future.wait([_load(), _loadActivityCalendar()]),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
         children: [
+          _buildActivityCalendarCard(),
           for (final group in orderedGroups) ..._buildGroupSection(group, grouped[group]!),
         ],
       ),
     );
+  }
+
+  /// Lich hoat dong (muc E) — cua so hien thi CO GIAN theo tuoi du lieu that: toi da 30 ngay,
+  /// nhung neu user moi theo doi duoc vai ngay thi CHI ve dung vai o do (khong ve o rong cho
+  /// nhung ngay truoc first_event_at) — tranh cam giac "trong menh mong" khi du lieu con it.
+  /// Tra SizedBox.shrink() (khong chiem dien tich) khi chua co du lieu — truong hop nay thuc te
+  /// trung voi nhanh "trang thai RONG hoan toan" o tren (user chua co learning_event nao thi
+  /// cung chua co UserTopicMastery nao, da return som hon trong build()), giu o day chi de an
+  /// toan phong truong hop _topics va _firstEventAt lech nhau vi ly do nao do.
+  Widget _buildActivityCalendarCard() {
+    final first = _firstEventAt;
+    if (first == null) return const SizedBox.shrink();
+
+    final today = DateTime.now().toUtc();
+    final todayDate = DateTime.utc(today.year, today.month, today.day);
+    final firstDate = DateTime.utc(first.year, first.month, first.day);
+    final totalDays = todayDate.difference(firstDate).inDays + 1;
+    final windowDays = totalDays.clamp(1, 30);
+    final startDate = todayDate.subtract(Duration(days: windowDays - 1));
+
+    final countByDate = <String, int>{
+      for (final d in _calendarDays) d['date'] as String: (d['count'] as num).toInt(),
+    };
+
+    final cells = List.generate(windowDays, (i) {
+      final date = startDate.add(Duration(days: i));
+      final key = date.toIso8601String().split('T').first; // yyyy-MM-dd, khop dinh dang backend
+      final count = countByDate[key] ?? 0; // co trong cua so theo doi nhung 0 su kien (KHAC "chua theo doi")
+      return Tooltip(
+        message: '$key: $count lần',
+        child: Container(
+          width: 18, height: 18,
+          decoration: BoxDecoration(
+            color: _calendarCellColor(count),
+            borderRadius: BorderRadius.circular(5),
+          ),
+        ),
+      );
+    });
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Lịch hoạt động', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _textGrey)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 4, runSpacing: 4, children: cells),
+      ]),
+    );
+  }
+
+  Color _calendarCellColor(int count) {
+    if (count <= 0) return const Color(0xFFE5E8F5); // co theo doi, hom do 0 su kien
+    if (count < 3) return _purple.withOpacity(0.35);
+    if (count < 6) return _purple.withOpacity(0.65);
+    return _purple;
   }
 
   List<Widget> _buildGroupSection(String group, List<Map<String, dynamic>> items) {

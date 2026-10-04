@@ -2,8 +2,9 @@
 // 1. Trang thai RONG: hien noi dung moi + nut "Học ngay" bam duoc.
 // 2. Danh sach co du lieu: gom nhom dung theo feature_type/tien to tag, dung thu tu co dinh,
 //    gioi han hien thi + nut "Xem thêm" mo rong, CTA chi hien khi co cta_text va bam dung dich.
+// Muc E (2026-10-02) — Lich hoat dong (GET /mastery/activity-calendar): cua so hien thi dung so
+// o, phan biet duoc o "co theo doi, 0 su kien" voi o "co du lieu", va LOI O DAY KHONG CHAN ca tab.
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -29,6 +30,31 @@ class _FakeAdapter implements HttpClientAdapter {
 Dio _dioWith(Object response) {
   final d = Dio();
   d.httpClientAdapter = _FakeAdapter(response);
+  return d;
+}
+
+/// Nhu _FakeAdapter nhung tra response KHAC NHAU theo duong dan — can cho test Lich hoat dong
+/// (GET /mastery/profile va GET /mastery/activity-calendar la 2 request khac nhau tren CUNG 1
+/// Dio, muon kiem soat rieng tung cai).
+class _FakeMultiAdapter implements HttpClientAdapter {
+  final Object Function(RequestOptions) responder;
+  _FakeMultiAdapter(this.responder);
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s, Future<void>? c) async {
+    final r = responder(o);
+    if (r is Exception) throw r;
+    return ResponseBody.fromString(jsonEncode(r), 200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+Dio _dioMulti(Object Function(RequestOptions) responder) {
+  final d = Dio();
+  d.httpClientAdapter = _FakeMultiAdapter(responder);
   return d;
 }
 
@@ -76,6 +102,8 @@ void main() {
       expect(find.text('Học ngay'), findsOneWidget);
       await tester.tap(find.text('Học ngay'));
       expect(opened, isTrue);
+      // User chua co learning_event nao -> cung chua co first_event_at -> khong hien Lich hoat dong.
+      expect(find.text('Lịch hoạt động'), findsNothing);
     });
   });
 
@@ -151,6 +179,91 @@ void main() {
       )));
       await tester.pumpAndSettle();
       expect(find.text('Thử lại'), findsOneWidget);
+    });
+  });
+
+  group('MasteryProfileTab — Lịch hoạt động (mục E, 2026-10-02)', () {
+    Object respond(RequestOptions o, {required Object calendar, required Object profile}) =>
+        o.path.contains('activity-calendar') ? calendar : profile;
+
+    testWidgets('cửa sổ co giãn theo tuổi dữ liệu: first_event_at hôm qua -> đúng 2 ô', (tester) async {
+      final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+      await tester.pumpWidget(_host(MasteryProfileTab(
+        dio: _dioMulti((o) => respond(o,
+          calendar: {'first_event_at': yesterday.toIso8601String(), 'days': []},
+          profile: {'topics': [_topic('vocab_food', label: 'Từ vựng: Ẩm thực')]},
+        )),
+        readToken: () async => 'tok',
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lịch hoạt động'), findsOneWidget);
+      expect(find.byType(Tooltip), findsNWidgets(2)); // hom qua + hom nay, KHONG hon
+    });
+
+    testWidgets('trần tối đa 30 ô dù dữ liệu cũ hơn (first_event_at 90 ngày trước)', (tester) async {
+      final longAgo = DateTime.now().toUtc().subtract(const Duration(days: 90));
+      await tester.pumpWidget(_host(MasteryProfileTab(
+        dio: _dioMulti((o) => respond(o,
+          calendar: {'first_event_at': longAgo.toIso8601String(), 'days': []},
+          profile: {'topics': [_topic('vocab_food', label: 'Từ vựng: Ẩm thực')]},
+        )),
+        readToken: () async => 'tok',
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Tooltip), findsNWidgets(30));
+    });
+
+    testWidgets('ô "có dữ liệu" và ô "trong khoảng theo dõi, 0 sự kiện" hiện màu khác nhau', (tester) async {
+      final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+      final todayKey = DateTime.now().toUtc().toIso8601String().split('T').first;
+      await tester.pumpWidget(_host(MasteryProfileTab(
+        dio: _dioMulti((o) => respond(o,
+          calendar: {'first_event_at': yesterday.toIso8601String(), 'days': [
+            {'date': todayKey, 'count': 5}, // hom qua KHONG co trong list -> 0 su kien
+          ]},
+          profile: {'topics': [_topic('vocab_food', label: 'Từ vựng: Ẩm thực')]},
+        )),
+        readToken: () async => 'tok',
+      )));
+      await tester.pumpAndSettle();
+
+      final containers = tester.widgetList<Container>(
+        find.descendant(of: find.byType(Wrap), matching: find.byType(Container)),
+      ).toList();
+      expect(containers.length, 2);
+      final colors = containers.map((c) => (c.decoration as BoxDecoration).color).toList();
+      expect(colors[0], isNot(equals(colors[1])));
+    });
+
+    testWidgets('user chưa có learning_event nào (first_event_at null) -> không hiện Lịch hoạt động',
+        (tester) async {
+      await tester.pumpWidget(_host(MasteryProfileTab(
+        dio: _dioMulti((o) => respond(o,
+          calendar: {'first_event_at': null, 'days': []},
+          profile: {'topics': [_topic('vocab_food', label: 'Từ vựng: Ẩm thực')]},
+        )),
+        readToken: () async => 'tok',
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lịch hoạt động'), findsNothing);
+      expect(find.text('Từ vựng: Ẩm thực'), findsOneWidget); // danh sach chinh van hien binh thuong
+    });
+
+    testWidgets('lỗi riêng ở /activity-calendar KHÔNG chặn phần còn lại của tab', (tester) async {
+      await tester.pumpWidget(_host(MasteryProfileTab(
+        dio: _dioMulti((o) => o.path.contains('activity-calendar')
+            ? DioException(requestOptions: o)
+            : {'topics': [_topic('vocab_food', label: 'Từ vựng: Ẩm thực')]}),
+        readToken: () async => 'tok',
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Từ vựng: Ẩm thực'), findsOneWidget);
+      expect(find.text('Thử lại'), findsNothing); // loi chi o widget phu, khong phai loi profile
+      expect(find.text('Lịch hoạt động'), findsNothing);
     });
   });
 }
