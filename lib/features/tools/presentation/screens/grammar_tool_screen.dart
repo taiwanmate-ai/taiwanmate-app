@@ -5,11 +5,13 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'grammar_tool_screen.dart';
 
 class GrammarToolScreen extends StatefulWidget {
   final String? initialQuery;
-  const GrammarToolScreen({super.key, this.initialQuery});
+  // Chi de test: thay phu thuoc mang/luu tru (dung y het mau da co o placement_card.dart).
+  final Dio? dio;
+  final Future<String?> Function()? readToken;
+  const GrammarToolScreen({super.key, this.initialQuery, this.dio, this.readToken});
 
   @override
   State<GrammarToolScreen> createState() => _GrammarToolScreenState();
@@ -50,8 +52,8 @@ class _GrammarToolScreenState extends State<GrammarToolScreen> {
     if (text.trim().isEmpty || _isLoading) return;
     setState(() { _isLoading = true; _error = null; _result = null; });
     try {
-      final token = await _storage.read(key: 'access_token');
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 45), receiveTimeout: const Duration(seconds: 45)));
+      final token = await (widget.readToken ?? () => _storage.read(key: 'access_token'))();
+      final dio = widget.dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 45), receiveTimeout: const Duration(seconds: 45)));
       final response = await dio.post(
         'https://taiwanmate-backend-production.up.railway.app/api/v1/translate/tools/grammar',
         data: {'text': text.trim()},
@@ -135,20 +137,70 @@ class _GrammarToolScreenState extends State<GrammarToolScreen> {
             child: Text(_error!, style: const TextStyle(color: Color(0xFF8A2E26))),
           ),
 
-          if (_result != null) _buildResultCard(),
+          if (_result != null) _buildResultSection(),
         ]),
       ),
     );
   }
 
-  Widget _buildResultCard() {
-    final r = _result!;
-    final definition = r['definition'] as String? ?? '';
-    final formula = r['formula'] as String? ?? '';
-    final examples = (r['examples'] as List?) ?? [];
-    final comparison = r['comparison'] as String? ?? '';
-    final mistakes = r['common_mistakes'] as String? ?? '';
-    final exceptions = r['exceptions'] as String? ?? '';
+  /// Bug production (2026-10-06) — AI (OpenAI, response_format=json_object) chi dam bao JSON
+  /// HOP LE VE CU PHAP, KHONG dam bao DUNG SCHEMA da mo ta trong prompt (xem
+  /// app/services/openai_service.py::explain_grammar_tool — json.loads() tra thang ve, KHONG
+  /// validate gi ca). Da tai hien THAT bang widget test (xem
+  /// grammar_tool_screen_repro_test.dart): AI tra "examples" la List<String> thay vi dung
+  /// List<Map{text,meaning}> nhu prompt yeu cau -> e['text'] (String khong co operator[] theo
+  /// key) -> throw NGAY TRONG build() -> Scaffold/AppBar/nut back o duoi KHONG BAO GIO duoc tao
+  /// (Dart danh gia het tham so truoc khi goi ham) -> Flutter thay CA Element nay bang
+  /// ErrorWidget rong (web release) -> dung y "man trang hoan toan, khong nut back" da bao cao.
+  ///
+  /// Sua 2 lop: (1) _parseResult() ep kieu AN TOAN tung field (khong "as String?"/"as List?"
+  /// tin blind theo schema, dung .toString()/kiem tra kieu tung phan tu) o ngay duoi day; (2)
+  /// VAN boc them try/catch o day lam luoi an toan cuoi — du sau nay AI doi schema kieu khac
+  /// nua ma _parseResult() chua luong het, loi van CHI o PHAN KET QUA (hien the bang loi), con
+  /// Scaffold/AppBar/nut back o build() PHIA TREN van luon duoc tao TRUOC do, khong bao gio
+  /// con man trang khong loi thoat.
+  Widget _buildResultSection() {
+    try {
+      return _buildResultCard(_parseResult(_result!));
+    } catch (_) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: const Color(0xFFFFF0EE), borderRadius: BorderRadius.circular(12)),
+        child: const Text('Không hiển thị được kết quả cho câu hỏi này. Thử câu hỏi khác nhé!',
+            style: TextStyle(color: Color(0xFF8A2E26))),
+      );
+    }
+  }
+
+  /// Ep kieu AN TOAN — KHONG dung "as String?"/"as List?" (throw neu AI tra sai kieu, du la
+  /// null hop le), dung .toString() (khong bao gio throw, moi kieu deu stringify duoc) cho
+  /// field dang la text; voi "examples", CHAP NHAN CA 2 dang (Map{text,meaning} dung schema,
+  /// hoac 1 String bare — van HIEN DUNG noi dung AI tra ve thay vi bo qua) va bo qua phan tu
+  /// nao khong doc duoc (khong lam vo ca danh sach vi 1 phan tu la).
+  Map<String, dynamic> _parseResult(Map<String, dynamic> r) {
+    final examplesRaw = (r['examples'] is List) ? r['examples'] as List : const [];
+    final examples = examplesRaw.map((e) {
+      if (e is Map) return {'text': e['text']?.toString() ?? '', 'meaning': e['meaning']?.toString() ?? ''};
+      if (e is String) return {'text': e, 'meaning': ''};
+      return {'text': '', 'meaning': ''};
+    }).where((e) => (e['text'] ?? '').isNotEmpty).toList();
+    return {
+      'definition': r['definition']?.toString() ?? '',
+      'formula': r['formula']?.toString() ?? '',
+      'examples': examples,
+      'comparison': r['comparison']?.toString() ?? '',
+      'common_mistakes': r['common_mistakes']?.toString() ?? '',
+      'exceptions': r['exceptions']?.toString() ?? '',
+    };
+  }
+
+  Widget _buildResultCard(Map<String, dynamic> r) {
+    final definition = r['definition'] as String;
+    final formula = r['formula'] as String;
+    final examples = r['examples'] as List;
+    final comparison = r['comparison'] as String;
+    final mistakes = r['common_mistakes'] as String;
+    final exceptions = r['exceptions'] as String;
 
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18),
