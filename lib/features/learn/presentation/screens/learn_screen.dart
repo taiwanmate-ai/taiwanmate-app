@@ -18,6 +18,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/learn_hub_tab.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/quick_review_screen.dart';
 import 'package:chinesemate/features/learn/presentation/widgets/mastery_profile_tab.dart';
+import 'package:chinesemate/features/learn/presentation/screens/today_session_screen.dart';
 import 'package:chinesemate/features/mock_exam/presentation/screens/mock_exam_list_screen.dart';
 
 // ─── Design System ────────────────────────────────────────────
@@ -331,6 +332,7 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
           if (showDashboard && tall) _buildMeiMessage(),
           if (_streakAtRisk) _buildStreakFreezeBanner(),
           if (showDashboard) _buildDailyRing(),
+          if (showDashboard) _buildTodayButton(),
           _buildTabBar(),
           Expanded(
             child: _isLoading
@@ -597,6 +599,35 @@ class _LearnScreenState extends ConsumerState<LearnScreen> with TickerProviderSt
       ),
     );
   }
+
+  // ── "HỌC HÔM NAY" (Phase 2 gốc, 2026-10-04) ───────────────
+  // Nút CẮT NGANG 3 tab (Lộ trình/Từ vựng/Năng lực đều góp 1 bước trong TodaySessionScreen) nên
+  // đặt ở header (hiện trên MỌI tab), không nhúng vào riêng tab nào — tránh làm phình lại 1 tab
+  // đã được dọn gọn ở Phase 0. Dùng ĐÚNG _vocabulary/_lang/getters đã tải sẵn ở đây — xem
+  // docstring TodaySessionScreen.
+  Widget _buildTodayButton() => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+    child: GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TodaySessionScreen(
+        vocabulary: _vocabulary, lang: _lang, getWord: _getWord, getPinyin: _getPinyin,
+        getMeaning: _getMeaning, getExample: _getExample, getVocabId: _getVocabId,
+        isReview: _isReview, getSrsLevel: _getSrsLevel, onStudied: _onStudied, onUpdateSRS: _updateSRS,
+      ))),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF5B5FEF), Color(0xFF3B3FA8)]),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: const Color(0xFF5B5FEF).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text('☀️', style: TextStyle(fontSize: 16)),
+          SizedBox(width: 8),
+          Text('Học hôm nay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+        ]),
+      ),
+    ),
+  );
 
   // ── TAB BAR ───────────────────────────────────────────────
   Widget _buildTabBar() => Padding(

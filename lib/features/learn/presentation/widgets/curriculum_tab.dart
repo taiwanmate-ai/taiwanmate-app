@@ -28,14 +28,27 @@ class CurriculumTab extends StatefulWidget {
   /// có mới có tác dụng; thiếu 1 trong 2 thì hiện màn chọn ngôn ngữ như thường.
   final String? initialLanguage;
   final String? initialLevel;
-  const CurriculumTab({super.key, this.initialLanguage, this.initialLevel});
+  /// "Hôm nay" v1 (2026-10-04) — mở thẳng tiếp vào ĐÚNG 1 bài (tránh user phải tự tìm trong danh
+  /// sách). CHỈ có tác dụng khi `initialLanguage`+`initialLevel` CŨNG có (dùng chung 1 luồng tải
+  /// — xem initState): tải đúng danh sách bài của cấp đó NHƯ BÌNH THƯỜNG rồi mới mở tiếp bài này,
+  /// KHÔNG tự chế lối tắt riêng — để nút back ("Xem chi tiết" → quay lại) trả về ĐÚNG danh sách
+  /// bài đã tải sẵn, không phải màn trống do bỏ qua bước tải.
+  final String? initialUnitId;
+  // Chi de test: thay phu thuoc mang/luu tru (dung y het mau da co o placement_card.dart/
+  // mastery_profile_tab.dart) — them cung luc voi initialUnitId vi test moi can kiem soat
+  // response tung duong dan (levels/units/unit detail) ma khong goi mang that.
+  final Dio? dio;
+  final Future<String?> Function()? readToken;
+  const CurriculumTab({
+    super.key, this.initialLanguage, this.initialLevel, this.initialUnitId, this.dio, this.readToken,
+  });
   @override
   State<CurriculumTab> createState() => _CurriculumTabState();
 }
 
 class _CurriculumTabState extends State<CurriculumTab> {
   final _storage = const FlutterSecureStorage();
-  final _dio = Dio(BaseOptions(
+  late final Dio _dio = widget.dio ?? Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 20),
     receiveTimeout: const Duration(seconds: 20),
   ));
@@ -60,17 +73,26 @@ class _CurriculumTabState extends State<CurriculumTab> {
   @override
   void initState() {
     super.initState();
-    final lang = widget.initialLanguage, level = widget.initialLevel;
+    final lang = widget.initialLanguage, level = widget.initialLevel, unitId = widget.initialUnitId;
     if (lang != null && level != null) {
       _pickLanguage(lang).then((_) {
         // _pickLanguage nuốt lỗi và để _errorMsg — chỉ đi tiếp khi đã có danh sách cấp độ.
-        if (mounted && _stage == _CurStage.levelList) _pickLevel(level);
+        if (mounted && _stage == _CurStage.levelList) {
+          _pickLevel(level).then((_) {
+            // _pickLevel cũng nuốt lỗi — chỉ mở tiếp khi ĐÃ có _units (đi đúng _stage.unitList),
+            // và tìm thấy đúng unitId trong danh sách vừa tải (an toàn nếu id sai/đã bị xoá).
+            if (mounted && _stage == _CurStage.unitList && unitId != null) {
+              final match = _units.where((u) => u['unit_id'] == unitId);
+              if (match.isNotEmpty) _openUnit(match.first);
+            }
+          });
+        }
       });
     }
   }
 
   Future<Options> get _authOptions async {
-    final token = await _storage.read(key: 'access_token');
+    final token = await (widget.readToken ?? () => _storage.read(key: 'access_token'))();
     return Options(headers: {'Authorization': 'Bearer $token'});
   }
 
