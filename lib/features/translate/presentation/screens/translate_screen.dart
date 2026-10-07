@@ -41,6 +41,20 @@ class _DS {
   static const radiusSm = 14.0;
 }
 
+/// Ham THUAN cap top-level (de test duoc truc tiep) cho 1 phan tu 'risk_analysis' (Contract
+/// Scanner) — audit toan app 2026-10-06: field 'level' TRUOC DAY dung "as String" tin mu
+/// (crash neu AI/backend tra kieu khac String), gio ep an toan bang .toString(). Backend da
+/// chuan hoa rieng (_normalize_risk_analysis) nen day la luoi an toan THEM, khong phai nguon
+/// chan chinh.
+Map<String, String> parseRiskAnalysisItem(dynamic raw) {
+  final item = raw is Map ? raw : {};
+  final level = (item['level'] ?? 'BINH_THUONG').toString();
+  final clause = (item['clause'] ?? '').toString();
+  final note = (item['note'] ?? '').toString();
+  final icon = level == 'NGUY_HIEM' ? '🔴' : (level == 'CO_LOI' ? '🟢' : '⚪');
+  return {'level': level, 'clause': clause, 'note': note, 'icon': icon};
+}
+
 class TranslateScreen extends StatefulWidget {
   const TranslateScreen({super.key});
   @override
@@ -2030,24 +2044,21 @@ class _TranslateScreenState extends State<TranslateScreen>
               ),
               const SizedBox(height: 8),
               ..._riskAnalysis.map((raw) {
-                final item = raw is Map ? raw : {};
-                final level = (item['level'] ?? 'BINH_THUONG') as String;
-                final clause = (item['clause'] ?? '').toString();
-                final note = (item['note'] ?? '').toString();
+                final parsed = parseRiskAnalysisItem(raw);
+                final level = parsed['level']!;
+                final clause = parsed['clause']!;
+                final note = parsed['note']!;
+                final icon = parsed['icon']!;
                 late final Color bg, fg;
-                late final String icon;
                 if (level == 'NGUY_HIEM') {
                   bg = _DS.redLight;
                   fg = _DS.red;
-                  icon = '🔴';
                 } else if (level == 'CO_LOI') {
                   bg = _DS.greenLight;
                   fg = _DS.green;
-                  icon = '🟢';
                 } else {
                   bg = _DS.bg;
                   fg = _DS.textGrey;
-                  icon = '⚪';
                 }
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
