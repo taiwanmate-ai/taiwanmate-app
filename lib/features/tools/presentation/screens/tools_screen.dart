@@ -188,6 +188,199 @@ const _emergencyPhrases = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
+// PHAN TICH NGU PHAP (/translate/grammar-text) — ham THUAN cap top-level (khong phu thuoc
+// instance/context) de TEST DUOC truc tiep, khong can dung ca man ToolsScreen/mang/OCR.
+//
+// Bug cung loai voi grammar_tool_screen.dart (2026-10-06, xem audit): AI tra JSON cho
+// /translate/grammar-text cung chi dam bao hop le CU PHAP, khong dam bao DUNG SCHEMA —
+// "structure"/"grammar_points"/"vocab_breakdown" co the la List<String> thay vi dung
+// List<Map{...}>, s['role']/g['title']/v['word'] TRUC TIEP tren 1 String se throw NGAY
+// TRONG build() -> ca man hinh (ke ca AppBar/nut back) khong bao gio duoc dung.
+//
+// Sua 2 lop giong grammar_tool_screen.dart: (1) parseGrammarAnalysisData() ep kieu AN TOAN
+// tung item (mau dung y het translate_screen.dart:3641 — "raw is Map ? raw : {}" roi
+// ".toString()", KHONG "as String?" tin mu theo schema); (2) buildGrammarAnalysisSection()
+// boc try/catch lam luoi an toan cuoi quanh TOAN BO phan render ket qua.
+// ═══════════════════════════════════════════════════════════════
+Map<String, dynamic> parseGrammarAnalysisData(Map<String, dynamic> d) {
+  List<Map<String, String>> normalizeList(dynamic raw, List<String> keys, String primaryKey) {
+    if (raw is! List) return const [];
+    final out = <Map<String, String>>[];
+    for (final item in raw) {
+      Map<String, String> entry;
+      if (item is Map) {
+        entry = {for (final k in keys) k: item[k]?.toString() ?? ''};
+      } else if (item is String) {
+        entry = {for (final k in keys) k: ''};
+        entry[primaryKey] = item;
+      } else {
+        continue;
+      }
+      if ((entry[primaryKey] ?? '').isNotEmpty) out.add(entry);
+    }
+    return out;
+  }
+
+  return {
+    'sentence': d['sentence']?.toString() ?? '',
+    'has_error': d['has_error'] == true,
+    'corrected_sentence': d['corrected_sentence']?.toString() ?? '',
+    'error_explanation': d['error_explanation']?.toString() ?? '',
+    'pinyin': d['pinyin']?.toString() ?? '',
+    'meaning': d['meaning']?.toString() ?? '',
+    'structure': normalizeList(d['structure'], ['part', 'role', 'meaning'], 'part'),
+    'grammar_points': normalizeList(d['grammar_points'], ['title', 'explanation', 'formula'], 'title'),
+    'vocab_breakdown': normalizeList(d['vocab_breakdown'], ['word', 'pinyin', 'meaning'], 'word'),
+  };
+}
+
+Widget buildGrammarAnalysisSection(Map<String, dynamic> grammarData) {
+  try {
+    return buildGrammarAnalysisCard(parseGrammarAnalysisData(grammarData));
+  } catch (_) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(color: const Color(0xFFFFF0EE), borderRadius: BorderRadius.circular(12)),
+      child: const Text('Không hiển thị được kết quả phân tích. Thử câu khác nhé!',
+          style: TextStyle(color: Color(0xFF8A2E26))),
+    );
+  }
+}
+
+Widget buildGrammarAnalysisCard(Map<String, dynamic> d) {
+  final sentence = d['sentence'] as String;
+  final hasError = d['has_error'] as bool;
+  final correctedSentence = d['corrected_sentence'] as String;
+  final errorExplanation = d['error_explanation'] as String;
+  final pinyin = d['pinyin'] as String;
+  final meaning = d['meaning'] as String;
+  final structure = d['structure'] as List;
+  final grammarPoints = d['grammar_points'] as List;
+  final vocabBreakdown = d['vocab_breakdown'] as List;
+
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: _DS.white, borderRadius: BorderRadius.circular(_DS.radius),
+      border: Border.all(color: _DS.indigoLight),
+      boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Câu gốc + nghĩa (đổi màu nếu có lỗi)
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: hasError
+              ? const LinearGradient(colors: [Color(0xFFFF3D57), Color(0xFFD32F3F)])
+              : const LinearGradient(colors: [_DS.indigo, Color(0xFF3B3FA8)]),
+          borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (hasError) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+              child: const Text('⚠️ CÓ LỖI NGỮ PHÁP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+            ),
+            const SizedBox(height: 8),
+            Text(sentence, style: const TextStyle(fontSize: 15, color: Colors.white70, decoration: TextDecoration.lineThrough, fontFamily: 'NotoSansTC')),
+            const SizedBox(height: 4),
+            const Row(children: [Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.white), SizedBox(width: 4), Text('Sửa đúng:', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700))]),
+            const SizedBox(height: 4),
+            Text(correctedSentence, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'NotoSansTC')),
+            if (errorExplanation.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: Text(errorExplanation, style: const TextStyle(fontSize: 12.5, color: Colors.white, height: 1.4)),
+              ),
+            ],
+          ] else
+            Text(sentence, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'NotoSansTC')),
+          if (pinyin.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(pinyin, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.white70)),
+          ],
+          const SizedBox(height: 8),
+          Text(meaning, style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          if (structure.isNotEmpty) ...[
+            const Text('CẤU TRÚC CÂU', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
+            const SizedBox(height: 8),
+            ...structure.map((s) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: _DS.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                  child: Text(s['role'] ?? '', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(s['part'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _DS.textDark, fontFamily: 'NotoSansTC')),
+                  Text(s['meaning'] ?? '', style: const TextStyle(fontSize: 11.5, color: _DS.textGrey)),
+                ])),
+              ]),
+            )),
+            const SizedBox(height: 12),
+          ],
+
+          if (grammarPoints.isNotEmpty) ...[
+            const Text('ĐIỂM NGỮ PHÁP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
+            const SizedBox(height: 8),
+            ...grammarPoints.map((g) => Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(g['title'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.indigo)),
+                const SizedBox(height: 4),
+                Text(g['explanation'] ?? '', style: const TextStyle(fontSize: 12.5, color: _DS.textDark, height: 1.5)),
+                if ((g['formula'] as String?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                    child: Text(g['formula'], textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.indigo)),
+                  ),
+                ],
+              ]),
+            )),
+            const SizedBox(height: 12),
+          ],
+
+          if (vocabBreakdown.isNotEmpty) ...[
+            const Text('TỪ VỰNG KHÓ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: vocabBreakdown.map<Widget>((v) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(v['word'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark, fontFamily: 'NotoSansTC')),
+                if ((v['pinyin'] as String?)?.isNotEmpty == true)
+                  Text(v['pinyin'], style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: _DS.textGrey)),
+                Text(v['meaning'] ?? '', style: const TextStyle(fontSize: 11.5, color: _DS.textGrey)),
+              ]),
+            )).toList()),
+          ],
+        ]),
+      ),
+    ]),
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TOOLS SCREEN
 // ═══════════════════════════════════════════════════════════════
 class ToolsScreen extends StatefulWidget {
@@ -1918,141 +2111,6 @@ List<String> _splitIntoSentences(String text) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-    Widget _buildGrammarCard() {
-    final d = _grammarData!;
-    final sentence = d['sentence'] as String? ?? '';
-    final hasError = d['has_error'] == true;
-    final correctedSentence = d['corrected_sentence'] as String? ?? '';
-    final errorExplanation = d['error_explanation'] as String? ?? '';
-    final pinyin = d['pinyin'] as String? ?? '';
-    final meaning = d['meaning'] as String? ?? '';
-    final structure = (d['structure'] as List?) ?? [];
-    final grammarPoints = (d['grammar_points'] as List?) ?? [];
-    final vocabBreakdown = (d['vocab_breakdown'] as List?) ?? [];
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: _DS.white, borderRadius: BorderRadius.circular(_DS.radius),
-        border: Border.all(color: _DS.indigoLight),
-        boxShadow: [BoxShadow(color: _DS.indigo.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Câu gốc + nghĩa
-        // Câu gốc + nghĩa (đổi màu nếu có lỗi)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: hasError
-                ? const LinearGradient(colors: [Color(0xFFFF3D57), Color(0xFFD32F3F)])
-                : const LinearGradient(colors: [_DS.indigo, Color(0xFF3B3FA8)]),
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (hasError) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                child: const Text('⚠️ CÓ LỖI NGỮ PHÁP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
-              ),
-              const SizedBox(height: 8),
-              Text(sentence, style: const TextStyle(fontSize: 15, color: Colors.white70, decoration: TextDecoration.lineThrough, fontFamily: 'NotoSansTC')),
-              const SizedBox(height: 4),
-              const Row(children: [Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.white), SizedBox(width: 4), Text('Sửa đúng:', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700))]),
-              const SizedBox(height: 4),
-              Text(correctedSentence, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'NotoSansTC')),
-              if (errorExplanation.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                  child: Text(errorExplanation, style: const TextStyle(fontSize: 12.5, color: Colors.white, height: 1.4)),
-                ),
-              ],
-            ] else
-              Text(sentence, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'NotoSansTC')),
-            if (pinyin.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(pinyin, style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.white70)),
-            ],
-            const SizedBox(height: 8),
-            Text(meaning, style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600)),
-          ]),
-        ),
-
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-            if (structure.isNotEmpty) ...[
-              const Text('CẤU TRÚC CÂU', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
-              const SizedBox(height: 8),
-              ...structure.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: _DS.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Text(s['role'] ?? '', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _DS.indigo)),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s['part'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _DS.textDark, fontFamily: 'NotoSansTC')),
-                    Text(s['meaning'] ?? '', style: const TextStyle(fontSize: 11.5, color: _DS.textGrey)),
-                  ])),
-                ]),
-              )),
-              const SizedBox(height: 12),
-            ],
-
-            if (grammarPoints.isNotEmpty) ...[
-              const Text('ĐIỂM NGỮ PHÁP', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
-              const SizedBox(height: 8),
-              ...grammarPoints.map((g) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(g['title'] ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _DS.indigo)),
-                  const SizedBox(height: 4),
-                  Text(g['explanation'] ?? '', style: const TextStyle(fontSize: 12.5, color: _DS.textDark, height: 1.5)),
-                  if ((g['formula'] as String?)?.isNotEmpty == true) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-                      child: Text(g['formula'], textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _DS.indigo)),
-                    ),
-                  ],
-                ]),
-              )),
-              const SizedBox(height: 12),
-            ],
-
-            if (vocabBreakdown.isNotEmpty) ...[
-              const Text('TỪ VỰNG KHÓ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _DS.textGrey, letterSpacing: 0.4)),
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: vocabBreakdown.map<Widget>((v) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: _DS.bg, borderRadius: BorderRadius.circular(10)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(v['word'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _DS.textDark, fontFamily: 'NotoSansTC')),
-                  if ((v['pinyin'] as String?)?.isNotEmpty == true)
-                    Text(v['pinyin'], style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: _DS.textGrey)),
-                  Text(v['meaning'] ?? '', style: const TextStyle(fontSize: 11.5, color: _DS.textGrey)),
-                ]),
-              )).toList()),
-            ],
-          ]),
-        ),
-      ]),
-    );
-  }
-  
-
   void _showVipDialog() {
     showDialog(
       context: context,
@@ -2222,7 +2280,7 @@ List<String> _splitIntoSentences(String text) {
                   Text('Đang phân tích ảnh...', style: TextStyle(fontSize: 13, color: _DS.textGrey)),
                 ])),
 
-          if (_grammarData != null) _buildGrammarCard(),
+          if (_grammarData != null) buildGrammarAnalysisSection(_grammarData!),
           if (_extractedText.isNotEmpty)
             Container(width: double.infinity, margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: _DS.white, borderRadius: BorderRadius.circular(_DS.radiusSm), border: Border.all(color: Colors.grey.shade200)),
