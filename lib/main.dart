@@ -6,6 +6,7 @@ import 'shared/theme/app_theme.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/state/incoming_text_state.dart';
 import 'core/storage/secure_storage.dart';
+import 'core/utils/global_error_widget.dart';
 
 const _processTextChannel = MethodChannel('com.taiwanmate.chinesemate/process_text');
 
@@ -34,6 +35,11 @@ void main() async {
   // (khong con 1 await nao lien quan font truoc runApp()) — an toan hon
   // ca ban co timeout 5s truoc day, VA loai bo duoc 6.78MB tai trung lap.
   _setupProcessTextListener();
+
+  // Luoi an toan toan cuc (2026-10-06, audit toan app) — CHI o ban release/profile, giu
+  // nguyen man do mac dinh cua Flutter o debug de dev thay chi tiet loi. Xem docstring
+  // installGlobalErrorWidget()/buildGlobalErrorWidget() ve pham vi/gioi han.
+  installGlobalErrorWidget();
 
   runApp(const ProviderScope(child: ChineseMateApp()));
 }
