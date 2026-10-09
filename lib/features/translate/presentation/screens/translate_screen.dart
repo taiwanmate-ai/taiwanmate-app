@@ -67,26 +67,36 @@ Map<String, String> parseRiskAnalysisItem(dynamic raw) {
 /// ben duoi nen khong them khoi thu 2.
 ({String label, String text})? pickImageTargetText({
   required String targetLang,
-  required String zhTraditional,
+  required String translated,
   required String english,
   required String original,
 }) {
+  final cjk = RegExp(r'[㐀-鿿]');
+  // Ky tu CHI tieng Viet co (pinyin/tieng Anh khong dung) — dung de nhan ra chu Viet bi "chep lai".
+  final viOnly = RegExp(r'[ĂăÂâĐđÊêÔôƠơƯưÃãÕõĨĩŨũẠ-ỹ]');
   final String label;
   final String text;
   switch (targetLang) {
     case 'zh-TW':
       label = '🇹🇼 Bản dịch tiếng Trung';
-      text = zhTraditional;
+      text = translated;
       break;
     case 'en':
       label = '🇺🇸 Bản dịch tiếng Anh';
-      text = english;
+      // `translated` cung la tieng Anh khi target=en (backend, 2026-10-10) — dung lam du phong.
+      text = english.trim().isNotEmpty ? english : translated;
       break;
     default:
       return null;
   }
   final t = text.trim();
   if (t.isEmpty || t == original.trim()) return null;
+  // Chot chan CUOI: NHAN PHAI KHOP ngon ngu that cua noi dung (bug that 2026-10-10: AI "chep lai" van ban
+  // goc tieng Viet vao `translated`; backend da sua/lam lai trong _repair_image_translation nhung day van
+  // khong duoc dan nhan "tieng Trung/Anh" len noi dung sai ngon ngu). Khoang ky tu trong RegExp o tren la
+  // khoi chu Han CJK U+3400-U+9FFF va khoi chu Viet U+1EA0-U+1EF9 (viet truc tiep bang ky tu).
+  if (targetLang == 'zh-TW' && !cjk.hasMatch(t)) return null;
+  if (targetLang == 'en' && (cjk.hasMatch(t) || viOnly.hasMatch(t))) return null;
   return (label: label, text: text);
 }
 
@@ -2421,7 +2431,7 @@ class _TranslateScreenState extends State<TranslateScreen>
               _buildActionBtn(
                 icon: Icons.volume_up_rounded,
                 label: 'Nghe',
-                onTap: () => _speak(_imageResult, lang: 'zh-TW'),
+                onTap: () => _speak(_imageResult, lang: _imageTargetLang == 'en' ? 'en-US' : 'zh-TW'),
               ),
             if (_imageResult.isNotEmpty || _extractedText.isNotEmpty) ...[
               const SizedBox(width: 8),
@@ -3048,7 +3058,7 @@ class _TranslateScreenState extends State<TranslateScreen>
   List<Widget> _buildImageTargetBlock() {
     final picked = pickImageTargetText(
       targetLang: _imageTargetLang,
-      zhTraditional: _imageResult,
+      translated: _imageResult,
       english: _imageResultEnglish,
       original: _extractedText,
     );
