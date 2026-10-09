@@ -55,6 +55,41 @@ Map<String, String> parseRiskAnalysisItem(dynamic raw) {
   return {'level': level, 'clause': clause, 'note': note, 'icon': icon};
 }
 
+/// Bug that (2026-10-09, "Dich anh khong dich — hien lai van ban goc tieng Viet"): the ket qua anh
+/// TRUOC DAY chi hien "Van ban goc" + pinyin + "Nghia tieng Viet" — KHONG BAO GIO hien ban dich theo
+/// ngon ngu dich DA CHON (dropdown zh-TW/vi/en; backend /translate/image tra du ca 3 truong nhung the
+/// bo qua `translated` va `translated_english`). Anh tieng Viet + dich sang tieng Trung -> "Van ban goc"
+/// va "Nghia tieng Viet" DEU la tieng Viet, user khong thay chu Han nao. Khong phai regression cua dot
+/// push 6760246 (layout the nay khong doi tu 2026-09-13) — xem bao cao dieu tra.
+///
+/// Tra ve (nhan, noi dung) cua khoi "Ban dich" can hien, hoac null neu KHONG can (rong, hoac trung
+/// van ban goc — vd anh tieng Trung dich sang tieng Trung). 'vi' da co khoi "Nghia tieng Viet" rieng
+/// ben duoi nen khong them khoi thu 2.
+({String label, String text})? pickImageTargetText({
+  required String targetLang,
+  required String zhTraditional,
+  required String english,
+  required String original,
+}) {
+  final String label;
+  final String text;
+  switch (targetLang) {
+    case 'zh-TW':
+      label = '🇹🇼 Bản dịch tiếng Trung';
+      text = zhTraditional;
+      break;
+    case 'en':
+      label = '🇺🇸 Bản dịch tiếng Anh';
+      text = english;
+      break;
+    default:
+      return null;
+  }
+  final t = text.trim();
+  if (t.isEmpty || t == original.trim()) return null;
+  return (label: label, text: text);
+}
+
 class TranslateScreen extends StatefulWidget {
   const TranslateScreen({super.key});
   @override
@@ -2024,6 +2059,9 @@ class _TranslateScreenState extends State<TranslateScreen>
               padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
+        // ── 1a. Bản dịch theo ngôn ngữ đích đã chọn (zh-TW / en) ─────────
+        ..._buildImageTargetBlock(),
+
         // ── 1b. Phân tích rủi ro hợp đồng (Contract Scanner, VIP) ──────
         if (_riskAnalysis.isNotEmpty) ...[
           Padding(
@@ -3005,6 +3043,43 @@ class _TranslateScreenState extends State<TranslateScreen>
           _buildImageResultCard(),
       ]),
     );
+  }
+
+  List<Widget> _buildImageTargetBlock() {
+    final picked = pickImageTargetText(
+      targetLang: _imageTargetLang,
+      zhTraditional: _imageResult,
+      english: _imageResultEnglish,
+      original: _extractedText,
+    );
+    if (picked == null) return const [];
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+              color: _DS.indigoLight, borderRadius: BorderRadius.circular(20)),
+          child: Text(picked.label,
+              style: const TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: SelectableText(
+          picked.text,
+          style: const TextStyle(
+              fontSize: 16,
+              color: _DS.textDark,
+              fontWeight: FontWeight.w700,
+              height: 1.6,
+              fontFamily: 'NotoSansTC'),
+        ),
+      ),
+      const Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+    ];
   }
 
   Widget _buildVoiceTab() {
