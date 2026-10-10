@@ -1,5 +1,5 @@
 // Ho so ngon ngu dich (backend app/services/target_profile.py), phia app (2026-10-11): dich sang TIENG ANH thi
-// khong hien pinyin o tu dong nghia/vi du, nhan 'Vi du tieng Anh', IPA co nhan rieng; ban dich chinh khong bi xoa khi backend bo field loi.
+// khong hien pinyin o tu dong nghia/vi du, nhan 'Vi du tieng Anh', ban dich chinh khong bi xoa khi backend bo field loi.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:chinesemate/features/translate/presentation/screens/translate_screen.dart';
@@ -20,11 +20,6 @@ void main() {
     expect(preferNonEmpty(null, 'old'), 'old');
     expect(preferNonEmpty('   ', 'old'), 'old');
     expect(preferNonEmpty('new', 'old'), 'new');
-  });
-
-  test('pronunciationLabel theo loai', () {
-    expect(pronunciationLabel('ipa'), contains('IPA'));
-    expect(pronunciationLabel('pinyin'), contains('Pinyin'));
   });
 
   final synonyms = [

@@ -149,9 +149,6 @@ String contentLangFor(String targetLang, String sourceText) {
   return RegExp(r'[㐀-鿿]').hasMatch(sourceText) ? 'zh' : 'en';
 }
 
-/// Nhan khoi phat am theo loai: pinyin -> 'Phát âm (Pinyin)', ipa -> 'Phát âm (IPA)'.
-String pronunciationLabel(String kind) => kind == 'ipa' ? '🔊 Phát âm (IPA)' : '🔊 Phát âm (Pinyin)';
-
 class TranslateScreen extends StatefulWidget {
   const TranslateScreen({super.key});
   @override
@@ -2423,22 +2420,6 @@ class _TranslateScreenState extends State<TranslateScreen>
               padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
-        // ── 2b. Phát âm IPA (chỉ khi đích là tiếng Anh và backend chắc chắn — từ/cụm ngắn) ──
-        if (_imageTargetLang == 'en' && _imagePronunciationKind == 'ipa' && _imagePronunciation.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Text(pronunciationLabel('ipa'),
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: SelectableText(_imagePronunciation,
-                key: const Key('image_ipa_text'),
-                style: const TextStyle(fontSize: 14, color: _DS.indigo, fontStyle: FontStyle.italic, height: 1.6)),
-          ),
-          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
-        ],
-
         // ── 3. Nghĩa tiếng Việt ───────────────────────────
         if (_imageResultVietnamese.isNotEmpty) ...[
           Padding(
@@ -3746,16 +3727,7 @@ class _TranslateScreenState extends State<TranslateScreen>
                       fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
             ],
-            // Dich sang tieng Anh: KHONG co pinyin; IPA (neu backend chac chan, chi tu/cum ngan) o day.
-            if (!isChinese && displayLang == 'en' && pronunciationKind == 'ipa' && pronunciation.isNotEmpty) ...[
-              Text('Phát âm (IPA)',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.textGrey)),
-              SelectableText(pronunciation,
-                  key: const Key('ipa_text'),
-                  style: const TextStyle(
-                      fontSize: 14, color: _DS.indigo, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 6),
-            ],
+            // Dich sang tieng Anh: KHONG co khoi phat am (khong pinyin; IPA tat 2026-10-11).
             SelectableText(
               displayText.isNotEmpty ? displayText : 'Không có bản dịch',
               style: TextStyle(
