@@ -135,6 +135,23 @@ bool pinyinLooksValid(String pinyin) {
   return n == 0 || v / n <= kMaxForeignRatio;
 }
 
+/// Gia tri API -> chuoi; rong thi giu `fallback` (KHONG xoa ban dich chinh dang hien khi backend bo field sai ngon ngu -> '').
+String preferNonEmpty(dynamic v, String fallback) {
+  final s = v?.toString() ?? '';
+  return s.trim().isEmpty ? fallback : s;
+}
+
+/// Ngon ngu NOI DUNG cua tu dong nghia / cau vi du ('zh' | 'en') theo ho so ngon ngu dich (backend target_profile.py):
+/// dich sang zh-TW -> zh, sang en -> en, sang vi -> ngon ngu NGUON (co chu Han -> zh, nguoc lai en).
+String contentLangFor(String targetLang, String sourceText) {
+  if (targetLang == 'zh-TW') return 'zh';
+  if (targetLang == 'en') return 'en';
+  return RegExp(r'[㐀-鿿]').hasMatch(sourceText) ? 'zh' : 'en';
+}
+
+/// Nhan khoi phat am theo loai: pinyin -> 'Phát âm (Pinyin)', ipa -> 'Phát âm (IPA)'.
+String pronunciationLabel(String kind) => kind == 'ipa' ? '🔊 Phát âm (IPA)' : '🔊 Phát âm (Pinyin)';
+
 class TranslateScreen extends StatefulWidget {
   const TranslateScreen({super.key});
   @override
@@ -154,6 +171,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _resultEnglish = '';
   String _resultVietnamese = '';
   String _pinyin = '';
+  String _pronunciation = '';
+  String _pronunciationKind = ''; // 'pinyin' | 'ipa' | ''
   String _explanation = '';
   // Van de 2 — tu dong nghia + vi du, CHI co khi bam "Giai thich them"
   // (tai dung /translate/text da co san, khong dinh gi den /translate/fast).
@@ -191,6 +210,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _imageResultEnglish = '';
   String _imageResultVietnamese = '';
   String _imagePinyin = '';
+  String _imagePronunciation = '';
+  String _imagePronunciationKind = '';
   String _imageExplanation = '';
   List<dynamic> _imageSynonyms = [];
   List<dynamic> _imageExamples = [];
@@ -215,6 +236,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   String _voiceResultEnglish = '';
   String _voiceResultVietnamese = '';
   String _voicePinyin = '';
+  String _voicePronunciation = '';
+  String _voicePronunciationKind = '';
   String _voiceExplanation = '';
   List<dynamic> _voiceSynonyms = [];
   List<dynamic> _voiceExamples = [];
@@ -410,6 +433,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _resultEnglish = '';
       _resultVietnamese = '';
       _pinyin = '';
+      _pronunciation = '';
+      _pronunciationKind = '';
       _explanation = '';
       _synonyms = [];
       _examples = [];
@@ -505,12 +530,14 @@ class _TranslateScreenState extends State<TranslateScreen>
       );
       if (requestId != _textRequestId) return;
       setState(() {
-        _resultSimplified = response.data['translated_simplified'] ?? '';
-        _resultEnglish = response.data['translated_english'] ?? '';
-        _resultVietnamese = response.data['translated_vietnamese'] ??
-            response.data['explanation'] ??
-            '';
+        // Backend BO field sai ngon ngu (-> '') theo ho so ngon ngu dich: khong duoc xoa ban dich chinh dang hien.
+        _resultSimplified = preferNonEmpty(response.data['translated_simplified'], _resultSimplified);
+        _resultEnglish = preferNonEmpty(response.data['translated_english'], _resultEnglish);
+        _resultVietnamese = preferNonEmpty(
+            response.data['translated_vietnamese'] ?? response.data['explanation'], _resultVietnamese);
         _pinyin = response.data['pinyin'] ?? '';
+        _pronunciation = (response.data['pronunciation'] ?? '').toString();
+        _pronunciationKind = (response.data['pronunciation_kind'] ?? '').toString();
         _explanation = response.data['explanation'] ?? '';
         _synonyms = response.data['synonyms'] is List
             ? response.data['synonyms']
@@ -568,6 +595,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _resultEnglish = '';
       _resultVietnamese = '';
       _pinyin = '';
+      _pronunciation = '';
+      _pronunciationKind = '';
       _explanation = '';
     });
   }
@@ -584,6 +613,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageResultEnglish = '';
       _imageResultVietnamese = '';
       _imagePinyin = '';
+      _imagePronunciation = '';
+      _imagePronunciationKind = '';
       _imageExplanation = '';
       _imageSynonyms = [];
       _imageExamples = [];
@@ -610,6 +641,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageResultEnglish = '';
       _imageResultVietnamese = '';
       _imagePinyin = '';
+      _imagePronunciation = '';
+      _imagePronunciationKind = '';
       _imageExplanation = '';
       _imageSynonyms = [];
       _imageExamples = [];
@@ -732,6 +765,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageResultEnglish = '';
       _imageResultVietnamese = '';
       _imagePinyin = '';
+      _imagePronunciation = '';
+      _imagePronunciationKind = '';
       _imageExplanation = '';
       _imageSynonyms = [];
       _imageExamples = [];
@@ -757,6 +792,8 @@ class _TranslateScreenState extends State<TranslateScreen>
       _imageError = '';
       _imageResultVietnamese = '';
       _imagePinyin = '';
+      _imagePronunciation = '';
+      _imagePronunciationKind = '';
       _imageExplanation = '';
       _imageSynonyms = [];
       _imageExamples = [];
@@ -840,12 +877,13 @@ class _TranslateScreenState extends State<TranslateScreen>
       );
       if (requestId != _imageRequestId) return;
       setState(() {
-        _imageResultSimplified = response.data['translated_simplified'] ?? '';
-        _imageResultEnglish = response.data['translated_english'] ?? '';
-        _imageResultVietnamese = response.data['translated_vietnamese'] ??
-            response.data['explanation'] ??
-            '';
+        _imageResultSimplified = preferNonEmpty(response.data['translated_simplified'], _imageResultSimplified);
+        _imageResultEnglish = preferNonEmpty(response.data['translated_english'], _imageResultEnglish);
+        _imageResultVietnamese = preferNonEmpty(
+            response.data['translated_vietnamese'] ?? response.data['explanation'], _imageResultVietnamese);
         _imagePinyin = response.data['pinyin'] ?? '';
+        _imagePronunciation = (response.data['pronunciation'] ?? '').toString();
+        _imagePronunciationKind = (response.data['pronunciation_kind'] ?? '').toString();
         _imageExplanation = response.data['explanation'] ?? '';
         _imageSynonyms = response.data['synonyms'] is List
             ? response.data['synonyms']
@@ -970,6 +1008,8 @@ class _TranslateScreenState extends State<TranslateScreen>
             response.data['explanation'] ??
             '';
         _imagePinyin = response.data['pinyin'] ?? '';
+        _imagePronunciation = (response.data['pronunciation'] ?? '').toString();
+        _imagePronunciationKind = (response.data['pronunciation_kind'] ?? '').toString();
         _imageExplanation = response.data['explanation'] ?? '';
         // /translate/image la duy nhat 1 cuoc goi lay het OCR+dich+pinyin+
         // giai thich (khong tach re duoc voi quota "image" hien tai), nen
@@ -1030,6 +1070,8 @@ class _TranslateScreenState extends State<TranslateScreen>
         _voiceResultEnglish = '';
         _voiceResultVietnamese = '';
         _voicePinyin = '';
+        _voicePronunciation = '';
+        _voicePronunciationKind = '';
         _voiceExplanation = '';
         _voiceSynonyms = [];
         _voiceExamples = [];
@@ -1225,12 +1267,13 @@ class _TranslateScreenState extends State<TranslateScreen>
       );
       if (requestId != _voiceRequestId) return;
       setState(() {
-        _voiceResultSimplified = response.data['translated_simplified'] ?? '';
-        _voiceResultEnglish = response.data['translated_english'] ?? '';
-        _voiceResultVietnamese = response.data['translated_vietnamese'] ??
-            response.data['explanation'] ??
-            '';
+        _voiceResultSimplified = preferNonEmpty(response.data['translated_simplified'], _voiceResultSimplified);
+        _voiceResultEnglish = preferNonEmpty(response.data['translated_english'], _voiceResultEnglish);
+        _voiceResultVietnamese = preferNonEmpty(
+            response.data['translated_vietnamese'] ?? response.data['explanation'], _voiceResultVietnamese);
         _voicePinyin = response.data['pinyin'] ?? '';
+        _voicePronunciation = (response.data['pronunciation'] ?? '').toString();
+        _voicePronunciationKind = (response.data['pronunciation_kind'] ?? '').toString();
         _voiceExplanation = response.data['explanation'] ?? '';
         _voiceSynonyms = response.data['synonyms'] is List
             ? response.data['synonyms']
@@ -1634,6 +1677,8 @@ class _TranslateScreenState extends State<TranslateScreen>
 
   Future<void> _speak(String text, {String lang = 'zh-TW'}) async {
     if (_isSpeaking) return;
+    // Giong doc theo NGON NGU THAT cua noi dung: 'en' -> en-US, 'vi' -> vi-VN (backend /tts nhan 'zh-TW' | 'zh-CN' | 'en-US' | 'vi-VN').
+    lang = switch (lang) { 'en' => 'en-US', 'vi' => 'vi-VN', _ => lang };
     setState(() => _isSpeaking = true);
     try {
       final token = await _storage.read(key: 'access_token');
@@ -1954,6 +1999,8 @@ class _TranslateScreenState extends State<TranslateScreen>
                         _resultEnglish = '';
                         _resultVietnamese = '';
                         _pinyin = '';
+                        _pronunciation = '';
+                        _pronunciationKind = '';
                         _explanation = '';
                       });
                     },
@@ -2022,6 +2069,8 @@ class _TranslateScreenState extends State<TranslateScreen>
             vietnamese: _resultVietnamese,
             pinyin: _pinyin,
             explanation: _explanation,
+            pronunciation: _pronunciation,
+            pronunciationKind: _pronunciationKind,
             synonyms: _synonyms,
             examples: _examples,
             chineseForSave:
@@ -2341,7 +2390,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         ],
 
         // ── 2. Pinyin ─────────────────────────────────────
-        if (_imagePinyin.isNotEmpty && pinyinLooksValid(_imagePinyin)) ...[
+        if (_imagePinyin.isNotEmpty && _imageTargetLang != 'en' && pinyinLooksValid(_imagePinyin)) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(children: [
@@ -2372,6 +2421,22 @@ class _TranslateScreenState extends State<TranslateScreen>
           ),
           const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
+        ],
+
+        // ── 2b. Phát âm IPA (chỉ khi đích là tiếng Anh và backend chắc chắn — từ/cụm ngắn) ──
+        if (_imageTargetLang == 'en' && _imagePronunciationKind == 'ipa' && _imagePronunciation.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text(pronunciationLabel('ipa'),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.indigo)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: SelectableText(_imagePronunciation,
+                key: const Key('image_ipa_text'),
+                style: const TextStyle(fontSize: 14, color: _DS.indigo, fontStyle: FontStyle.italic, height: 1.6)),
+          ),
+          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 0), child: Divider()),
         ],
 
         // ── 3. Nghĩa tiếng Việt ───────────────────────────
@@ -2463,7 +2528,8 @@ class _TranslateScreenState extends State<TranslateScreen>
         if (_imageSynonyms.isNotEmpty || _imageExamples.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: _buildSynonymsAndExamples(_imageSynonyms, _imageExamples),
+            child: _buildSynonymsAndExamples(_imageSynonyms, _imageExamples,
+                contentLang: contentLangFor(_imageTargetLang, _extractedText)),
           ),
 
         // ── Giải thích thêm (pinyin/nghĩa sâu) — chỉ chạy khi user bấm ──
@@ -2505,7 +2571,7 @@ class _TranslateScreenState extends State<TranslateScreen>
                 icon: Icons.fullscreen_rounded,
                 label: 'Hiển thị to',
                 onTap: () => _showBigDisplay(_extractedText, _pickedImageTarget()?.text ?? '',
-                    pinyin: pinyinLooksValid(_imagePinyin) ? _imagePinyin : ''),
+                    pinyin: (_imageTargetLang != 'en' && pinyinLooksValid(_imagePinyin)) ? _imagePinyin : ''),
               ),
             ],
             const SizedBox(width: 8),
@@ -2515,7 +2581,7 @@ class _TranslateScreenState extends State<TranslateScreen>
               onTap: () {
                 final all = [
                   if (_extractedText.isNotEmpty) '📄 Gốc:\n$_extractedText',
-                  if (_imagePinyin.isNotEmpty) '🔊 Pinyin:\n$_imagePinyin',
+                  if (_imagePinyin.isNotEmpty && _imageTargetLang != 'en') '🔊 Pinyin:\n$_imagePinyin',
                   if (_imageResultVietnamese.isNotEmpty)
                     '🇻🇳 Việt:\n$_imageResultVietnamese',
                   if (_imageExplanation.isNotEmpty)
@@ -3345,6 +3411,8 @@ class _TranslateScreenState extends State<TranslateScreen>
             vietnamese: _voiceResultVietnamese,
             pinyin: _voicePinyin,
             explanation: _voiceExplanation,
+            pronunciation: _voicePronunciation,
+            pronunciationKind: _voicePronunciationKind,
             synonyms: _voiceSynonyms,
             examples: _voiceExamples,
             chineseForSave: _voiceResult,
@@ -3594,6 +3662,8 @@ class _TranslateScreenState extends State<TranslateScreen>
     required String vietnamese,
     required String pinyin,
     required String explanation,
+    String pronunciation = '',
+    String pronunciationKind = '',
     List<dynamic> synonyms = const [],
     List<dynamic> examples = const [],
     String chineseForSave = '',
@@ -3676,6 +3746,16 @@ class _TranslateScreenState extends State<TranslateScreen>
                       fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
             ],
+            // Dich sang tieng Anh: KHONG co pinyin; IPA (neu backend chac chan, chi tu/cum ngan) o day.
+            if (!isChinese && displayLang == 'en' && pronunciationKind == 'ipa' && pronunciation.isNotEmpty) ...[
+              Text('Phát âm (IPA)',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _DS.textGrey)),
+              SelectableText(pronunciation,
+                  key: const Key('ipa_text'),
+                  style: const TextStyle(
+                      fontSize: 14, color: _DS.indigo, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
+            ],
             SelectableText(
               displayText.isNotEmpty ? displayText : 'Không có bản dịch',
               style: TextStyle(
@@ -3707,7 +3787,8 @@ class _TranslateScreenState extends State<TranslateScreen>
                         fontSize: 13, color: _DS.textGrey, height: 1.5)),
               ),
             ],
-            _buildSynonymsAndExamples(synonyms, examples),
+            _buildSynonymsAndExamples(synonyms, examples,
+                contentLang: contentLangFor(targetLang, originalForDisplay)),
           ]),
         ),
         if (displayText.isNotEmpty &&
@@ -3788,109 +3869,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   /// them" (synonyms/examples chi co trong response /translate/text).
   /// Dung chung cho ca _buildResultCard (Van ban/Giong noi) va
   /// _buildImageResultCard (Anh).
-  Widget _buildSynonymsAndExamples(
-      List<dynamic> synonyms, List<dynamic> examples) {
-    if (synonyms.isEmpty && examples.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (synonyms.isNotEmpty) ...[
-          const Text('Từ đồng nghĩa',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _DS.textGrey)),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: synonyms.map((raw) {
-              final s = raw is Map ? raw : {};
-              final word = (s['word'] ?? '').toString();
-              final pinyin = (s['pinyin'] ?? '').toString();
-              final meaning = (s['meaning'] ?? '').toString();
-              if (word.isEmpty) return const SizedBox.shrink();
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                    color: _DS.indigoLight,
-                    borderRadius: BorderRadius.circular(10)),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(word,
-                          style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: _DS.indigo,
-                              fontFamily: 'NotoSansTC')),
-                      if (pinyin.isNotEmpty)
-                        Text(pinyin,
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: _DS.indigo,
-                                fontStyle: FontStyle.italic)),
-                      if (meaning.isNotEmpty)
-                        Text(meaning,
-                            style: const TextStyle(
-                                fontSize: 11, color: _DS.textGrey)),
-                    ]),
-              );
-            }).toList(),
-          ),
-        ],
-        if (examples.isNotEmpty) ...[
-          SizedBox(height: synonyms.isNotEmpty ? 12 : 0),
-          const Text('Ví dụ',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _DS.textGrey)),
-          const SizedBox(height: 6),
-          ...examples.map((raw) {
-            final e = raw is Map ? raw : {};
-            final sentence = (e['sentence'] ?? '').toString();
-            final pinyin = (e['pinyin'] ?? '').toString();
-            final meaning = (e['meaning'] ?? '').toString();
-            if (sentence.isEmpty) return const SizedBox.shrink();
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: _DS.bg, borderRadius: BorderRadius.circular(10)),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(sentence,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: _DS.textDark,
-                            fontFamily: 'NotoSansTC')),
-                    if (pinyin.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(pinyin,
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: _DS.indigo,
-                              fontStyle: FontStyle.italic)),
-                    ],
-                    if (meaning.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(meaning,
-                          style: const TextStyle(
-                              fontSize: 12, color: _DS.textGrey)),
-                    ],
-                  ]),
-            );
-          }),
-        ],
-      ]),
-    );
-  }
+  Widget _buildSynonymsAndExamples(List<dynamic> synonyms, List<dynamic> examples, {String contentLang = 'zh'}) =>
+      SynonymsAndExamplesView(synonyms: synonyms, examples: examples, contentLang: contentLang);
 
   Widget _buildActionBtn(
       {required IconData icon,
@@ -4081,6 +4061,121 @@ class _BigDisplayScreenState extends State<_BigDisplayScreen> {
           ]),
         ),
       ),
+    );
+  }
+}
+
+
+/// Tu dong nghia + vi du (public de test). `contentLang` theo ho so ngon ngu dich: 'zh' -> chu Han + pinyin; 'en' -> tieng Anh,
+/// KHONG hien pinyin (du backend lo gui), nhan 'Vi du tieng Anh'. Nghia luon la tieng Viet.
+class SynonymsAndExamplesView extends StatelessWidget {
+  final List<dynamic> synonyms;
+  final List<dynamic> examples;
+  final String contentLang;
+  const SynonymsAndExamplesView(
+      {super.key, required this.synonyms, required this.examples, this.contentLang = 'zh'});
+
+  @override
+  Widget build(BuildContext context) {
+    if (synonyms.isEmpty && examples.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (synonyms.isNotEmpty) ...[
+          const Text('Từ đồng nghĩa',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _DS.textGrey)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: synonyms.map((raw) {
+              final s = raw is Map ? raw : {};
+              final word = (s['word'] ?? '').toString();
+              final pinyin = contentLang == 'zh' ? (s['pinyin'] ?? '').toString() : '';
+              final meaning = (s['meaning'] ?? '').toString();
+              if (word.isEmpty) return const SizedBox.shrink();
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                    color: _DS.indigoLight,
+                    borderRadius: BorderRadius.circular(10)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(word,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _DS.indigo,
+                              fontFamily: contentLang == 'en' ? null : 'NotoSansTC')),
+                      if (pinyin.isNotEmpty)
+                        Text(pinyin,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: _DS.indigo,
+                                fontStyle: FontStyle.italic)),
+                      if (meaning.isNotEmpty)
+                        Text(meaning,
+                            style: const TextStyle(
+                                fontSize: 11, color: _DS.textGrey)),
+                    ]),
+              );
+            }).toList(),
+          ),
+        ],
+        if (examples.isNotEmpty) ...[
+          SizedBox(height: synonyms.isNotEmpty ? 12 : 0),
+          Text(contentLang == 'en' ? 'Ví dụ tiếng Anh' : 'Ví dụ',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _DS.textGrey)),
+          const SizedBox(height: 6),
+          ...examples.map((raw) {
+            final e = raw is Map ? raw : {};
+            final sentence = (e['sentence'] ?? '').toString();
+            final pinyin = contentLang == 'zh' ? (e['pinyin'] ?? '').toString() : '';
+            final meaning = (e['meaning'] ?? '').toString();
+            if (sentence.isEmpty) return const SizedBox.shrink();
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: _DS.bg, borderRadius: BorderRadius.circular(10)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(sentence,
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _DS.textDark,
+                            fontFamily: contentLang == 'en' ? null : 'NotoSansTC')),
+                    if (pinyin.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(pinyin,
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: _DS.indigo,
+                              fontStyle: FontStyle.italic)),
+                    ],
+                    if (meaning.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(meaning,
+                          style: const TextStyle(
+                              fontSize: 12, color: _DS.textGrey)),
+                    ],
+                  ]),
+            );
+          }),
+        ],
+      ]),
     );
   }
 }
