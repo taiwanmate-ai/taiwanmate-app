@@ -71,9 +71,6 @@ Map<String, String> parseRiskAnalysisItem(dynamic raw) {
   required String english,
   required String original,
 }) {
-  final cjk = RegExp(r'[㐀-鿿]');
-  // Ky tu CHI tieng Viet co (pinyin/tieng Anh khong dung) — dung de nhan ra chu Viet bi "chep lai".
-  final viOnly = RegExp(r'[ĂăÂâĐđÊêÔôƠơƯưÃãÕõĨĩŨũẠ-ỹ]');
   final String label;
   final String text;
   switch (targetLang) {
@@ -95,9 +92,47 @@ Map<String, String> parseRiskAnalysisItem(dynamic raw) {
   // goc tieng Viet vao `translated`; backend da sua/lam lai trong _repair_image_translation nhung day van
   // khong duoc dan nhan "tieng Trung/Anh" len noi dung sai ngon ngu). Khoang ky tu trong RegExp o tren la
   // khoi chu Han CJK U+3400-U+9FFF va khoi chu Viet U+1EA0-U+1EF9 (viet truc tiep bang ky tu).
-  if (targetLang == 'zh-TW' && !cjk.hasMatch(t)) return null;
-  if (targetLang == 'en' && (cjk.hasMatch(t) || viOnly.hasMatch(t))) return null;
+  // 2026-10-10 (lan 2): KIEM TRA THEO TY LE, khong con "co >= 1 chu Han" (van ban LAN — tieu de Han, than Viet — tung lot qua).
+  // Cung dinh nghia voi backend (openai_service.script_ratios/_image_translation_problems): hong khi > 10% chu la chu Viet co dau.
+  final r = scriptRatios(t);
+  if (targetLang == 'zh-TW' && (r.han == 0 || r.vi > kMaxForeignRatio)) return null;
+  if (targetLang == 'en' && (r.han > kMaxForeignRatio || r.vi > kMaxForeignRatio)) return null;
   return (label: label, text: text);
+}
+
+/// Nguong chu "sai ngon ngu" toi da (10% so ky tu chu) — KHOP backend MAX_FOREIGN_RATIO.
+const double kMaxForeignRatio = 0.10;
+
+/// (ty le chu Han, ty le chu Viet co dau) tren tong so KY TU CHU (chu Han cung tinh). Khop backend script_ratios().
+({double han, double vi}) scriptRatios(String text) {
+  final letter = RegExp(r'\p{L}', unicode: true);
+  final cjk = RegExp(r'[㐀-鿿]');
+  // Chu Viet CO DAU (rong, dung cho ban dich — khong bao gio la pinyin).
+  final vi = RegExp(r'[àáâãèéêìíòóôõùúýÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝăĂđĐĩĨũŨơƠưƯẠ-ỹ]');
+  var n = 0, h = 0, v = 0;
+  for (final rune in text.runes) {
+    final c = String.fromCharCode(rune);
+    if (!letter.hasMatch(c)) continue;
+    n++;
+    if (cjk.hasMatch(c)) h++;
+    if (vi.hasMatch(c)) v++;
+  }
+  if (n == 0) return (han: 0.0, vi: 0.0);
+  return (han: h / n, vi: v / n);
+}
+
+/// Pinyin hop le: KHONG chua chu Viet. Dung dinh nghia HEP (khong gom a e i o u co dau don — pinyin cung co thanh dieu a/e/i/o/u).
+bool pinyinLooksValid(String pinyin) {
+  final narrow = RegExp(r'[ĂăÂâĐđÊêÔôƠơƯưÃãÕõĨĩŨũẠ-ỹ]');
+  final letter = RegExp(r'\p{L}', unicode: true);
+  var n = 0, v = 0;
+  for (final rune in pinyin.runes) {
+    final c = String.fromCharCode(rune);
+    if (!letter.hasMatch(c)) continue;
+    n++;
+    if (narrow.hasMatch(c)) v++;
+  }
+  return n == 0 || v / n <= kMaxForeignRatio;
 }
 
 class TranslateScreen extends StatefulWidget {
@@ -150,6 +185,8 @@ class _TranslateScreenState extends State<TranslateScreen>
   Set<String> _selectedRegionIds = {};
   static const _ocrRegionService = OcrRegionService();
   String _imageResult = '';
+  // Loi dich anh HIEN RO cho user (backend `translate_error` hoac loi mang) — KHONG tron vao _imageResult (se bi lop chan nhan an mat).
+  String _imageError = '';
   String _imageResultSimplified = '';
   String _imageResultEnglish = '';
   String _imageResultVietnamese = '';
@@ -542,6 +579,7 @@ class _TranslateScreenState extends State<TranslateScreen>
     setState(() {
       _imageBase64 = resized;
       _imageResult = '';
+      _imageError = '';
       _imageResultSimplified = '';
       _imageResultEnglish = '';
       _imageResultVietnamese = '';
@@ -567,6 +605,7 @@ class _TranslateScreenState extends State<TranslateScreen>
     setState(() {
       _imageBase64 = resized;
       _imageResult = '';
+      _imageError = '';
       _imageResultSimplified = '';
       _imageResultEnglish = '';
       _imageResultVietnamese = '';
@@ -688,6 +727,7 @@ class _TranslateScreenState extends State<TranslateScreen>
       // tranh hien nham — bat buoc bam "Dich nhanh" moi de co ket qua
       // moi cho dung phan vua chon, khong con ket qua cu sot lai.
       _imageResult = '';
+      _imageError = '';
       _imageResultSimplified = '';
       _imageResultEnglish = '';
       _imageResultVietnamese = '';
@@ -714,6 +754,7 @@ class _TranslateScreenState extends State<TranslateScreen>
     setState(() {
       _imageLoading = true;
       _imageResult = '';
+      _imageError = '';
       _imageResultVietnamese = '';
       _imagePinyin = '';
       _imageExplanation = '';
@@ -881,6 +922,7 @@ class _TranslateScreenState extends State<TranslateScreen>
     setState(() {
       _imageLoading = true;
       _imageResult = '';
+      _imageError = '';
       _imageLoadingMsg = 'Đang đọc văn bản trong ảnh...';
       _imageAiLearningLoaded = false;
       _riskAnalysis = [];
@@ -921,6 +963,7 @@ class _TranslateScreenState extends State<TranslateScreen>
       setState(() {
         _extractedText = response.data['extracted_text'] ?? '';
         _imageResult = response.data['translated'] ?? '';
+        _imageError = (response.data['translate_error'] ?? '').toString();
         _imageResultSimplified = response.data['translated_simplified'] ?? '';
         _imageResultEnglish = response.data['translated_english'] ?? '';
         _imageResultVietnamese = response.data['translated_vietnamese'] ??
@@ -960,14 +1003,14 @@ class _TranslateScreenState extends State<TranslateScreen>
       }
       if (requestId == _imageRequestId) {
         if (e.type == DioExceptionType.receiveTimeout) {
-          setState(() => _imageResult =
-              '⚠️ Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
+          setState(() => _imageError =
+              'Ảnh quá phức tạp, mất nhiều thời gian. Thử ảnh chụp rõ hơn nhé!');
         } else {
-          setState(() => _imageResult = '⚠️ Lỗi kết nối. Vui lòng thử lại.');
+          setState(() => _imageError = 'Lỗi kết nối. Vui lòng thử lại.');
         }
       }
     } catch (e) {
-      if (requestId == _imageRequestId) setState(() => _imageResult = '⚠️ Lỗi: $e');
+      if (requestId == _imageRequestId) setState(() => _imageError = 'Không dịch được, thử lại');
     } finally {
       msgTimer.cancel();
       // KHONG gate boi requestId — _imageLoading la co chung cho ca
@@ -2014,6 +2057,29 @@ class _TranslateScreenState extends State<TranslateScreen>
         border: Border.all(color: _DS.indigoLight),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── 0. Loi dich (translate_error / mang) — thay cho viec hien chu sai ngon ngu duoi nhan dich ──
+        if (_imageError.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Container(
+              key: const Key('image_error_box'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: _DS.redLight, borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                const Text('⚠️', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(_imageError,
+                        style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF8A2E26)))),
+              ]),
+            ),
+          ),
+
         // ── 1. Văn bản gốc ────────────────────────────────
         if (_extractedText.isNotEmpty) ...[
           Padding(
@@ -2275,7 +2341,7 @@ class _TranslateScreenState extends State<TranslateScreen>
         ],
 
         // ── 2. Pinyin ─────────────────────────────────────
-        if (_imagePinyin.isNotEmpty) ...[
+        if (_imagePinyin.isNotEmpty && pinyinLooksValid(_imagePinyin)) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Row(children: [
@@ -2427,19 +2493,19 @@ class _TranslateScreenState extends State<TranslateScreen>
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            if (_imageResult.isNotEmpty)
+            if (_pickedImageTarget() != null)
               _buildActionBtn(
                 icon: Icons.volume_up_rounded,
                 label: 'Nghe',
-                onTap: () => _speak(_imageResult, lang: _imageTargetLang == 'en' ? 'en-US' : 'zh-TW'),
+                onTap: () => _speak(_pickedImageTarget()!.text, lang: _imageTargetLang == 'en' ? 'en-US' : 'zh-TW'),
               ),
-            if (_imageResult.isNotEmpty || _extractedText.isNotEmpty) ...[
+            if (_pickedImageTarget() != null || _extractedText.isNotEmpty) ...[
               const SizedBox(width: 8),
               _buildActionBtn(
                 icon: Icons.fullscreen_rounded,
                 label: 'Hiển thị to',
-                onTap: () => _showBigDisplay(_extractedText, _imageResult,
-                    pinyin: _imagePinyin),
+                onTap: () => _showBigDisplay(_extractedText, _pickedImageTarget()?.text ?? '',
+                    pinyin: pinyinLooksValid(_imagePinyin) ? _imagePinyin : ''),
               ),
             ],
             const SizedBox(width: 8),
@@ -3049,19 +3115,23 @@ class _TranslateScreenState extends State<TranslateScreen>
 
         if (_imageResult.isNotEmpty ||
             _imageResultVietnamese.isNotEmpty ||
-            _imageResultEnglish.isNotEmpty)
+            _imageResultEnglish.isNotEmpty ||
+            _imageError.isNotEmpty)
           _buildImageResultCard(),
       ]),
     );
   }
 
+  /// Ban dich DA QUA kiem tra ty le (hoac null) — nguon DUY NHAT cho khoi dich, nut Nghe va Hien thi to.
+  ({String label, String text})? _pickedImageTarget() => pickImageTargetText(
+        targetLang: _imageTargetLang,
+        translated: _imageResult,
+        english: _imageResultEnglish,
+        original: _extractedText,
+      );
+
   List<Widget> _buildImageTargetBlock() {
-    final picked = pickImageTargetText(
-      targetLang: _imageTargetLang,
-      translated: _imageResult,
-      english: _imageResultEnglish,
-      original: _extractedText,
-    );
+    final picked = _pickedImageTarget();
     if (picked == null) return const [];
     return [
       Padding(

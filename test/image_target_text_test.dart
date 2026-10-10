@@ -61,4 +61,46 @@ void main() {
             original: 'THỰC ĐƠN${nl}Phở bò tái ... 50.000đ'),
         isNull);
   });
+
+  // ───────── 2026-10-10 (lan 2): kiem tra theo TY LE thay cho "co >= 1 chu Han" ─────────
+  group('ty le chu (khong con chi can >= 1 chu Han)', () {
+    final menuVi = 'THỰC ĐƠN${nl}Phở bò tái ....... 50.000đ${nl}Bún chả Hà Nội .... 45.000đ${nl}Cơm tấm sườn ..... 60.000đ';
+    // CA THAT: tieu de dich sang Han, THAN chep nguyen tieng Viet. Lop chan cu (hasMatch Han) CHO QUA -> hien tieng Viet duoi nhan tieng Trung.
+    final mixed = '菜單${nl}Phở bò tái ....... 50.000đ${nl}Bún chả Hà Nội .... 45.000đ${nl}Cơm tấm sườn ..... 60.000đ';
+
+    test('TAI HIEN: tieu de Han + than Viet -> null (khong dan nhan tieng Trung len chu Viet)', () {
+      expect(pickImageTargetText(targetLang: 'zh-TW', translated: mixed, english: '', original: menuVi), isNull);
+    });
+
+    test('ban dich Han day du -> hien; Han co chen Latin/ten rieng Viet <= 10% van hien', () {
+      expect(pickImageTargetText(targetLang: 'zh-TW', translated: '菜單${nl}牛肉河粉 ....... 50.000越南盾', english: '', original: menuVi), isNotNull);
+      expect(pickImageTargetText(targetLang: 'zh-TW', translated: '請掃描 QR code 用 LINE Pay 付款，謝謝您的光臨與支持', english: '', original: 'Quét mã QR'), isNotNull);
+      expect(pickImageTargetText(targetLang: 'zh-TW', translated: '這家店的招牌是 Phở 和炸春捲，非常好吃，歡迎品嚐', english: '', original: 'x'), isNotNull);
+    });
+
+    test('Viet khong dau (khong co chu Han nao) -> null', () {
+      expect(pickImageTargetText(targetLang: 'zh-TW', translated: 'MENU Pho bo tai 50.000', english: '', original: 'THUC DON'), isNull);
+    });
+
+    test('target=en: > 10% chu Han hoac chu Viet -> null; ten rieng Viet it -> van hien', () {
+      expect(pickImageTargetText(targetLang: 'en', translated: 'MENU${nl}牛肉河粉 ........ 50.000', english: 'MENU${nl}牛肉河粉 ........ 50.000', original: menuVi), isNull);
+      expect(pickImageTargetText(targetLang: 'en', translated: menuVi, english: menuVi, original: 'x'), isNull);
+      final ok = pickImageTargetText(targetLang: 'en', translated: 'Beef Phở and spring rolls, a very popular dish in Hanoi', english: '', original: 'x');
+      expect(ok, isNotNull);
+    });
+
+    test('scriptRatios: dem tren KY TU CHU (chu Han cung tinh), bo so/dau cau', () {
+      final r = scriptRatios('菜單 Phở 50.000');
+      expect(r.han, closeTo(2 / 5, 1e-9)); // 菜 單 P h ở  => 5 chu
+      expect(r.vi, closeTo(1 / 5, 1e-9));
+      expect(scriptRatios('').han, 0);
+      expect(scriptRatios('12345 ....').vi, 0);
+    });
+
+    test('pinyinLooksValid: pinyin co thanh dieu hop le; chu Viet chep lai thi khong', () {
+      expect(pinyinLooksValid('Càidān niúròu héfěn lǜ'), isTrue);
+      expect(pinyinLooksValid(''), isTrue);
+      expect(pinyinLooksValid('THỰC ĐƠN Phở bò tái 50.000đ'), isFalse);
+    });
+  });
 }
