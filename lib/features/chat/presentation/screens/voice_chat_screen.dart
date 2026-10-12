@@ -50,6 +50,8 @@ import 'package:chinesemate/features/chat/engines/voice_mic_recorder.dart';
 import 'package:chinesemate/features/chat/engines/voice_activity_detector.dart';
 import 'package:chinesemate/features/chat/engines/sentence_accumulator.dart';
 import 'package:chinesemate/features/chat/engines/voice_turn_tracking.dart';
+import 'package:chinesemate/features/chat/engines/voice_stt_language.dart';
+import 'package:chinesemate/features/chat/presentation/widgets/voice_language_selector.dart';
 import 'package:chinesemate/features/chat/presentation/widgets/voice_transcript_bar.dart';
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart' show VipScreen;
@@ -174,6 +176,13 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   /// "Noi lai" (2026-10-12): luot hien tai (turn_id server cap) + dem ack discard_turn dang cho.
   final VoiceTurnState _turnState = VoiceTurnState();
 
+  /// Chon ngon ngu nhan dien (Dot 2, chi khi server bao voice_features — allowlist). Nho lua chon cuoi theo tung nguoi dung.
+  static const _sttLanguageStore = VoiceSttLanguageStore();
+  bool _sttSelectorVisible = false;
+  List<String> _sttServerOptions = const [];
+  VoiceSttLanguage _sttLanguage = VoiceSttLanguage.auto;
+  String? _userKey;
+
   late final VoiceTurnCoordinator _turnCoordinator = VoiceTurnCoordinator(
     state: _turnState,
     latency: _latency,
@@ -259,6 +268,16 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     _voiceController.onStreamingFirstAudioReceived = _latency.markFirstAudio;
     _voiceController.onStreamingPlaybackStart = _latency.markPlaybackStart;
     _wsService.onTurnDiscarded = (turnId, stage) => _turnState.onDiscardAck();
+    _wsService.onVoiceFeatures = (selector, options) async {
+      if (!selector) return;
+      final saved = await _sttLanguageStore.load(_userKey);
+      if (!mounted) return;
+      setState(() {
+        _sttSelectorVisible = true;
+        _sttServerOptions = options;
+        _sttLanguage = saved;
+      });
+    };
 
     _wsService.onTranscriptWithTurnId = (text, turnId) {
       // Luot go chu (_sendTypedText) da dat _transcriptText truoc va khong do do tre/khong co "Noi lai".
@@ -384,6 +403,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       );
       if (!mounted) return;
       final chineseLevel = response.data['chinese_level'] as String?;
+      final uid = response.data['id'] ?? response.data['email'];
+      if (uid != null) _userKey = uid.toString();
       // Audit "Thong ke Voice sau moi phien" (2026-09-08) — 'daily_voice_
       // minutes_used' la so (int hoac double tuy JSON), ep ve double an
       // toan qua num roi .toDouble().
@@ -599,7 +620,11 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     // Buoc C — xay system_prompt THAT theo dung _learningMode nguoi dung
     // da chon (qua CHINH engine cua Chat), gui kem audio_end de backend
     // dung THAT thay vi fallback co dinh.
-    _wsService.sendAudioEnd(systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
+    _wsService.sendAudioEnd(
+      systemPrompt: _buildVoiceSystemPrompt(),
+      learningMode: _learningMode,
+      sttLanguage: _sttSelectorVisible ? _sttLanguage.wire : null,
+    );
   }
 
   /// Audit "Go chu fallback" (2026-08-30) — tach logic xay system_prompt
@@ -822,6 +847,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     _wsService.disconnect();
     if (!mounted) return;
     setState(() {
+      _sttSelectorVisible = false; // server gui lai voice_features o ket noi sau
       _uiState = _VoiceUiState.idle;
       _transcriptText = '';
       _aiText = '';
@@ -1142,6 +1168,21 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
                 ),
               ),
               const SizedBox(height: 8),
+              if (_sttSelectorVisible &&
+                  (_uiState == _VoiceUiState.readyToTalk ||
+                      _uiState == _VoiceUiState.recording ||
+                      _uiState == _VoiceUiState.processing ||
+                      _uiState == _VoiceUiState.aiSpeaking)) ...[
+                VoiceLanguageSelector(
+                  options: voiceSttLanguageOptions(learningMode: _learningMode, serverOptions: _sttServerOptions),
+                  selected: _sttLanguage,
+                  onChanged: (l) {
+                    setState(() => _sttLanguage = l);
+                    _sttLanguageStore.save(_userKey, l);
+                  },
+                ),
+                const SizedBox(height: 6),
+              ],
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Text(

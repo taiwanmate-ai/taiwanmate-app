@@ -54,6 +54,10 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// `discard_turn`. Ca hai callback deu duoc goi cho moi message "transcript".
   void Function(String text, int? turnId)? onTranscriptWithTurnId;
 
+  /// Server bao tinh nang bat cho tai khoan nay: {"type":"voice_features","stt_language_selector":true,"stt_language_options":[...]} (Dot 2, allowlist).
+  /// Tai khoan khac KHONG nhan message nay -> UI giu nguyen.
+  void Function(bool sttLanguageSelector, List<String> sttLanguageOptions)? onVoiceFeatures;
+
   /// Server ack moi `discard_turn`: {"type":"turn_discarded","turn_id":N,"stage":"in_flight"|"removed"|"unknown"}.
   void Function(int? turnId, String stage)? onTurnDiscarded;
 
@@ -195,6 +199,13 @@ class VoiceWebSocketService extends ChangeNotifier {
 
   void _onMessage(dynamic raw) => handleRawMessageForTesting(raw as String);
 
+  /// CHI de test: gan san 1 kenh gia (ghi lai cac message gui di) va coi nhu da ket noi — khong mo socket that.
+  @visibleForTesting
+  void attachChannelForTesting(WebSocketChannel channel) {
+    _channel = channel;
+    _setState(VoiceConnectionState.connected);
+  }
+
   /// Xu ly 1 message JSON tho — TACH RIENG khoi listener that de test
   /// duoc bang cach "gia lap" 1 message den ma KHONG can mo ket noi
   /// WebSocket that (dung @visibleForTesting, khong goi tu code san xuat
@@ -268,6 +279,13 @@ class VoiceWebSocketService extends ChangeNotifier {
         final isFinal = data['is_final'] as bool? ?? false;
         debugPrint('[VoiceWebSocketService] ai_text_response_chunk: $text (is_final=$isFinal)');
         onAiTextResponseChunk?.call(text, isFinal);
+        break;
+      case 'voice_features':
+        final opts = data['stt_language_options'];
+        onVoiceFeatures?.call(
+          data['stt_language_selector'] == true,
+          opts is List ? opts.whereType<String>().toList() : const <String>[],
+        );
         break;
       case 'turn_discarded':
         final discardedId = data['turn_id'];
@@ -349,7 +367,7 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// (do VoiceChatScreen xay qua CompanionPersonalityEngine.buildSystemPromptV2,
   /// dung chung engine voi Chat) de backend dung DUNG lua chon cua user
   /// thay vi prompt/mode co dinh — xem docstring app/api/v1/voice_ws.py.
-  void sendAudioEnd({String? systemPrompt, String? learningMode}) {
+  void sendAudioEnd({String? systemPrompt, String? learningMode, String? sttLanguage}) {
     final channel = _channel;
     if (!isConnected || channel == null) {
       debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui audio_end');
@@ -360,6 +378,8 @@ class VoiceWebSocketService extends ChangeNotifier {
       'type': 'audio_end',
       if (systemPrompt != null) 'system_prompt': systemPrompt,
       if (learningMode != null) 'learning_mode': learningMode,
+      // Dot 2: chi gui khi nguoi dung chon (selector hien theo voice_features); backend bo qua voi tai khoan khong thuoc allowlist.
+      if (sttLanguage != null) 'stt_language': sttLanguage,
     }));
   }
 
