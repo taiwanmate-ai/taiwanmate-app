@@ -50,6 +50,13 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// Goi khi server bao {"type":"transcript"} (STT thanh cong, Buoc 3).
   void Function(String text)? onTranscript;
 
+  /// "Noi lai" (2026-10-12) — nhu [onTranscript] nhung kem `turn_id` server cap (null neu server cu khong gui) de app gui
+  /// `discard_turn`. Ca hai callback deu duoc goi cho moi message "transcript".
+  void Function(String text, int? turnId)? onTranscriptWithTurnId;
+
+  /// Server ack moi `discard_turn`: {"type":"turn_discarded","turn_id":N,"stage":"in_flight"|"removed"|"unknown"}.
+  void Function(int? turnId, String stage)? onTurnDiscarded;
+
   /// Audit "gioi han 20 phut/ngay Voice + fix ket cung luc connect"
   /// (2026-08-30) — goi cho MOI message {"type":"error"} server gui
   /// (token khong hop le, khong tim thay user, tai khoan bi khoa, khong
@@ -232,6 +239,8 @@ class VoiceWebSocketService extends ChangeNotifier {
         final text = data['text'] as String? ?? '';
         debugPrint('[VoiceWebSocketService] transcript: $text');
         onTranscript?.call(text);
+        final rawTurnId = data['turn_id'];
+        onTranscriptWithTurnId?.call(text, rawTurnId is int ? rawTurnId : null);
         if (data['short_utterance_warning'] == true) {
           final warningMessage = data['short_utterance_warning_message'] as String? ?? '';
           debugPrint('[VoiceWebSocketService] short_utterance_warning: $warningMessage');
@@ -259,6 +268,12 @@ class VoiceWebSocketService extends ChangeNotifier {
         final isFinal = data['is_final'] as bool? ?? false;
         debugPrint('[VoiceWebSocketService] ai_text_response_chunk: $text (is_final=$isFinal)');
         onAiTextResponseChunk?.call(text, isFinal);
+        break;
+      case 'turn_discarded':
+        final discardedId = data['turn_id'];
+        final stage = data['stage'] as String? ?? 'unknown';
+        debugPrint('[VoiceWebSocketService] turn_discarded: id=$discardedId stage=$stage');
+        onTurnDiscarded?.call(discardedId is int ? discardedId : null, stage);
         break;
       case 'ai_text_response_error':
         final message = data['message'] as String? ?? 'Không tạo được câu trả lời';
@@ -388,6 +403,26 @@ class VoiceWebSocketService extends ChangeNotifier {
     }
     debugPrint('[VoiceWebSocketService] gui interrupt');
     channel.sink.add(jsonEncode({'type': 'interrupt'}));
+  }
+
+  /// "Noi lai" (2026-10-12) — Gui {"type":"discard_turn","turn_id":N}: server bo luot N (chua tra loi xong -> ngat AI, khong ghi
+  /// history; da tra loi xong -> go khoi conversation_history + DB). Server luon tra `turn_discarded`.
+  void sendDiscardTurn(int turnId) {
+    final channel = _channel;
+    if (!isConnected || channel == null) {
+      debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui discard_turn');
+      return;
+    }
+    debugPrint('[VoiceWebSocketService] gui discard_turn $turnId');
+    channel.sink.add(jsonEncode({'type': 'discard_turn', 'turn_id': turnId}));
+  }
+
+  /// Moc do do tre phia app (2026-10-12) — gui {"type":"client_latency",...} (xem VoiceLatencyTracker.buildReport). Backend chi
+  /// ghi log; khong co phan hoi.
+  void sendClientLatency(Map<String, dynamic> report) {
+    final channel = _channel;
+    if (!isConnected || channel == null) return;
+    channel.sink.add(jsonEncode({...report, 'type': 'client_latency'}));
   }
 
   /// Ngat ket noi CHU DINH — sau loi goi nay se KHONG tu dong thu lai nua

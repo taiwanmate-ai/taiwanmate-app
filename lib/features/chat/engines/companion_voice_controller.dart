@@ -233,6 +233,13 @@ class CompanionVoiceController extends ChangeNotifier {
   /// speak() (Buoc 4a).
   Duration? get lastStreamingTimeToFirstAudio => _streamingTimeToFirstAudio;
 
+  /// Moc do do tre phia app (2026-10-12): goi 1 lan cho moi phien streaming, luc byte audio TTS cua cau DAU TIEN ve toi app...
+  void Function()? onStreamingFirstAudioReceived;
+
+  /// ...va ngay truoc khi giao audio do cho trinh phat (webPlayAudio tra ve khi phat XONG nen "bat dau phat" = luc goi; sai so la
+  /// thoi gian giai ma/khoi dong phat cua trinh duyet/thiet bi, khong do duoc o day).
+  void Function()? onStreamingPlaybackStart;
+
   /// Bat dau 1 phien phat STREAMING moi — goi 1 LAN duy nhat truoc khi
   /// them cau dau tien qua appendStreamingSentence(). Neu dang co am
   /// thanh khac phat (speak() thuong hoac phien streaming truoc), NGAT
@@ -294,7 +301,14 @@ class CompanionVoiceController extends ChangeNotifier {
         final bytes = await _fetchWithRetry(seg, aiGender, idx, mood: mood);
         if (_disposed || session != _speakSession) return;
         if (bytes == null) continue; // segment loi — bo qua, giong _speakSegments
+        final isFirstAudioOfSession = _streamingTimeToFirstAudio == null;
         _streamingTimeToFirstAudio ??= _streamingStopwatch?.elapsed;
+        if (isFirstAudioOfSession) {
+          try {
+            onStreamingFirstAudioReceived?.call();
+            onStreamingPlaybackStart?.call();
+          } catch (_) {} // do do tre la phu — khong bao gio duoc lam hong viec phat
+        }
         if (_audioPlayer != null) {
           await _audioPlayer!(bytes);
         } else {

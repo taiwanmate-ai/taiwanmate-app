@@ -35,7 +35,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -49,6 +49,8 @@ import 'package:chinesemate/features/chat/engines/companion_voice_controller.dar
 import 'package:chinesemate/features/chat/engines/voice_mic_recorder.dart';
 import 'package:chinesemate/features/chat/engines/voice_activity_detector.dart';
 import 'package:chinesemate/features/chat/engines/sentence_accumulator.dart';
+import 'package:chinesemate/features/chat/engines/voice_turn_tracking.dart';
+import 'package:chinesemate/features/chat/presentation/widgets/voice_transcript_bar.dart';
 import 'package:chinesemate/core/utils/web_utils.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart' show VipScreen;
 import 'voice_history_screen.dart';
@@ -169,6 +171,22 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   // xem docstring backend voice_ws.py).
   bool _ignoreCurrentAiTurn = false;
 
+  /// "Noi lai" (2026-10-12): luot hien tai (turn_id server cap) + dem ack discard_turn dang cho.
+  final VoiceTurnState _turnState = VoiceTurnState();
+
+  late final VoiceTurnCoordinator _turnCoordinator = VoiceTurnCoordinator(
+    state: _turnState,
+    latency: _latency,
+    stopSpeaking: () => _voiceController.stopSpeaking(),
+    sendDiscardTurn: (id) => _wsService.sendDiscardTurn(id),
+  );
+
+  /// Do do tre phia app (2026-10-12): tha nut -> transcript -> audio dau -> bat dau phat; log console + gui backend.
+  late final VoiceLatencyTracker _latency = VoiceLatencyTracker(
+    platform: kIsWeb ? 'web' : defaultTargetPlatform.name,
+    sendReport: (report) => _wsService.sendClientLatency(report),
+  );
+
   /// Audit "Voice roadmap — chon giong AI" (2026-09-08) — TRUOC DAY co
   /// dinh 'female' (static const), khac Chat DA CO san lua chon Yuki(nu)/
   /// Kai(nam) tu lau (xem chat_screen.dart _showSettings()). Gio la field
@@ -238,7 +256,16 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       tokenProvider: () => _storage.read(key: 'access_token'),
     );
     _voiceController.addListener(_onVoiceControllerChanged);
+    _voiceController.onStreamingFirstAudioReceived = _latency.markFirstAudio;
+    _voiceController.onStreamingPlaybackStart = _latency.markPlaybackStart;
+    _wsService.onTurnDiscarded = (turnId, stage) => _turnState.onDiscardAck();
 
+    _wsService.onTranscriptWithTurnId = (text, turnId) {
+      // Luot go chu (_sendTypedText) da dat _transcriptText truoc va khong do do tre/khong co "Noi lai".
+      final fromMic = _latency.isActive;
+      _turnState.onTranscript(text, turnId, fromMic: fromMic);
+      _latency.markTranscript(turnId);
+    };
     _wsService.onTranscript = (text) {
       if (!mounted) return;
       setState(() {
@@ -304,6 +331,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       setState(() => _errorMessage = message);
     };
     _wsService.onTranscriptError = (message) {
+      _latency.abandon();
+      _turnState.reset();
       if (!mounted) return;
       setState(() {
         _errorMessage = message;
@@ -311,6 +340,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       });
     };
     _wsService.onTranscriptLowConfidence = (text, message) {
+      _latency.abandon();
+      _turnState.reset();
       if (!mounted) return;
       setState(() {
         _errorMessage = '';
@@ -328,6 +359,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     };
     _wsService.onAiTextResponseChunk = _onAiTextResponseChunk;
     _wsService.onAiTextResponseError = (message) {
+      _latency.abandon();
       if (!mounted) return;
       setState(() {
         _errorMessage = message;
@@ -365,6 +397,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   }
 
   void _onAiTextResponseChunk(String text, bool isFinal) {
+    // "Noi lai": server co the con gui not chunk cua luot VUA BI BO truoc khi kip nhan discard_turn — bo qua cho toi khi co ack.
+    if (_turnState.shouldIgnoreAiChunks) return;
     if (_ignoreCurrentAiTurn) {
       if (isFinal) _ignoreCurrentAiTurn = false;
       return;
@@ -541,6 +575,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       return;
     }
     _isInterruptAttempt = false;
+    _latency.markRelease(); // moc 1 do tre: user tha nut
 
     if (mounted) {
       setState(() {
@@ -554,6 +589,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     final bytes = await _micRecorder.stop();
     if (!mounted) return;
     if (bytes == null || bytes.isEmpty) {
+      _latency.abandon();
       setState(() => _uiState = _VoiceUiState.readyToTalk);
       return;
     }
@@ -610,6 +646,23 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     return result.prompt + kVoiceInteractiveTeachingInstruction + kVoiceNaturalizerInstruction;
   }
 
+  /// "Nói lại" (2026-10-12): bo luot noi vua roi. Chua co cau tra loi -> server ngat AI, khong ghi history; da tra loi xong ->
+  /// server go luot do khoi conversation_history + DB. Phia app: dung phat, xoa chu, ve trang thai san sang de giu mic noi lai.
+  void _redoLastTurn() {
+    _ignoreCurrentAiTurn = false;
+    _sentenceAccumulator.flush();
+    if (!_turnCoordinator.redo()) return;
+    if (!mounted) return;
+    setState(() {
+      _transcriptText = '';
+      _aiText = '';
+      _shortUtteranceWarning = '';
+      _errorMessage = '';
+      _currentMood = 'neutral';
+      _uiState = _VoiceUiState.readyToTalk;
+    });
+  }
+
   /// Audit "Go chu fallback" (2026-08-30) — fallback UX kieu Duolingo (go
   /// chu la fallback HANG NHAT, khong phai loi) cho gioi han THAT cua STT
   /// voi cau ngan tron Viet-Trung chua hu tu ngu phap nhu 了/過/的 (xem
@@ -622,6 +675,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
   void _sendTypedText(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+    _latency.abandon();
     setState(() {
       _uiState = _VoiceUiState.processing;
       _transcriptText = trimmed;
@@ -763,6 +817,8 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     _interruptVad.reset();
     await _micRecorder.cancel();
     _voiceController.stopSpeaking();
+    _latency.abandon();
+    _turnState.reset();
     _wsService.disconnect();
     if (!mounted) return;
     setState(() {
@@ -1045,7 +1101,12 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
                             style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.5), fontSize: 14),
                           ),
                         ),
-                      if (_transcriptText.isNotEmpty)
+                      if (_transcriptText.isNotEmpty && _turnState.canRedo)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: VoiceTranscriptBar(text: _transcriptText, onRedo: _redoLastTurn),
+                        )
+                      else if (_transcriptText.isNotEmpty)
                         Align(
                           alignment: Alignment.centerRight,
                           child: _ChatBubble(
