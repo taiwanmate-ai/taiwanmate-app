@@ -340,7 +340,7 @@ class CompanionVoiceController extends ChangeNotifier {
   /// truyen gia tri that. Da them vao cache key vi CUNG 1 text+lang nhung
   /// khac mood se cho ra audio SSML khac nhau — khong duoc dung nham cache.
   Future<List<int>?> _fetchSegmentAudio(TtsSegment segment, String aiGender, {String mood = 'neutral'}) {
-    final key = '${segment.lang}_${segment.isPinyin}_${mood}_${segment.text}';
+    final key = '${voicePersona ?? 'v1'}_${segment.lang}_${segment.isPinyin}_${mood}_${segment.text}';
     final cached = _audioCache[key];
     if (cached != null) return Future.value(cached);
     return _audioFetchInFlight.putIfAbsent(key, () async {
@@ -363,6 +363,20 @@ class CompanionVoiceController extends ChangeNotifier {
     });
   }
 
+  /// Persona v2 (2026-10-14): 'v2' khi server bao voice_features.persona_v2 (allowlist) — backend dung giong WaveNet zh-TW / Neural2 vi-VN. null = giong cu.
+  String? voicePersona;
+
+  /// Body request /translate/tts-mixed (tach rieng de test). 'neutral' khong gui mood; persona chi gui khi co.
+  @visibleForTesting
+  static Map<String, dynamic> buildTtsRequestBody(String text, String gender, String lang, {String mood = 'neutral', String? persona}) => {
+        'text': text, 'gender': gender, 'lang': lang,
+        // 'neutral' KHONG gui truong mood (giu request giong het truoc
+        // day cho nut "Nghe") — backend cung coi thieu truong = neutral,
+        // nhung khong gui gi khi khong can van la lua chon an toan hon.
+        if (mood != 'neutral') 'mood': mood,
+        if (persona != null) 'persona': persona,
+      };
+
   Future<List<int>?> _defaultTtsFetch(
     String text, String lang, String gender, String token, {String mood = 'neutral'}
   ) async {
@@ -374,13 +388,7 @@ class CompanionVoiceController extends ChangeNotifier {
       ));
       final response = await dio.post(
         '${ApiConstants.baseUrl}/translate/tts-mixed',
-        data: {
-          'text': text, 'gender': gender, 'lang': lang,
-          // 'neutral' KHONG gui truong mood (giu request giong het truoc
-          // day cho nut "Nghe") — backend cung coi thieu truong = neutral,
-          // nhung khong gui gi khi khong can van la lua chon an toan hon.
-          if (mood != 'neutral') 'mood': mood,
-        },
+        data: buildTtsRequestBody(text, gender, lang, mood: mood, persona: voicePersona),
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       return response.data as List<int>;

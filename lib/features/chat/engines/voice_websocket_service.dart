@@ -56,7 +56,8 @@ class VoiceWebSocketService extends ChangeNotifier {
 
   /// Server bao tinh nang bat cho tai khoan nay: {"type":"voice_features","stt_language_selector":true,"stt_language_options":[...]} (Dot 2, allowlist).
   /// Tai khoan khac KHONG nhan message nay -> UI giu nguyen.
-  void Function(bool sttLanguageSelector, List<String> sttLanguageOptions)? onVoiceFeatures;
+  /// `personaV2` (2026-10-14): prompt "nguoi ban" + giong moi bat cho tai khoan nay -> app gui `ai_gender` va xin giong TTS v2.
+  void Function(bool sttLanguageSelector, List<String> sttLanguageOptions, bool personaV2)? onVoiceFeatures;
 
   /// Server ack moi `discard_turn`: {"type":"turn_discarded","turn_id":N,"stage":"in_flight"|"removed"|"unknown"}.
   void Function(int? turnId, String stage)? onTurnDiscarded;
@@ -285,6 +286,7 @@ class VoiceWebSocketService extends ChangeNotifier {
         onVoiceFeatures?.call(
           data['stt_language_selector'] == true,
           opts is List ? opts.whereType<String>().toList() : const <String>[],
+          data['persona_v2'] == true,
         );
         break;
       case 'turn_discarded':
@@ -367,7 +369,7 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// (do VoiceChatScreen xay qua CompanionPersonalityEngine.buildSystemPromptV2,
   /// dung chung engine voi Chat) de backend dung DUNG lua chon cua user
   /// thay vi prompt/mode co dinh — xem docstring app/api/v1/voice_ws.py.
-  void sendAudioEnd({String? systemPrompt, String? learningMode, String? sttLanguage}) {
+  void sendAudioEnd({String? systemPrompt, String? learningMode, String? sttLanguage, String? aiGender}) {
     final channel = _channel;
     if (!isConnected || channel == null) {
       debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui audio_end');
@@ -380,6 +382,8 @@ class VoiceWebSocketService extends ChangeNotifier {
       if (learningMode != null) 'learning_mode': learningMode,
       // Dot 2: chi gui khi nguoi dung chon (selector hien theo voice_features); backend bo qua voi tai khoan khong thuoc allowlist.
       if (sttLanguage != null) 'stt_language': sttLanguage,
+      // Persona v2: giong/ten nhan vat (female=Yuki, male=Kai) — backend bo qua voi tai khoan khong thuoc allowlist.
+      if (aiGender != null) 'ai_gender': aiGender,
     }));
   }
 
@@ -392,7 +396,7 @@ class VoiceWebSocketService extends ChangeNotifier {
   /// (_run_ai_turn) — cung dinh dang system_prompt/learning_mode voi
   /// sendAudioEnd() o tren, CHI khac field 'text' thay vi phai doi qua
   /// audio_chunk/audio_end.
-  void sendTextInput(String text, {String? systemPrompt, String? learningMode}) {
+  void sendTextInput(String text, {String? systemPrompt, String? learningMode, String? aiGender}) {
     final channel = _channel;
     if (!isConnected || channel == null) {
       debugPrint('[VoiceWebSocketService] chua ket noi — khong the gui text_input');
@@ -404,6 +408,7 @@ class VoiceWebSocketService extends ChangeNotifier {
       'text': text,
       if (systemPrompt != null) 'system_prompt': systemPrompt,
       if (learningMode != null) 'learning_mode': learningMode,
+      if (aiGender != null) 'ai_gender': aiGender,
     }));
   }
 

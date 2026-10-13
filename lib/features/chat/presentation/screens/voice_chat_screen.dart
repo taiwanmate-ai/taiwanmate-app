@@ -268,7 +268,9 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     _voiceController.onStreamingFirstAudioReceived = _latency.markFirstAudio;
     _voiceController.onStreamingPlaybackStart = _latency.markPlaybackStart;
     _wsService.onTurnDiscarded = (turnId, stage) => _turnState.onDiscardAck();
-    _wsService.onVoiceFeatures = (selector, options) async {
+    _wsService.onVoiceFeatures = (selector, options, personaV2) async {
+      // Persona v2: giong TTS moi cho CA phien nay (reset ve null khi dung phien).
+      _voiceController.voicePersona = personaV2 ? 'v2' : null;
       if (!selector) return;
       final saved = await _sttLanguageStore.load(_userKey);
       if (!mounted) return;
@@ -624,6 +626,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       systemPrompt: _buildVoiceSystemPrompt(),
       learningMode: _learningMode,
       sttLanguage: _sttSelectorVisible ? _sttLanguage.wire : null,
+      aiGender: _aiGender,
     );
   }
 
@@ -709,7 +712,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
       _voiceAccessRequired = false;
       _shortUtteranceWarning = '';
     });
-    _wsService.sendTextInput(trimmed, systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode);
+    _wsService.sendTextInput(trimmed, systemPrompt: _buildVoiceSystemPrompt(), learningMode: _learningMode, aiGender: _aiGender);
   }
 
   /// Audit "Voice roadmap — chon giong AI" (2026-09-08) — bottom sheet don
@@ -844,6 +847,7 @@ class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> with TickerPr
     _voiceController.stopSpeaking();
     _latency.abandon();
     _turnState.reset();
+    _voiceController.voicePersona = null;
     _wsService.disconnect();
     if (!mounted) return;
     setState(() {

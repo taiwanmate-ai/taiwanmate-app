@@ -118,10 +118,10 @@ void main() {
     test('voice_features -> onVoiceFeatures(selector, options); thieu truong -> false/rong', () {
       final svc = VoiceWebSocketService(tokenProvider: () async => 't');
       final got = <String>[];
-      svc.onVoiceFeatures = (sel, opts) => got.add('$sel:${opts.join(",")}');
-      svc.handleRawMessageForTesting(jsonEncode({'type': 'voice_features', 'stt_language_selector': true, 'stt_language_options': ['auto', 'zh', 'vi', 'en']}));
+      svc.onVoiceFeatures = (sel, opts, persona) => got.add('$sel:${opts.join(",")}:$persona');
+      svc.handleRawMessageForTesting(jsonEncode({'type': 'voice_features', 'stt_language_selector': true, 'stt_language_options': ['auto', 'zh', 'vi', 'en'], 'persona_v2': true}));
       svc.handleRawMessageForTesting(jsonEncode({'type': 'voice_features'}));
-      expect(got, ['true:auto,zh,vi,en', 'false:']);
+      expect(got, ['true:auto,zh,vi,en:true', 'false::false']);
     });
 
     test('sendAudioEnd chi them stt_language khi duoc truyen (tai khoan khac van gui y het nhu cu)', () {
