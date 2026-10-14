@@ -6,14 +6,26 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chinesemate/core/providers/voice_feature_provider.dart';
 import 'chat_screen.dart';
 import 'voice_chat_screen.dart';
 
-class ChatModeSelectionScreen extends StatelessWidget {
-  const ChatModeSelectionScreen({super.key});
+/// (2026-10-14) Tam an Voice: khi server khong cho phep (voice_feature_enabled=false) man hinh nay KHONG hien the "Tro chuyen truc tiep" — vao thang Chat.
+/// Dang tai co -> vong cho (khong chop nhay the Voice roi bien mat); loi mang -> coi nhu an.
+class ChatModeSelectionScreen extends ConsumerWidget {
+  const ChatModeSelectionScreen({super.key, @visibleForTesting this.chatBuilder});
+
+  /// Chi de test: thay ChatScreen (man hinh nang) bang widget don gian.
+  final WidgetBuilder? chatBuilder;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final voiceFeature = ref.watch(voiceFeatureEnabledProvider);
+    if (voiceFeature.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (voiceFeature.valueOrNull != true) return chatBuilder != null ? chatBuilder!(context) : const ChatScreen();
     return Scaffold(
       appBar: AppBar(title: const Text('AI Chat')),
       body: SafeArea(

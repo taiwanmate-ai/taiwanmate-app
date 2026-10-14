@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chinesemate/core/providers/learning_mode_provider.dart';
+import 'package:chinesemate/core/providers/voice_feature_provider.dart';
 import 'chat_mode_selection_screen.dart';
 
 class LearningModeSelectionScreen extends ConsumerWidget {
@@ -52,8 +53,10 @@ class LearningModeSelectionScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Áp dụng cho cả Chat và Trò chuyện trực tiếp — có thể đổi lại bất cứ lúc nào.',
+              Text(
+                ref.watch(voiceFeatureEnabledProvider).valueOrNull == true
+                    ? 'Áp dụng cho cả Chat và Trò chuyện trực tiếp — có thể đổi lại bất cứ lúc nào.'
+                    : 'Áp dụng cho Chat — có thể đổi lại bất cứ lúc nào.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),

@@ -780,7 +780,10 @@ Future<void> _showDeleteConfirmDialog(BuildContext context) async {
 // ═══════════════════════════════════════════════════════════════
 
 class VipScreen extends StatefulWidget {
-  const VipScreen({super.key});
+  const VipScreen({super.key, @visibleForTesting this.userLoader});
+
+  /// Chi de test: thay the viec goi GET /auth/me (tra ve Map user hoac null).
+  final Future<Map<String, dynamic>?> Function()? userLoader;
 
   @override
   State<VipScreen> createState() => _VipScreenState();
@@ -803,6 +806,11 @@ class _VipScreenState extends State<VipScreen> {
   // mua VIP Voice hay trang thai "Da kich hoat, con han toi [ngay]".
   Future<void> _loadUser() async {
     try {
+      if (widget.userLoader != null) {
+        final u = await widget.userLoader!();
+        if (mounted) setState(() => _user = u);
+        return;
+      }
       final token = await _storage.read(key: 'access_token');
       final dio = Dio();
       final response = await dio.get(
@@ -817,6 +825,9 @@ class _VipScreenState extends State<VipScreen> {
   }
 
   bool get _hasVoiceAccess => _user?['voice_access'] == true;
+
+  /// Tam an Voice (2026-10-14): server tra voice_feature_enabled theo email (VOICE_FEATURE_ENABLED/ALLOWLIST). Chua tai xong / loi / thieu field -> AN (an toan).
+  bool get _voiceFeatureEnabled => _user?['voice_feature_enabled'] == true;
 
   String? get _voiceExpiresLabel {
     final raw = _user?['voice_access_expires_at'] as String?;
@@ -1059,6 +1070,8 @@ GestureDetector(
 
               const SizedBox(height: 32),
 
+              // Tam an Voice (2026-10-14): ca khoi VIP Voice (+ nut mua Polar/Google Play) chi hien khi server cho phep.
+              if (_voiceFeatureEnabled) ...[
               // Audit "VIP Voice UI" (2026-08-31) — section RIENG BIET, ro
               // rang tach khoi VIP text-chat o tren (mau tim/xanh duong
               // khac han mau cam VIP, tranh nham lan mua sai goi). Copy
@@ -1200,6 +1213,7 @@ GestureDetector(
                     ]),
                 ]),
               ),
+              ],
 
               const SizedBox(height: 24),
               TextButton(
