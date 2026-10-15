@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
+import 'package:chinesemate/features/lesson_v2/lesson_v2_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
@@ -124,10 +127,27 @@ class _CurriculumTabState extends State<CurriculumTab> {
     }
   }
 
+  Future<bool> _lessonV2Enabled() async {
+    try {
+      return await ProviderScope.containerOf(context, listen: false).read(lessonV2EnabledProvider.future);
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _openUnit(Map<String, dynamic> unit) async {
     if (unit['status'] == 'locked') return;
     if (unit['is_vip_locked'] == true) {
       Navigator.push(context, MaterialPageRoute(builder: (_) => const VipScreen()));
+      return;
+    }
+    // Bai hoc MOI (lesson v2) chay sau cong tac server (LESSON_V2_ALLOWLIST -> lesson_v2_enabled o /auth/me). Khong co/loi -> bai cu nhu truoc.
+    if (await _lessonV2Enabled()) {
+      if (!mounted) return;
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => LessonV2Screen(unitId: unit['unit_id'] as String, title: unit['topic_vi'] as String?)));
+      if (mounted && _language != null && _selectedLevel != null) {
+        await _pickLevel(_selectedLevel!);   // tai lai danh sach bai (tien do / bai ke tiep da mo)
+      }
       return;
     }
     setState(() { _loading = true; _errorMsg = null; });
