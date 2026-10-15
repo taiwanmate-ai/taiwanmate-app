@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# === BAO MAT (2026-10-16): khoa ky / bi mat — KHONG BAO GIO commit ===
+*.jks
+*.keystore
+key.properties
+*.pem
+*.p12
+.env
+.env.*
+!.env.example
+*.backup
+
