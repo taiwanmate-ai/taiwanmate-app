@@ -12,11 +12,13 @@ class FakeApi implements LessonV2Api {
   bool failFirstSubmit = false;
   int submitCalls = 0;
   bool disabled = false;
+  bool failFetch = false;
   FakeApi(this.session);
 
   @override
   Future<Map<String, dynamic>> fetchSession(String unitId) async {
     if (disabled) throw LessonV2Disabled();
+    if (failFetch) throw Exception('500');
     return session;
   }
 
@@ -221,9 +223,60 @@ void main() {
     expect(find.byKey(const Key('summary_title')), findsOneWidget);
   });
 
-  testWidgets('server tra LESSON_V2_DISABLED -> thong bao, khong crash', (tester) async {
+  /// Man host: bam nut -> mo LessonV2Screen, ghi lai ket qua pop (de kiem tra co quay ve bai cu khong).
+  Future<Map<String, dynamic>?> openAndGetResult(WidgetTester tester, FakeApi api) async {
+    tester.view.physicalSize = const Size(900, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    Map<String, dynamic>? result;
+    var returned = false;
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: Builder(
+          builder: (ctx) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                key: const Key('host_open'),
+                onPressed: () async {
+                  result = await Navigator.push<Map<String, dynamic>>(ctx, MaterialPageRoute(builder: (_) => LessonV2Screen(unitId: 'u1', api: api)));
+                  returned = true;
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.byKey(const Key('host_open')));
+    await tester.pumpAndSettle();
+    expect(returned, true, reason: 'man hinh phai tu dong dong lai');
+    return result;
+  }
+
+  testWidgets('server tra LESSON_V2_DISABLED -> tu dong quay ve bai cu (fallback), khong ket man hinh', (tester) async {
     final api = FakeApi(buildSession())..disabled = true;
+    final res = await openAndGetResult(tester, api);
+    expect(res, {'fallback': true});
+    expect(find.byKey(const Key('lesson_retry_load')), findsNothing);
+  });
+
+  testWidgets('API loi (500/mang) luc tai phien -> tu dong quay ve bai cu', (tester) async {
+    final api = FakeApi(buildSession())..failFetch = true;
+    final res = await openAndGetResult(tester, api);
+    expect(res, {'fallback': true});
+  });
+
+  testWidgets('phien rong/khong hop le -> quay ve bai cu', (tester) async {
+    final empty = buildSession();
+    empty['steps'] = [];
+    final res = await openAndGetResult(tester, FakeApi(empty));
+    expect(res, {'fallback': true});
+  });
+
+  testWidgets('phien binh thuong KHONG fallback (man hinh o lai)', (tester) async {
+    final api = FakeApi(buildSession());
     await pump(tester, api);
-    expect(find.text('Bài học mới chưa mở cho tài khoản của bạn.'), findsOneWidget);
+    expect(find.byKey(const Key('lesson_start_btn')), findsOneWidget);
   });
 }

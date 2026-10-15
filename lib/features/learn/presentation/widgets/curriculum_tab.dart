@@ -144,11 +144,17 @@ class _CurriculumTabState extends State<CurriculumTab> {
     // Bai hoc MOI (lesson v2) chay sau cong tac server (LESSON_V2_ALLOWLIST -> lesson_v2_enabled o /auth/me). Khong co/loi -> bai cu nhu truoc.
     if (await _lessonV2Enabled()) {
       if (!mounted) return;
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => LessonV2Screen(unitId: unit['unit_id'] as String, title: unit['topic_vi'] as String?)));
-      if (mounted && _language != null && _selectedLevel != null) {
-        await _pickLevel(_selectedLevel!);   // tai lai danh sach bai (tien do / bai ke tiep da mo)
+      final res = await Navigator.push<Map<String, dynamic>>(context, MaterialPageRoute(builder: (_) => LessonV2Screen(unitId: unit['unit_id'] as String, title: unit['topic_vi'] as String?)));
+      if (res != null && res['fallback'] == true) {
+        // Bai moi loi tai phien (server loi / mang / tat) -> tu dong dung BAI CU, khong ket man hinh loi.
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang mở bài học dạng cũ.'), duration: Duration(seconds: 2)));
+      } else {
+        if (mounted && _language != null && _selectedLevel != null) {
+          await _pickLevel(_selectedLevel!);   // tai lai danh sach bai (tien do / bai ke tiep da mo)
+        }
+        return;
       }
-      return;
     }
     setState(() { _loading = true; _errorMsg = null; });
     try {

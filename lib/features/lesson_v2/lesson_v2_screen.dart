@@ -23,7 +23,7 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
   List<Map<String, dynamic>> _steps = [];
   int _idx = 0;
   String? _error;
-  bool _disabled = false;
+  bool _fellBack = false;
   final List<AnswerRecord> _records = [];
   Map<String, dynamic>? _summary;
   bool _submitting = false;
@@ -35,16 +35,27 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
     _load();
   }
 
+  /// Tai phien that bai (loi server / mang / cong tac tat) -> TU DONG quay ve bai hoc cu: dong man hinh va bao [fallback] cho man goi.
+  /// Chi ap dung luc TAI phien (chua hoc gi); loi luc luu ket qua van o lai man hinh voi nut Thu lai de khong mat bai da lam.
+  void _fallbackToOldLesson() {
+    if (!mounted || _fellBack) return;
+    _fellBack = true;
+    Navigator.pop(context, {'fallback': true});
+  }
+
   Future<void> _load() async {
     setState(() { _error = null; _session = null; });
     try {
       final s = await _api.fetchSession(widget.unitId);
       if (!mounted) return;
-      setState(() { _session = s; _steps = visibleSteps(s); _idx = 0; });
-    } on LessonV2Disabled {
-      if (mounted) setState(() => _disabled = true);
+      final steps = visibleSteps(s);
+      if (steps.isEmpty) {
+        _fallbackToOldLesson(); // phien rong/khong hop le -> bai cu
+        return;
+      }
+      setState(() { _session = s; _steps = steps; _idx = 0; });
     } catch (_) {
-      if (mounted) setState(() => _error = 'Không tải được bài học. Kiểm tra kết nối và thử lại.');
+      _fallbackToOldLesson();
     }
   }
 
@@ -101,7 +112,6 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
   }
 
   Widget _body() {
-    if (_disabled) return const Center(child: Text('Bài học mới chưa mở cho tài khoản của bạn.'));
     if (_error != null) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text(_error!, textAlign: TextAlign.center),
