@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'unit_practice_screen.dart';
+import 'stage_unit_list.dart';
 
 class _CurDS {
   static const bg = Color(0xFFF0F4FF);
@@ -343,43 +344,47 @@ class _CurriculumTabState extends State<CurriculumTab> {
       const SizedBox(height: 8),
       Text('Cấp $_selectedLevel', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _CurDS.textDark)),
       const SizedBox(height: 16),
-      ..._units.map((u) {
-        final locked = u['status'] == 'locked';
-        final vipLocked = u['is_vip_locked'] == true;
-        final completed = u['status'] == 'completed';
-        return GestureDetector(
-          onTap: () => _openUnit(u),
-          child: Container(
-            width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: locked ? Colors.grey.shade100 : _CurDS.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: completed ? _CurDS.green.withOpacity(0.3) : Colors.grey.shade200),
-            ),
-            child: Row(children: [
-              Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  color: completed ? _CurDS.greenLight : (vipLocked ? _CurDS.amberLight : _CurDS.teal.withOpacity(0.1)),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  completed ? Icons.check_rounded : (locked || vipLocked ? Icons.lock_rounded : Icons.play_arrow_rounded),
-                  size: 16, color: completed ? _CurDS.green : (vipLocked ? _CurDS.amber : _CurDS.teal),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Text(u['topic_vi'], style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w700,
-                color: locked ? _CurDS.textGrey : _CurDS.textDark,
-              ))),
-              if (vipLocked) const Text('⭐', style: TextStyle(fontSize: 14)),
-            ]),
-          ),
-        );
-      }),
+      StageUnitList(units: _units, onOpen: _openUnit, tileBuilder: _unitTile),
     ]),
   );
+
+  Widget _unitTile(Map<String, dynamic> u) {
+
+    final locked = u['status'] == 'locked';
+    final vipLocked = u['is_vip_locked'] == true;
+    final completed = u['status'] == 'completed';
+    return GestureDetector(
+      onTap: () => _openUnit(u),
+      child: Container(
+        width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: locked ? Colors.grey.shade100 : _CurDS.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: completed ? _CurDS.green.withOpacity(0.3) : Colors.grey.shade200),
+        ),
+        child: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: completed ? _CurDS.greenLight : (vipLocked ? _CurDS.amberLight : _CurDS.teal.withOpacity(0.1)),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              completed ? Icons.check_rounded : (locked || vipLocked ? Icons.lock_rounded : Icons.play_arrow_rounded),
+              size: 16, color: completed ? _CurDS.green : (vipLocked ? _CurDS.amber : _CurDS.teal),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(u['topic_vi'], style: TextStyle(
+            fontSize: 14, fontWeight: FontWeight.w700,
+            color: locked ? _CurDS.textGrey : _CurDS.textDark,
+          ))),
+          if (vipLocked) const Text('⭐', style: TextStyle(fontSize: 14)),
+        ]),
+      ),
+    );
+      
+  }
 
   Widget _buildUnitDetail() {
     final u = _unitDetail!;
