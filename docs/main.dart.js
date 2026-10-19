@@ -61107,7 +61107,7 @@ r=A.a4(r).ax.k3
 o=t.p
 r=A.a([B.L,B.Nw,B.L,s,B.L,B.Nw,B.G,A.i("Gi\xfap AI c\xe1 nh\xe2n h\xf3a n\u1ed9i dung cho b\u1ea1n",p,p,p,p,p,A.ai(p,p,A.w(B.d.S(127.5),r.i()>>>16&255,r.i()>>>8&255,r.i()&255),p,p,p,p,p,p,p,p,14,p,p,p,p,p,!0,p,p,p,p,p,p,p,p),p,p),B.dt],o)
 s=q.w
-B.b.E(r,A.a([new A.rE("\ud83d\udcbc","L\xe0m vi\u1ec7c t\u1ea1i \u0110\xe0i Loan","Giao ti\u1ebfp c\xf4ng s\u1edf, h\u1ee3p \u0111\u1ed3ng","work",s,new A.b3E(q),p),new A.rE("\ud83c\udf93","Du h\u1ecdc","H\u1ecdc t\u1ea1i tr\u01b0\u1eddng, l\xe0m b\xe0i t\u1eadp","study",s,new A.b3F(q),p),new A.rE("\u2764\ufe0f","Gia \u0111\xecnh / K\u1ebft h\xf4n","N\xf3i chuy\u1ec7n v\u1edbi gia \u0111\xecnh ch\u1ed3ng/v\u1ee3","family",s,new A.b3G(q),p),new A.rE("\ud83c\udf0f","Du l\u1ecbch","\u0110i l\u1ea1i, mua s\u1eafm, \u0103n u\u1ed1ng","travel",s,new A.b3H(q),p),new A.rE("\ud83d\udcdc","Thi ch\u1ee9ng ch\u1ec9 TOCFL","Luy\u1ec7n thi c\u1ea5p \u0111\u1ed9 A1-C1","tocfl",s,new A.b3I(q),p),new A.rE("\u2728","S\u1edf th\xedch c\xe1 nh\xe2n","Xem phim, nghe nh\u1ea1c, \u0111\u1ecdc s\xe1ch","hobby",s,new A.b3J(q),p)],o))
+B.b.E(r,A.a([new A.rE("\ud83d\udcbc","L\xe0m vi\u1ec7c t\u1ea1i \u0110\xe0i Loan","Giao ti\u1ebfp c\xf4ng s\u1edf, h\u1ee3p \u0111\u1ed3ng","work",s,new A.b3E(q),p),new A.rE("\ud83c\udf93","Du h\u1ecdc","H\u1ecdc t\u1ea1i tr\u01b0\u1eddng, l\xe0m b\xe0i t\u1eadp","study",s,new A.b3F(q),p),new A.rE("\u2764\ufe0f","Gia \u0111\xecnh / K\u1ebft h\xf4n","N\xf3i chuy\u1ec7n v\u1edbi gia \u0111\xecnh ch\u1ed3ng/v\u1ee3","family",s,new A.b3G(q),p),new A.rE("\ud83c\udf0f","Du l\u1ecbch","\u0110i l\u1ea1i, mua s\u1eafm, \u0103n u\u1ed1ng","travel",s,new A.b3H(q),p),new A.rE("\ud83d\udcdc","Thi ch\u1ee9ng ch\u1ec9 TOCFL","Luy\u1ec7n thi c\u1ea5p \u0111\u1ed9 A1-C2","tocfl",s,new A.b3I(q),p),new A.rE("\u2728","S\u1edf th\xedch c\xe1 nh\xe2n","Xem phim, nghe nh\u1ea1c, \u0111\u1ecdc s\xe1ch","hobby",s,new A.b3J(q),p)],o))
 return A.c2(A.F(r,B.r,p,B.f,B.h),p,B.o,B.b8,p,!1,B.B)},
 avK(){var s,r,q,p,o,n=this,m=null,l=n.c
 l.toString
@@ -68889,7 +68889,7 @@ $S:7}
 A.PD.prototype={
 a_(){var s=t.Y,r=A.a([],s)
 s=A.a([],s)
-return new A.V8(r,s,new A.ff(B.cc,$.aD()),A.a(["T\u1ea5t c\u1ea3","A1","A2","B1","B2","C1"],t.s),null)}}
+return new A.V8(r,s,new A.ff(B.cc,$.aD()),A.a(["T\u1ea5t c\u1ea3","A1","A2","B1","B2","C1","C2"],t.s),null)}}
 A.V8.prototype={
 gjn(){return!0},
 ab(){var s=this
