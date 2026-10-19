@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_screen.dart';
 import 'package:dio/dio.dart';
@@ -77,6 +78,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _flushPendingResults(); });
     final lang = widget.initialLanguage, level = widget.initialLevel, unitId = widget.initialUnitId;
     if (lang != null && level != null) {
       _pickLanguage(lang).then((_) {
@@ -145,15 +147,27 @@ class _CurriculumTabState extends State<CurriculumTab> {
     // Bai hoc MOI (lesson v2) chay sau cong tac server (LESSON_V2_ALLOWLIST -> lesson_v2_enabled o /auth/me). Khong co/loi -> bai cu nhu truoc.
     if (await _lessonV2Enabled()) {
       if (!mounted) return;
-      final res = await Navigator.push<Map<String, dynamic>>(context, MaterialPageRoute(builder: (_) => LessonV2Screen(unitId: unit['unit_id'] as String, title: unit['topic_vi'] as String?)));
+      _flushPendingResults(); // ket qua bai truoc con ket (mat mang) -> gui lai nen, khong chan
+      final order = (unit['unit_order'] as num?)?.toInt() ?? 0;
+      final nextList = _units.where((u) => (u['unit_order'] as num?)?.toInt() == order + 1);
+      final res = await Navigator.push<Map<String, dynamic>>(
+          context,
+          MaterialPageRoute(
+              builder: (_) => LessonV2Screen(
+                    unitId: unit['unit_id'] as String,
+                    title: unit['topic_vi'] as String?,
+                    completedUnits: _units.where((u) => u['status'] == 'completed').length,
+                    alreadyCompleted: unit['status'] == 'completed',
+                    nextUnitId: nextList.isNotEmpty ? nextList.first['unit_id'] as String? : null,
+                    isLastUnit: nextList.isEmpty,
+                  )));
       if (res != null && res['fallback'] == true) {
         // Bai moi loi tai phien (server loi / mang / tat) -> tu dong dung BAI CU, khong ket man hinh loi.
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang mở bài học dạng cũ.'), duration: Duration(seconds: 2)));
       } else {
-        if (mounted && _language != null && _selectedLevel != null) {
-          await _pickLevel(_selectedLevel!);   // tai lai danh sach bai (tien do / bai ke tiep da mo)
-        }
+        // CHI cap nhat bai vua hoc + bai ke tiep tai cho (khong tai lai ca danh sach 144 bai).
+        if (mounted && res != null && res['score'] != null) _applyLessonResult(unit, res);
         return;
       }
     }
@@ -168,6 +182,35 @@ class _CurriculumTabState extends State<CurriculumTab> {
     } catch (e) {
       setState(() { _errorMsg = 'Lỗi tải nội dung bài học'; _loading = false; });
     }
+  }
+
+  /// Gui lai ket qua bai hoc con ket trong may (fire-and-forget, loi nuot).
+  void _flushPendingResults() {
+    try {
+      final api = ProviderScope.containerOf(context, listen: false).read(lessonV2ApiProvider);
+      flushPendingResults(api);
+    } catch (_) {}
+  }
+
+  /// Sau bai hoc v2: bai vua hoc -> completed, bai ke tiep (neu dang khoa) -> unlocked; cap nhat dem bai da xong cua cap trong danh sach cap. KHONG goi mang.
+  void _applyLessonResult(Map<String, dynamic> unit, Map<String, dynamic> res) {
+    final order = (unit['unit_order'] as num?)?.toInt() ?? 0;
+    final wasCompleted = unit['status'] == 'completed';
+    setState(() {
+      for (final u in _units) {
+        final o = (u['unit_order'] as num?)?.toInt();
+        if (u['unit_id'] == unit['unit_id']) {
+          u['status'] = 'completed';
+        } else if (o == order + 1 && u['status'] == 'locked') {
+          u['status'] = 'unlocked';
+        }
+      }
+      if (!wasCompleted && _selectedLevel != null) {
+        for (final l in _levels) {
+          if (l['level'] == _selectedLevel) l['completed_units'] = ((l['completed_units'] as num?)?.toInt() ?? 0) + 1;
+        }
+      }
+    });
   }
 
   void _startPractice() {

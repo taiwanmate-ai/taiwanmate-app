@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
+import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_screen.dart';
 
@@ -10,6 +12,9 @@ class FakeApi implements LessonV2Api {
   final reports = <String>[];
   final audio = <String?>[];
   bool failFirstSubmit = false;
+  int failSubmits = 0; // so lan dau gui bi loi (mat mang)
+  Completer<void>? submitGate; // giu phan hoi server de kiem tra man ket qua hien NGAY
+  final submittedBodies = <Map<String, dynamic>>[];
   int submitCalls = 0;
   bool disabled = false;
   bool failFetch = false;
@@ -25,7 +30,10 @@ class FakeApi implements LessonV2Api {
   @override
   Future<Map<String, dynamic>> submitAnswers(String unitId, Map<String, dynamic> body) async {
     submitCalls++;
+    submittedBodies.add(body);
     if (failFirstSubmit && submitCalls == 1) throw Exception('net');
+    if (submitCalls <= failSubmits) throw Exception('net');
+    if (submitGate != null) await submitGate!.future;
     submitted = body;
     return {
       'duplicate': false,
@@ -112,11 +120,23 @@ Map<String, dynamic> buildSession() => {
       },
     };
 
-Future<void> pump(WidgetTester tester, FakeApi api) async {
+Future<void> pump(WidgetTester tester, FakeApi api, {PendingStore? store, int? completedUnits, bool alreadyCompleted = false, String? nextUnitId, bool isLastUnit = false, List<Duration>? delays}) async {
   tester.view.physicalSize = const Size(900, 2000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(ProviderScope(child: MaterialApp(home: LessonV2Screen(unitId: 'u1', api: api))));
+  await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+          home: LessonV2Screen(
+    unitId: 'u1',
+    api: api,
+    pendingStore: store ?? MemoryPendingStore(),
+    retryDelays: delays ?? const [Duration(seconds: 1), Duration(seconds: 1)],
+    sleeper: (d) async {},
+    completedUnits: completedUnits,
+    alreadyCompleted: alreadyCompleted,
+    nextUnitId: nextUnitId,
+    isLastUnit: isLastUnit,
+  ))));
   await tester.pumpAndSettle();
 }
 
@@ -211,16 +231,64 @@ void main() {
     expect(find.textContaining('Kỷ lục mới'), findsOneWidget);
   });
 
-  testWidgets('loi luu ket qua: hien nut Thu lai, khong mat dap an', (tester) async {
-    final api = FakeApi(buildSession())..failFirstSubmit = true;
+  testWidgets('man ket thuc hien NGAY (tinh o may) khi server chua tra loi; roi dong bo theo server', (tester) async {
+    final gate = Completer<void>();
+    final api = FakeApi(buildSession())..submitGate = gate;
     final s = buildSession();
     s['steps'] = [s['steps'].first];
     api.session = s;
-    await pump(tester, api);
+    await pump(tester, api, completedUnits: 3, nextUnitId: 'next');
     await tapKey(tester, 'lesson_start_btn');
-    expect(find.text('Chưa lưu được kết quả. Thử lại nhé.'), findsOneWidget);
-    await tapKey(tester, 'lesson_retry_submit');
+    // server CHUA tra loi, man ket qua da hien: khong co cau nao -> 0/0, XP 30 theo cong thuc server, tien do = 3+1/12 tinh o may
     expect(find.byKey(const Key('summary_title')), findsOneWidget);
+    expect(find.textContaining('+30 XP'), findsOneWidget);
+    expect(find.textContaining('Chặng A1: 4/12'), findsOneWidget);
+    expect(find.byKey(const Key('summary_sync_status')), findsOneWidget);
+    expect(find.text('Đang lưu kết quả…'), findsOneWidget);
+    expect(find.textContaining('Mai ôn lại'), findsNothing); // chua biet -> an
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('summary_sync_status')), findsNothing);
+    expect(find.text('Đúng 3/4 câu (75%)'), findsOneWidget); // server thang khi lech
+    expect(find.textContaining('Mai ôn lại 5 từ'), findsOneWidget);
+    expect(find.textContaining('Chuỗi 2 ngày'), findsOneWidget);
+  });
+
+  testWidgets('mat mang: man ket qua van hien, tu thu lai (cung session_id), khong gui trung', (tester) async {
+    final api = FakeApi(buildSession())..failSubmits = 2;
+    final s = buildSession();
+    s['steps'] = [s['steps'].first];
+    api.session = s;
+    final store = MemoryPendingStore();
+    await pump(tester, api, store: store);
+    await tapKey(tester, 'lesson_start_btn');
+    expect(find.byKey(const Key('summary_title')), findsOneWidget);
+    // sau 2 lan loi, lan 3 thanh cong (sleeper tuc thi)
+    await tester.pumpAndSettle();
+    expect(api.submitCalls, 3);
+    expect(api.submittedBodies.map((b) => b['session_id']).toSet(), {'S1'}); // khoa idempotency khong doi giua cac lan thu lai
+    expect(store.items, isEmpty); // thanh cong -> xoa khoi hang doi may
+    expect(find.byKey(const Key('summary_sync_status')), findsNothing);
+  });
+
+  testWidgets('het so lan thu: hien trang thai that bai + nut Thu lai ngay; ket qua con trong hang doi may', (tester) async {
+    final api = FakeApi(buildSession())..failSubmits = 99;
+    final s = buildSession();
+    s['steps'] = [s['steps'].first];
+    api.session = s;
+    final store = MemoryPendingStore();
+    await pump(tester, api, store: store, delays: const [Duration(seconds: 1)]);
+    await tapKey(tester, 'lesson_start_btn');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chưa lưu được kết quả'), findsOneWidget);
+    expect(find.byKey(const Key('summary_title')), findsOneWidget); // van xem duoc ket qua
+    expect(store.items.length, 1);
+    expect(store.items.first.body['session_id'], 'S1');
+    api.failSubmits = 0;
+    api.submitCalls = 0;
+    await tapKey(tester, 'summary_sync_retry');
+    expect(find.byKey(const Key('summary_sync_status')), findsNothing);
+    expect(store.items, isEmpty);
   });
 
   /// Man host: bam nut -> mo LessonV2Screen, ghi lai ket qua pop (de kiem tra co quay ve bai cu khong).

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_runner.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
 import 'package:chinesemate/features/lesson_v2/match_widgets.dart';
@@ -11,7 +12,27 @@ class LessonV2Screen extends ConsumerStatefulWidget {
   final String unitId;
   final String? title;
   final LessonV2Api? api; // test hook
-  const LessonV2Screen({super.key, required this.unitId, this.title, this.api});
+  // Gợi ý từ màn danh sách để tính tiến độ Ở MÁY (không chờ server): số bài đã xong của cấp, bài này đã xong từ trước chưa, bài kế tiếp, có phải bài cuối cấp không.
+  final int? completedUnits;
+  final bool alreadyCompleted;
+  final String? nextUnitId;
+  final bool isLastUnit;
+  final PendingStore? pendingStore; // test hook (hàng đợi gửi lại)
+  final List<Duration>? retryDelays; // test hook
+  final Sleeper? sleeper; // test hook
+  const LessonV2Screen({
+    super.key,
+    required this.unitId,
+    this.title,
+    this.api,
+    this.completedUnits,
+    this.alreadyCompleted = false,
+    this.nextUnitId,
+    this.isLastUnit = false,
+    this.pendingStore,
+    this.retryDelays,
+    this.sleeper,
+  });
 
   @override
   ConsumerState<LessonV2Screen> createState() => _LessonV2ScreenState();
@@ -28,6 +49,7 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
   Map<String, dynamic>? _summary;
   bool _submitting = false;
   String? _submitError;
+  String _syncState = 'syncing'; // syncing | retrying | failed | synced — chỉ để hiện dòng trạng thái nhỏ, KHÔNG chặn màn kết quả
 
   @override
   void initState() {
@@ -67,14 +89,28 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
     }
   }
 
+  /// Hiện màn kết quả NGAY (tính ở máy theo đúng công thức server), rồi gửi lên server ở nền: idempotent theo session_id, tự thử lại khi mất mạng
+  /// (kết quả kẹt được lưu trong máy và gửi lại lần sau). Server trả về -> đồng bộ lại nếu lệch.
   Future<void> _submit() async {
-    setState(() { _submitting = true; _submitError = null; });
-    try {
-      final res = await _api.submitAnswers(widget.unitId, buildAnswersBody(_session!['session_id'] as String, _records));
-      if (mounted) setState(() { _summary = res; _submitting = false; });
-    } catch (_) {
-      if (mounted) setState(() { _submitting = false; _submitError = 'Chưa lưu được kết quả. Thử lại nhé.'; });
-    }
+    final body = buildAnswersBody(_session!['session_id'] as String, _records);
+    final local = computeLocalSummary(_session!, _records,
+        completedUnits: widget.completedUnits, alreadyCompleted: widget.alreadyCompleted, nextUnitId: widget.nextUnitId, levelCompleted: widget.isLastUnit);
+    setState(() { _summary = local; _submitting = false; _submitError = null; _syncState = 'syncing'; });
+    final res = await syncLessonResult(_api, widget.unitId, body,
+        store: widget.pendingStore,
+        delays: widget.retryDelays ?? const [Duration(seconds: 2), Duration(seconds: 5), Duration(seconds: 15), Duration(seconds: 30), Duration(seconds: 60)],
+        sleep: widget.sleeper,
+        onState: (st) { if (mounted) setState(() => _syncState = st); });
+    if (mounted && res != null) setState(() => _summary = mergeServerSummary(local, res));
+  }
+
+  Future<void> _retrySyncNow() async {
+    if (_syncState == 'syncing' || _summary == null) return;
+    final local = _summary!;
+    setState(() => _syncState = 'syncing');
+    final body = buildAnswersBody(_session!['session_id'] as String, _records);
+    final res = await syncLessonResult(_api, widget.unitId, body, store: widget.pendingStore, delays: const [], onState: (st) { if (mounted) setState(() => _syncState = st); });
+    if (mounted && res != null) setState(() => _summary = mergeServerSummary(local, res));
   }
 
   Future<void> _report(Map<String, dynamic> q) async {
@@ -94,6 +130,17 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
 
   @override
   Widget build(BuildContext context) {
+    // Da hoc xong (co ket qua) ma bam nut Back he thong: van tra ket qua ve man danh sach (de cap nhat bai vua hoc + bai ke tiep) thay vi null.
+    return PopScope(
+      canPop: _summary == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _summary != null) Navigator.pop(context, _summary);
+      },
+      child: _scaffold(),
+    );
+  }
+
+  Widget _scaffold() {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
@@ -192,38 +239,41 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
   Widget _summaryView() {
     if (_summary == null) return _submittingView();
     final s = _summary!;
-    if (s['duplicate'] == true) {
-      return Center(child: ElevatedButton(onPressed: () => Navigator.pop(context, s), child: const Text('Xong')));
-    }
     final score = s['score'] as Map;
-    final progress = s['progress'] as Map;
-    final done = (progress['completed_units'] as num).toInt();
-    final total = (progress['total_units'] as num).toInt();
+    final progress = s['progress'] as Map?;
+    final done = (progress?['completed_units'] as num?)?.toInt() ?? 0;
+    final total = (progress?['total_units'] as num?)?.toInt() ?? 0;
     final levelDone = s['level_completed'] == true;
-    final wrong = (s['wrong_word_ids'] as List).length;
+    final wrong = ((s['wrong_word_ids'] as List?) ?? const []).length;
+    final due = (s['due_tomorrow'] as num?)?.toInt() ?? 0;
+    final streak = s['streak_days'];
+    final level = progress?['level'] ?? (_session?['unit'] as Map?)?['level'];
     return SingleChildScrollView(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const SizedBox(height: 12),
-        Center(child: Text(levelDone ? '🏆 Hoàn thành chặng ${progress['level']}!' : '🎉 Xong bài!', key: const Key('summary_title'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: kLessonDark))),
+        Center(child: Text(levelDone ? '🏆 Hoàn thành chặng $level!' : '🎉 Xong bài!', key: const Key('summary_title'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: kLessonDark))),
         const SizedBox(height: 8),
         Center(child: Text('Đúng ${score['correct']}/${score['total']} câu (${score['percent']}%)', key: const Key('summary_score'), style: const TextStyle(fontSize: 18, color: kLessonDark))),
         const SizedBox(height: 18),
         const Text('Bạn làm được:', style: TextStyle(fontWeight: FontWeight.w800)),
-        for (final c in (s['can_do'] as List).cast<String>()) Padding(padding: const EdgeInsets.only(top: 6), child: Text('✔ $c', style: const TextStyle(fontSize: 16))),
+        for (final c in ((s['can_do'] as List?) ?? const []).cast<String>()) Padding(padding: const EdgeInsets.only(top: 6), child: Text('✔ $c', style: const TextStyle(fontSize: 16))),
         const SizedBox(height: 16),
-        if ((s['due_tomorrow'] as num) > 0)
+        if (due > 0)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: const Color(0xFFEDEEFF), borderRadius: BorderRadius.circular(12)),
-            child: Text('🔁 Mai ôn lại ${s['due_tomorrow']} từ (ở mục Học hôm nay)', key: const Key('summary_due')),
+            child: Text('🔁 Mai ôn lại $due từ (ở mục Học hôm nay)', key: const Key('summary_due')),
           ),
         const SizedBox(height: 10),
-        Text('⭐ +${s['xp_gained']} XP     🔥 Chuỗi ${s['streak_days']} ngày', key: const Key('summary_xp'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 14),
-        Text('Chặng ${progress['level']}: $done/$total bài', style: const TextStyle(color: kLessonGrey)),
-        const SizedBox(height: 6),
-        ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: total == 0 ? 0 : done / total, minHeight: 10, color: kLessonGreen, backgroundColor: const Color(0xFFE0E3F0))),
+        Text('⭐ +${s['xp_gained']} XP${streak != null ? '     🔥 Chuỗi $streak ngày' : ''}', key: const Key('summary_xp'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        if (progress != null && total > 0) ...[
+          const SizedBox(height: 14),
+          Text('Chặng ${progress['level']}: $done/$total bài', style: const TextStyle(color: kLessonGrey)),
+          const SizedBox(height: 6),
+          ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: done / total, minHeight: 10, color: kLessonGreen, backgroundColor: const Color(0xFFE0E3F0))),
+        ],
         if (wrong > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text('Có $wrong từ cần ôn lại — hệ thống sẽ nhắc bạn.', style: const TextStyle(color: kLessonGrey))),
+        if (_syncState != 'synced') _syncStatus(),
         const SizedBox(height: 22),
         ElevatedButton(
           key: const Key('summary_continue'),
@@ -231,6 +281,26 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
           style: ElevatedButton.styleFrom(backgroundColor: kLessonPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           child: Text(levelDone ? 'Về danh sách' : 'Bài tiếp theo →', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
         ),
+      ]),
+    );
+  }
+
+  /// Dòng nhỏ báo trạng thái lưu kết quả lên server (không chặn người học đi tiếp).
+  Widget _syncStatus() {
+    final failed = _syncState == 'failed';
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(children: [
+        Icon(failed ? Icons.cloud_off_outlined : Icons.cloud_upload_outlined, size: 16, color: kLessonGrey),   // icon tinh (khong animation -> khong lam treo pumpAndSettle)
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            failed ? 'Chưa lưu được kết quả — sẽ tự thử lại khi có mạng.' : (_syncState == 'retrying' ? 'Đang chờ mạng để lưu kết quả…' : 'Đang lưu kết quả…'),
+            key: const Key('summary_sync_status'),
+            style: const TextStyle(color: kLessonGrey, fontSize: 13),
+          ),
+        ),
+        if (failed) TextButton(key: const Key('summary_sync_retry'), onPressed: _retrySyncNow, child: const Text('Thử lại ngay')),
       ]),
     );
   }
