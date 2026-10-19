@@ -2574,7 +2574,7 @@ class _VocabularyListTabState extends State<VocabularyListTab>
   final _searchCtrl = TextEditingController();
   String _filterLevel = 'Tất cả';
 
-  final _levels = ['Tất cả', 'A1', 'A2', 'B1', 'B2', 'C1'];
+  final _levels = ['Tất cả', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   @override
   void initState() {

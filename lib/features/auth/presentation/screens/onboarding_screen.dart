@@ -285,7 +285,7 @@ const Text('Bạn học tiếng Trung để làm gì?', style: TextStyle(fontSiz
             _PurposeOption(emoji: '🎓', title: 'Du học', subtitle: 'Học tại trường, làm bài tập', value: 'study', selected: _purpose, onTap: (v) => setState(() => _purpose = v)),
             _PurposeOption(emoji: '❤️', title: 'Gia đình / Kết hôn', subtitle: 'Nói chuyện với gia đình chồng/vợ', value: 'family', selected: _purpose, onTap: (v) => setState(() => _purpose = v)),
             _PurposeOption(emoji: '🌏', title: 'Du lịch', subtitle: 'Đi lại, mua sắm, ăn uống', value: 'travel', selected: _purpose, onTap: (v) => setState(() => _purpose = v)),
-            _PurposeOption(emoji: '📜', title: 'Thi chứng chỉ TOCFL', subtitle: 'Luyện thi cấp độ A1-C1', value: 'tocfl', selected: _purpose, onTap: (v) => setState(() => _purpose = v)),
+            _PurposeOption(emoji: '📜', title: 'Thi chứng chỉ TOCFL', subtitle: 'Luyện thi cấp độ A1-C2', value: 'tocfl', selected: _purpose, onTap: (v) => setState(() => _purpose = v)),
             _PurposeOption(emoji: '✨', title: 'Sở thích cá nhân', subtitle: 'Xem phim, nghe nhạc, đọc sách', value: 'hobby', selected: _purpose, onTap: (v) => setState(() => _purpose = v)),
           ],
         ],
