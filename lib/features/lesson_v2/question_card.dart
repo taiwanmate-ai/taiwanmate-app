@@ -34,6 +34,15 @@ class _QuestionCardState extends State<QuestionCard> {
   bool get _answered => _chosen != null;
   bool get _correct => _chosen == _p['answer'];
 
+  /// Giai thich khi SAI: server sinh theo dap an da chon (nghia/phien am cua dap an chon + dap an dung + khac biet); thieu thi dung giai thich chung.
+  String get _explainText {
+    if (!_correct && _chosen != null) {
+      final ew = _p['explain_wrong'];
+      if (ew is Map && (ew[_chosen] as String?)?.isNotEmpty == true) return ew[_chosen] as String;
+    }
+    return (_p['explain'] as String?) ?? '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -121,7 +130,7 @@ class _QuestionCardState extends State<QuestionCard> {
       decoration: BoxDecoration(color: ok ? const Color(0xFFE8F8EE) : const Color(0xFFFFEBEE), borderRadius: BorderRadius.circular(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(ok ? '✔ Chính xác!' : '✗ Chưa đúng', style: TextStyle(fontWeight: FontWeight.w800, color: ok ? kLessonGreen : kLessonRed, fontSize: 16)),
-        if ((_p['explain'] as String?)?.isNotEmpty == true) Padding(padding: const EdgeInsets.only(top: 4), child: Text(_p['explain'] as String, style: const TextStyle(color: kLessonDark))),
+        if (_explainText.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(_explainText, key: const Key('lesson_explain'), style: const TextStyle(color: kLessonDark))),
         if (!ok) const Padding(padding: EdgeInsets.only(top: 4), child: Text('Câu này sẽ quay lại sau ít câu nữa.', style: TextStyle(color: kLessonGrey, fontSize: 12))),
         const SizedBox(height: 10),
         Row(children: [

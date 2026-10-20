@@ -44,7 +44,8 @@ class HttpLessonV2Api implements LessonV2Api {
 
   @override
   Future<Map<String, dynamic>> fetchSession(String unitId) => _guard(() async {
-        final r = await _dio.get('${ApiConstants.baseUrl}/lesson/$unitId/session', options: await _auth);
+        // caps: cac dang cau moi app nay biet hien thi (server chi gui dang moi khi app bao)
+        final r = await _dio.get('${ApiConstants.baseUrl}/lesson/$unitId/session', queryParameters: {'caps': 'arrange_sentence'}, options: await _auth);
         return Map<String, dynamic>.from(r.data as Map);
       });
 

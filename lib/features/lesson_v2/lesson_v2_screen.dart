@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
+import 'package:chinesemate/features/lesson_v2/arrange_card.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_runner.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
 import 'package:chinesemate/features/lesson_v2/match_widgets.dart';
@@ -349,6 +350,7 @@ class _QuestionFlowState extends State<_QuestionFlow> {
     final q = _queue.current;
     if (q == null) return const SizedBox.shrink();
     final isMatch = q['kind'] == 'match_pairs';
+    final isArrange = q['kind'] == 'arrange_sentence';
     final key = ValueKey('${q['id']}_${_queue.attemptOfCurrent}_$_tick');
     return SingleChildScrollView(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -360,6 +362,8 @@ class _QuestionFlowState extends State<_QuestionFlow> {
         const SizedBox(height: 14),
         if (isMatch)
           MatchPairsCard(key: key, question: q, onDone: _done)
+        else if (isArrange)
+          ArrangeCard(key: key, question: q, onDone: _done, isRetry: _queue.attemptOfCurrent > 1, onReport: () => widget.onReport(q))
         else
           QuestionCard(
             key: key, question: q, api: widget.api, onDone: _done, isRetry: _queue.attemptOfCurrent > 1,
@@ -454,6 +458,19 @@ class _NewWordsFlowState extends State<_NewWordsFlow> {
               IconButton(onPressed: () => widget.api.playAudio(w['example_audio'] as Map<String, dynamic>?), icon: const Icon(Icons.volume_up_outlined, color: kLessonGrey)),
             ]),
             if ((w['example_vi'] as String?)?.isNotEmpty == true) Text(w['example_vi'] as String, style: const TextStyle(color: kLessonGrey)),
+          ]),
+        ),
+      ],
+      if ((w['note'] as String?)?.isNotEmpty == true) ...[
+        const SizedBox(height: 10),
+        Container(
+          key: const Key('word_note'),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(12)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.info_outline, size: 18, color: Color(0xFF8D6E00)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(w['note'] as String, style: const TextStyle(color: Color(0xFF5D4700), fontSize: 14))),
           ]),
         ),
       ],
