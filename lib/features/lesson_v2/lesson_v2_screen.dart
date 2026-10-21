@@ -6,6 +6,7 @@ import 'package:chinesemate/features/lesson_v2/lesson_runner.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
 import 'package:chinesemate/features/lesson_v2/match_widgets.dart';
 import 'package:chinesemate/features/lesson_v2/question_card.dart';
+import 'package:chinesemate/features/lesson_v2/situation/situation_steps.dart';
 
 /// Bai hoc moi (6 buoc + mini-game + man ket thuc). Moi cau hoi lay tu phien server tra 1 lan; KHONG goi AI khi dang hoc.
 /// Chay sau cong tac `lesson_v2_enabled` (server). Pop ket qua: Map {next_unit_id, level_completed, ...} khi nguoi hoc bam "Bai tiep theo".
@@ -77,6 +78,8 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
         return;
       }
       setState(() { _session = s; _steps = steps; _idx = 0; });
+    } on SituationUnavailable catch (e) {
+      if (mounted) setState(() => _error = e.message);       // bài tình huống chưa sẵn sàng / cần cập nhật app: báo rõ, không đổi sang bài cũ
     } catch (_) {
       _fallbackToOldLesson();
     }
@@ -185,10 +188,33 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
           onRecord: _records.add, onReport: _report, onFinished: _next, retry: false);
       case 'new_words':
         return _NewWordsFlow(pairs: (step['pairs'] as List).cast<Map<String, dynamic>>(), api: _api, onRecord: _records.add, onReport: _report, onFinished: _next);
+      case 'listen_first':
+        return ListenFirstStep(step: step, api: _api, onFinished: _next);
       case 'dialogue':
+        final dl = step['lines'] as List?;
+        if (dl != null && dl.isNotEmpty && dl.first is Map && (dl.first as Map).containsKey('tokens')) {
+          return SituationDialogueStep(step: step, api: _api, onFinished: _next);
+        }
         return _DialogueStep(step: step, api: _api, onRecord: _records.add, onReport: _report, onFinished: _next);
       case 'grammar':
+        if (step['points'] is List) {
+          return SituationGrammarStep(step: step, api: _api, onFinished: _next, flow: _flowBuilder);
+        }
         return _GrammarStep(step: step, api: _api, onRecord: _records.add, onReport: _report, onFinished: _next);
+      case 'speaking':
+        return SpeakingStep(step: step, api: _api, onFinished: _next);
+      case 'summary':
+        return SituationSummaryStep(step: step, api: _api, onFinished: _next);
+      case 'pron_explain':
+        return PronExplainStep(step: step, onFinished: _next);
+      case 'pron_listen':
+        return PronListenStep(step: step, api: _api, onFinished: _next);
+      case 'narrative':
+        return SituationDialogueStep(step: step, api: _api, onFinished: _next, narrative: true);
+      case 'mistakes':
+        return MistakesStep(step: step, onFinished: _next);
+      case 'challenge':
+        return ChallengeStep(step: step, api: _api, onFinished: _next);
       case 'practice':
         final alts = <String, List<Map<String, dynamic>>>{
           for (final e in ((_session!['retry'] as Map)['alts'] as Map).entries) e.key as String: (e.value as List).cast<Map<String, dynamic>>(),
@@ -203,15 +229,24 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
     }
   }
 
+  Widget _flowBuilder(List<Map<String, dynamic>> qs, String header, VoidCallback onFinished) => _QuestionFlow(
+      questions: qs, alts: const {}, api: _api, header: header, onRecord: _records.add, onReport: _report, onFinished: onFinished, retry: false);
+
   Widget _intro(Map<String, dynamic> step) {
     final goals = (step['goals'] as List?)?.cast<String>() ?? const [];
     final unit = _session!['unit'] as Map;
+    final stageTitle = (step['stage_title'] as String?) ?? '';
+    final order = (unit['order'] as num?)?.toInt() ?? 0;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('Chặng ${unit['level']} · Bài ${unit['order']} / ${unit['total_units']}', style: const TextStyle(color: kLessonGrey)),
+      // Bài tình huống: chặng + tên chặng do SERVER trả (stage / stage_title); bài cũ giữ dòng cũ.
+      Text(step['stage'] != null
+          ? 'Chặng ${step['stage']}${stageTitle.isNotEmpty ? ' · $stageTitle' : ''} · ${order <= -10 ? 'P${order + 15}' : 'Bài ${order + 10}'} / ${unit['total_units']}'
+          : 'Chặng ${unit['level']} · Bài ${unit['order']} / ${unit['total_units']}', key: const Key('intro_stage'), style: const TextStyle(color: kLessonGrey)),
       const Spacer(),
       Center(child: Text(step['title'] as String? ?? '', textAlign: TextAlign.center, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: kLessonDark))),
       if (step['title_target'] != null) Center(child: Text(step['title_target'] as String, style: const TextStyle(fontSize: 18, color: kLessonGrey))),
       if (step['scene'] != null) Padding(padding: const EdgeInsets.only(top: 6), child: Center(child: Text(step['scene'] as String, style: const TextStyle(color: kLessonGrey)))),
+      if ((step['characters'] as List?)?.isNotEmpty == true) Padding(padding: const EdgeInsets.only(top: 10), child: characterChips(step['characters'] as List)),
       const SizedBox(height: 24),
       const Text('Hôm nay bạn sẽ làm được:', style: TextStyle(fontWeight: FontWeight.w700, color: kLessonDark)),
       const SizedBox(height: 8),
@@ -390,6 +425,18 @@ class _NewWordsFlow extends StatefulWidget {
 class _NewWordsFlowState extends State<_NewWordsFlow> {
   int _pair = 0;
   int _card = 0; // 0..words-1 = the; words.length = cau hoi nhanh
+  bool _specialShown = false;
+
+  /// Bài tình huống (thẻ có trường `entry`): TÊN RIÊNG / CỤM CỐ ĐỊNH tách riêng khỏi danh sách từ mới, hiện ở trang "Ghi nhớ thêm" cuối bước.
+  bool get _rich => widget.pairs.any((p) => (p['words'] as List).any((w) => (w as Map).containsKey('entry')));
+  List<Map<String, dynamic>> _wordsOf(int pair) {
+    final all = (widget.pairs[pair]['words'] as List).cast<Map<String, dynamic>>();
+    return _rich ? all.where((w) => (w['entry'] ?? 'word') == 'word').toList() : all;
+  }
+
+  List<Map<String, dynamic>> get _special => _rich
+      ? [for (final p in widget.pairs) for (final w in (p['words'] as List).cast<Map<String, dynamic>>()) if ((w['entry'] ?? 'word') != 'word') w]
+      : const [];
 
   @override
   void initState() {
@@ -398,7 +445,7 @@ class _NewWordsFlowState extends State<_NewWordsFlow> {
   }
 
   void _advance() {
-    final words = (widget.pairs[_pair]['words'] as List);
+    final words = _wordsOf(_pair);
     final micro = widget.pairs[_pair]['micro'];
     if (_card < words.length - 1) {
       setState(() => _card++);
@@ -412,6 +459,8 @@ class _NewWordsFlowState extends State<_NewWordsFlow> {
   void _nextPair() {
     if (_pair + 1 < widget.pairs.length) {
       setState(() { _pair++; _card = 0; });
+    } else if (_special.isNotEmpty && !_specialShown) {
+      setState(() => _specialShown = true);
     } else {
       widget.onFinished();
     }
@@ -420,11 +469,17 @@ class _NewWordsFlowState extends State<_NewWordsFlow> {
   @override
   Widget build(BuildContext context) {
     if (widget.pairs.isEmpty) return const SizedBox.shrink();
+    if (_specialShown) return SpecialEntriesPage(entries: _special, api: widget.api, onNext: widget.onFinished);
     final pair = widget.pairs[_pair];
-    final words = (pair['words'] as List).cast<Map<String, dynamic>>();
+    final words = _wordsOf(_pair);
     final total = widget.pairs.length;
     if (_card >= words.length) {
-      final q = (pair['micro'] as Map).cast<String, dynamic>();
+      final microRaw = pair['micro'];
+      if (microRaw == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _nextPair(); });
+        return const SizedBox.shrink();
+      }
+      final q = (microRaw as Map).cast<String, dynamic>();
       return SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text('Kiểm tra nhanh · cặp ${_pair + 1}/$total', style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -439,6 +494,7 @@ class _NewWordsFlowState extends State<_NewWordsFlow> {
       );
     }
     final w = words[_card];
+    if (_rich) return RichWordCard(key: ValueKey('rich_${_pair}_$_card'), w: w, api: widget.api, onNext: _advance, header: 'Từ mới · cặp ${_pair + 1}/$total');
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Từ mới · cặp ${_pair + 1}/$total', style: const TextStyle(fontWeight: FontWeight.w800)),
       const Spacer(),

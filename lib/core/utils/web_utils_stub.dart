@@ -284,7 +284,7 @@ Stream<String> webChatStream({
 // ─── Audio playback thật cho Android (dùng audioplayers, thay cho dart:html Audio) ───
 AudioPlayer? _mobileAudioPlayer;
 
-Future<bool> webPlayAudio(String base64Mp3) async {
+Future<bool> webPlayAudio(String base64Mp3, {String mime = 'audio/mpeg'}) async {
   webStopAudio();
   try {
     final bytes = base64Decode(base64Mp3);

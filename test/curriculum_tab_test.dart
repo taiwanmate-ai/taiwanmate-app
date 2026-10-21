@@ -112,4 +112,52 @@ void main() {
       expect(find.text('Cấp A1'), findsNothing);
     });
   });
+
+
+  group('bài tình huống (Q3, sau cờ SITUATION_V1)', () {
+    Dio dioWith(List<Map<String, Object>> units) {
+      final d = Dio();
+      d.httpClientAdapter = _FakeAdapter({
+        '/zh/levels': {'levels': [{'level': 'A1', 'total_units': units.length, 'completed_units': 0}]},
+        '/zh/A1/units': {'units': units},
+      });
+      return d;
+    }
+
+    Map<String, Object> u(String id, int order, String topic, int stage, String title, {String status = 'locked', bool optional = false}) => {
+          'unit_id': id, 'level': 'A1', 'unit_order': order, 'topic_vi': topic, 'topic_translated': '', 'status': status, 'estimated_minutes': 6, 'is_vip_locked': false,
+          'stage': stage, 'stage_title': title, if (optional) 'optional': true,
+        };
+
+    testWidgets('chặng + tên chặng do server trả; nút Bảng pinyin + kiểm tra nhanh chỉ khi có bài mới', (tester) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final units = [
+        u('p1', -14, 'Bốn thanh điệu', 0, 'Phát âm', status: 'unlocked'),
+        u('b1', -9, 'Chào hỏi', 1, 'Những ngày đầu ở Đài Loan'),
+        for (var i = 1; i <= 12; i++) u('o$i', i, 'Bài cũ $i', 2, ''),
+      ];
+      await tester.pumpWidget(_host(CurriculumTab(initialLanguage: 'zh', initialLevel: 'A1', dio: dioWith(units), readToken: () async => 'tok')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('open_pinyin_chart')), findsOneWidget);
+      expect(find.byKey(const Key('open_pron_test')), findsOneWidget);
+      expect(find.text('Chặng 0 · Phát âm'), findsOneWidget);
+      expect(find.text('Chặng 1 · Những ngày đầu ở Đài Loan'), findsOneWidget);
+      expect(find.textContaining('Chặng 2 ·'), findsOneWidget);
+      expect(find.text('Tiếp tục: Bốn thanh điệu (P1)'), findsOneWidget);
+    });
+
+    testWidgets('người ngoài cờ (không có bài order <= 0): không có nút mới, chặng theo server như cũ', (tester) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final units = [for (var i = 1; i <= 13; i++) u('o$i', i, 'Bài cũ $i', ((i - 1) ~/ 10) + 1, '', status: i == 1 ? 'unlocked' : 'locked')];
+      await tester.pumpWidget(_host(CurriculumTab(initialLanguage: 'zh', initialLevel: 'A1', dio: dioWith(units), readToken: () async => 'tok')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('open_pinyin_chart')), findsNothing);
+      expect(find.byKey(const Key('open_pron_test')), findsNothing);
+      expect(find.text('Chặng 1 · bài 1–10'), findsOneWidget);
+    });
+  });
 }

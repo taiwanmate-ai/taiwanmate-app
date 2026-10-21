@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
+import 'package:chinesemate/features/lesson_v2/situation/tone_text.dart';
 
 const kLessonPurple = Color(0xFF5B5FEF);
 const kLessonGreen = Color(0xFF00C853);
@@ -97,6 +98,10 @@ class _QuestionCardState extends State<QuestionCard> {
         )
       else
         Center(child: Text(stem['text'] as String? ?? '', textAlign: TextAlign.center, style: TextStyle(fontSize: type == 'sentence' ? 24 : 28, fontWeight: FontWeight.w800, color: kLessonDark))),
+      if (type != 'audio' && (stem['sub'] as String?)?.isNotEmpty == true)
+        Padding(padding: const EdgeInsets.only(top: 4), child: Center(child: PinyinText(stem['sub'] as String, fontSize: 15, align: TextAlign.center))),
+      if (type != 'audio' && stem['audio'] is Map)
+        Center(child: IconButton(key: const Key('stem_audio_btn'), onPressed: () => widget.api.playAudio(Map<String, dynamic>.from(stem['audio'] as Map)), icon: const Icon(Icons.volume_up_rounded, color: kLessonPurple))),
       if (stem['translation'] != null && (stem['translation'] as String).isNotEmpty)
         Padding(padding: const EdgeInsets.only(top: 8), child: Center(child: Text(stem['translation'] as String, textAlign: TextAlign.center, style: const TextStyle(color: kLessonGrey, fontSize: 14)))),
       const SizedBox(height: 18),

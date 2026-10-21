@@ -9,6 +9,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'unit_practice_screen.dart';
 import 'stage_unit_list.dart';
+import 'package:chinesemate/features/lesson_v2/situation/pinyin_chart_screen.dart';
+import 'package:chinesemate/features/lesson_v2/situation/pron_test_screen.dart';
 
 class _CurDS {
   static const bg = Color(0xFFF0F4FF);
@@ -387,9 +389,50 @@ class _CurriculumTabState extends State<CurriculumTab> {
       const SizedBox(height: 8),
       Text('Cấp $_selectedLevel', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _CurDS.textDark)),
       const SizedBox(height: 16),
+      if (_units.any((u) => ((u['unit_order'] as num?)?.toInt() ?? 1) <= 0)) _situationTools(),
       StageUnitList(units: _units, onOpen: _openUnit, tileBuilder: _unitTile),
     ]),
   );
+
+  /// Chỉ hiện với người trong cờ SITUATION_V1 (server chỉ trả bài mới cho họ): Bảng pinyin (mở bất cứ lúc nào) + kiểm tra nhanh bỏ qua Chặng 0.
+  Widget _situationTools() {
+    final needsTest = _units.any((u) => ((u['unit_order'] as num?)?.toInt() ?? 1) <= -10 && u['status'] != 'completed');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            key: const Key('open_pinyin_chart'),
+            onPressed: _openPinyinChart,
+            icon: const Icon(Icons.grid_view_rounded, size: 18),
+            label: const Text('Bảng pinyin'),
+          ),
+        ),
+        if (needsTest) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: OutlinedButton.icon(
+              key: const Key('open_pron_test'),
+              onPressed: _openPronTest,
+              icon: const Icon(Icons.fast_forward_rounded, size: 18),
+              label: const Text('Đã biết pinyin?', overflow: TextOverflow.ellipsis),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  LessonV2Api _lessonApi() => ProviderScope.containerOf(context, listen: false).read(lessonV2ApiProvider);
+
+  void _openPinyinChart() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => PinyinChartScreen(api: _lessonApi())));
+  }
+
+  Future<void> _openPronTest() async {
+    final passed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => PronTestScreen(api: _lessonApi())));
+    if (passed == true && mounted && _selectedLevel != null) _pickLevel(_selectedLevel!);
+  }
 
   Widget _unitTile(Map<String, dynamic> u) {
 
@@ -418,10 +461,13 @@ class _CurriculumTabState extends State<CurriculumTab> {
             ),
           ),
           const SizedBox(width: 12),
+          if (((u['unit_order'] as num?)?.toInt() ?? 1) <= 0)
+            Padding(padding: const EdgeInsets.only(right: 8), child: Text(unitNumberLabel((u['unit_order'] as num).toInt()).replaceFirst('bài ', 'Bài '), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _CurDS.teal))),
           Expanded(child: Text(u['topic_vi'], style: TextStyle(
             fontSize: 14, fontWeight: FontWeight.w700,
             color: locked ? _CurDS.textGrey : _CurDS.textDark,
           ))),
+          if (u['optional'] == true) const Padding(padding: EdgeInsets.only(left: 6), child: Text('Tuỳ chọn', key: Key('unit_optional'), style: TextStyle(fontSize: 11, color: _CurDS.textGrey))),
           if (vipLocked) const Text('⭐', style: TextStyle(fontSize: 14)),
         ]),
       ),

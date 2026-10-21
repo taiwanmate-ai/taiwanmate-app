@@ -356,7 +356,7 @@ Future<bool> webUnlockAudio() async {
   }
 }
 
-Future<bool> webPlayAudio(String base64Mp3) {
+Future<bool> webPlayAudio(String base64Mp3, {String mime = 'audio/mpeg'}) {
   webStopAudio(); // dừng audio cũ nếu còn đang phát dở
 
   final completer = Completer<bool>();
@@ -364,7 +364,7 @@ Future<bool> webPlayAudio(String base64Mp3) {
 
   try {
     final bytes = base64Decode(base64Mp3);
-    final blob = html.Blob([bytes], 'audio/mpeg');
+    final blob = html.Blob([bytes], mime);
     final url = html.Url.createObjectUrlFromBlob(blob);
     _currentAudioBlobUrl = url;
 

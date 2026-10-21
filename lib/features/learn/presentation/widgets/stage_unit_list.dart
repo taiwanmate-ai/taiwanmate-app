@@ -5,10 +5,18 @@ import 'package:flutter/material.dart';
 const int kStageSize = 10;
 const int kFlatLimit = 12;
 
+/// Nhan so bai hien cho nguoi hoc: bai tinh huong (unit_order <= 0) -> "P1…P5" (phat am) / "bai 1…10"; bai A1 cu giu so cu.
+String unitNumberLabel(int order) {
+  if (order <= -10) return 'P${order + 15}';
+  if (order <= 0) return 'bài ${order + 10}';
+  return 'bài $order';
+}
+
 class StageInfo {
-  final int index; // 1-based
+  final int index; // so chang: SERVER tra ve (`stage`); thieu thi tinh theo cong thuc cu
   final List<Map<String, dynamic>> units;
-  StageInfo(this.index, this.units);
+  final String title; // `stage_title` do server tra ve ("Phát âm", "Những ngày đầu ở Đài Loan"); rong = chang cu (hien chu de noi bat)
+  StageInfo(this.index, this.units, {this.title = ''});
 
   int get total => units.length;
   int get completed => units.where((u) => u['status'] == 'completed').length;
@@ -32,12 +40,17 @@ class StageInfo {
 List<StageInfo> groupIntoStages(List<Map<String, dynamic>> units, {int size = kStageSize}) {
   final sorted = [...units]..sort((a, b) => ((a['unit_order'] as num?) ?? 0).compareTo((b['unit_order'] as num?) ?? 0));
   final byStage = <int, List<Map<String, dynamic>>>{};
+  final titles = <int, String>{};
   for (final u in sorted) {
     final order = ((u['unit_order'] as num?) ?? 1).toInt();
-    byStage.putIfAbsent(((order - 1) ~/ size) + 1, () => []).add(u);
+    // Chang do SERVER quyet dinh (stage / stage_title). Chi khi server khong tra (ban cu) moi dung cong thuc cu.
+    final stage = (u['stage'] as num?)?.toInt() ?? (((order - 1) ~/ size) + 1);
+    byStage.putIfAbsent(stage, () => []).add(u);
+    final t = (u['stage_title'] as String?) ?? '';
+    if (t.isNotEmpty) titles[stage] = t;
   }
   final keys = byStage.keys.toList()..sort();
-  return [for (final k in keys) StageInfo(k, byStage[k]!)];
+  return [for (final k in keys) StageInfo(k, byStage[k]!, title: titles[k] ?? '')];
 }
 
 /// Bai dang hoc: bai 'unlocked' co unit_order nho nhat (chua hoan thanh); khong co -> null.
@@ -112,7 +125,7 @@ class _StageUnitListState extends State<StageUnitList> {
             key: const Key('stage_continue'),
             onPressed: () => widget.onOpen(cur),
             icon: const Icon(Icons.play_arrow_rounded),
-            label: Text('Tiếp tục: ${cur['topic_vi']} (bài ${cur['unit_order']})', overflow: TextOverflow.ellipsis),
+            label: Text('Tiếp tục: ${cur['topic_vi']} (${unitNumberLabel((cur['unit_order'] as num).toInt())})', overflow: TextOverflow.ellipsis),
             style: ElevatedButton.styleFrom(backgroundColor: _teal, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
           ),
         ),
@@ -150,7 +163,7 @@ class _StageUnitListState extends State<StageUnitList> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Chặng ${st.index} · bài ${st.firstOrder}–${st.lastOrder}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _dark)),
+                Text(st.title.isNotEmpty ? 'Chặng ${st.index} · ${st.title}' : 'Chặng ${st.index} · ${unitNumberLabel(st.firstOrder)}–${unitNumberLabel(st.lastOrder).replaceFirst('bài ', '')}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _dark)),
                 if (st.topics.isNotEmpty) Text(st.topics.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: _grey)),
                 const SizedBox(height: 6),
                 ClipRRect(
