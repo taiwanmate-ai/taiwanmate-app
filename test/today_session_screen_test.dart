@@ -166,6 +166,35 @@ void main() {
       expect(tab.initialLanguage, 'zh');
     });
 
+    testWidgets('học xong rồi quay lại: tải lại /learn/today, thẻ chỉ bài KẾ TIẾP (không mở lại bài vừa xong)',
+        (tester) async {
+      var todayCalls = 0;
+      await tester.pumpWidget(_host(_screen(responder: (o) {
+        if (!o.path.endsWith('/learn/today')) return <String, dynamic>{};
+        todayCalls++;
+        return todayCalls == 1
+            ? _todayResponse(nextUnit: {'unit_id': 'b1', 'topic_vi': 'Chào hỏi', 'level': 'A1'})
+            : _todayResponse(nextUnit: {'unit_id': 'b2', 'topic_vi': 'Giới thiệu bản thân', 'level': 'A1'});
+      })));
+      await tester.pumpAndSettle();
+      expect(find.text('Chào hỏi'), findsOneWidget);
+
+      await tester.tap(find.text('Học bài này'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CurriculumTab), findsOneWidget);
+      // (bài được học + hoàn thành bên trong CurriculumTab — xem situation_finish_nav_test.dart) rồi quay lại "Học hôm nay"
+      tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CurriculumTab), findsNothing);
+      expect(todayCalls, 2);
+      expect(find.text('Chào hỏi'), findsNothing);
+      expect(find.text('Giới thiệu bản thân'), findsOneWidget);
+      await tester.tap(find.text('Học bài này'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<CurriculumTab>(find.byType(CurriculumTab)).initialUnitId, 'b2');
+    });
+
     testWidgets('curriculum_completed = true -> thông báo hoàn thành, KHÔNG hiện nút', (tester) async {
       await tester.pumpWidget(_host(_screen(
         responder: (o) => _todayResponse(completed: true),

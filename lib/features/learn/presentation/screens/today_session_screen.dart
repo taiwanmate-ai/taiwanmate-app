@@ -127,11 +127,11 @@ class _TodaySessionScreenState extends State<TodaySessionScreen> {
     )));
   }
 
-  void _openNextUnit() {
+  Future<void> _openNextUnit() async {
     final unit = _nextUnit;
     if (unit == null) return;
     _logEvent('unit');
-    Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: Colors.white, elevation: 0,
@@ -148,6 +148,8 @@ class _TodaySessionScreenState extends State<TodaySessionScreen> {
         dio: widget.dio, readToken: widget.readToken,
       ),
     )));
+    // Quay lại sau khi học: tải lại "bài kế tiếp" — không thì thẻ vẫn chỉ bài VỪA HỌC XONG và bấm vào sẽ mở lại màn đầu của chính bài đó.
+    if (mounted) _load();
   }
 
   @override
