@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
+import 'package:chinesemate/features/lesson_v2/situation/unit_order.dart';
 import 'package:chinesemate/features/lesson_v2/arrange_card.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_runner.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
@@ -240,7 +241,7 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       // Bài tình huống: chặng + tên chặng do SERVER trả (stage / stage_title); bài cũ giữ dòng cũ.
       Text(step['stage'] != null
-          ? 'Chặng ${step['stage']}${stageTitle.isNotEmpty ? ' · $stageTitle' : ''} · ${order <= -10 ? 'P${order + 15}' : 'Bài ${order + 10}'} / ${unit['total_units']}'
+          ? 'Chặng ${step['stage']}${stageTitle.isNotEmpty ? ' · $stageTitle' : ''} · ${(step['label'] as String?) ?? (unit['label'] as String?) ?? unitNumberLabel(order).replaceFirst('bài ', 'Bài ')} / ${unit['total_units']}'
           : 'Chặng ${unit['level']} · Bài ${unit['order']} / ${unit['total_units']}', key: const Key('intro_stage'), style: const TextStyle(color: kLessonGrey)),
       const Spacer(),
       Center(child: Text(step['title'] as String? ?? '', textAlign: TextAlign.center, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: kLessonDark))),

@@ -151,7 +151,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
       if (!mounted) return;
       _flushPendingResults(); // ket qua bai truoc con ket (mat mang) -> gui lai nen, khong chan
       final order = (unit['unit_order'] as num?)?.toInt() ?? 0;
-      final nextList = _units.where((u) => (u['unit_order'] as num?)?.toInt() == order + 1);
+      final next = nextUnitAfter(_units, order);
       final res = await Navigator.push<Map<String, dynamic>>(
           context,
           MaterialPageRoute(
@@ -160,8 +160,8 @@ class _CurriculumTabState extends State<CurriculumTab> {
                     title: unit['topic_vi'] as String?,
                     completedUnits: _units.where((u) => u['status'] == 'completed').length,
                     alreadyCompleted: unit['status'] == 'completed',
-                    nextUnitId: nextList.isNotEmpty ? nextList.first['unit_id'] as String? : null,
-                    isLastUnit: nextList.isEmpty,
+                    nextUnitId: next?['unit_id'] as String?,
+                    isLastUnit: next == null,
                   )));
       if (res != null && res['fallback'] == true) {
         // Bai moi loi tai phien (server loi / mang / tat) -> tu dong dung BAI CU, khong ket man hinh loi.
@@ -198,15 +198,12 @@ class _CurriculumTabState extends State<CurriculumTab> {
   void _applyLessonResult(Map<String, dynamic> unit, Map<String, dynamic> res) {
     final order = (unit['unit_order'] as num?)?.toInt() ?? 0;
     final wasCompleted = unit['status'] == 'completed';
+    final next = nextUnitAfter(_units, order);
     setState(() {
       for (final u in _units) {
-        final o = (u['unit_order'] as num?)?.toInt();
-        if (u['unit_id'] == unit['unit_id']) {
-          u['status'] = 'completed';
-        } else if (o == order + 1 && u['status'] == 'locked') {
-          u['status'] = 'unlocked';
-        }
+        if (u['unit_id'] == unit['unit_id']) u['status'] = 'completed';
       }
+      if (next != null && next['status'] == 'locked') next['status'] = 'unlocked';
       if (!wasCompleted && _selectedLevel != null) {
         for (final l in _levels) {
           if (l['level'] == _selectedLevel) l['completed_units'] = ((l['completed_units'] as num?)?.toInt() ?? 0) + 1;
@@ -396,7 +393,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
 
   /// Chỉ hiện với người trong cờ SITUATION_V1 (server chỉ trả bài mới cho họ): Bảng pinyin (mở bất cứ lúc nào) + kiểm tra nhanh bỏ qua Chặng 0.
   Widget _situationTools() {
-    final needsTest = _units.any((u) => ((u['unit_order'] as num?)?.toInt() ?? 1) <= -10 && u['status'] != 'completed');
+    final needsTest = _units.any((u) => isPronOrder((u['unit_order'] as num?)?.toInt() ?? 1) && u['status'] != 'completed');
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(children: [

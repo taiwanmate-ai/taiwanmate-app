@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:chinesemate/features/lesson_v2/situation/unit_order.dart';
+
+export 'package:chinesemate/features/lesson_v2/situation/unit_order.dart';
 
 /// Chia danh sach bai cua 1 cap thanh "chang" ~10 bai (client tinh tu `unit_order`, khong doi DB/server). Bai moi duoc them o CUOI cap nen
 /// ranh gioi chang cua bai cu khong doi. Cap it bai (<= [kFlatLimit]) hien danh sach phang nhu cu.
 const int kStageSize = 10;
 const int kFlatLimit = 12;
-
-/// Nhan so bai hien cho nguoi hoc: bai tinh huong (unit_order <= 0) -> "P1…P5" (phat am) / "bai 1…10"; bai A1 cu giu so cu.
-String unitNumberLabel(int order) {
-  if (order <= -10) return 'P${order + 15}';
-  if (order <= 0) return 'bài ${order + 10}';
-  return 'bài $order';
-}
 
 class StageInfo {
   final int index; // so chang: SERVER tra ve (`stage`); thieu thi tinh theo cong thuc cu
