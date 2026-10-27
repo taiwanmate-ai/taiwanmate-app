@@ -78,6 +78,9 @@ jobs:
           Write-Host 'OK: dung dung luc'
           exit 0
 
+      - name: CI chay repo o o D, pub cache o o C -> Kotlin incremental loi "Could not close incremental caches" (khong xay ra khi cung o dia)
+        run: Add-Content -Path android\gradle.properties -Value "`nkotlin.incremental=false" -Encoding ascii
+
       - name: build_android.ps1 (versionCode tren Play nhap qua stdin)
         shell: cmd
         run: |
