@@ -98,6 +98,12 @@ jobs:
         run: |
           $f = "$env:RUNNER_TEMP\build.log"
           if (Test-Path $f) {
-            $key = Get-Content $f | Where-Object { $_ -cmatch '^====|^OK:|LOI|XONG|SHA|File:|pubspec|versionCode|BUILD|FAILURE|error' } | Select-Object -Last 40
+            $all = @(Get-Content $f)
+            $key = New-Object System.Collections.Generic.List[string]
+            for ($i = 0; $i -lt $all.Count; $i++) {
+              if ($all[$i] -cmatch 'What went wrong') { for ($j = $i; $j -lt [Math]::Min($i + 8, $all.Count); $j++) { $key.Add($all[$j]) } }
+              elseif ($all[$i] -cmatch '^====|^OK:|LOI|XONG|SHA|File:|BUILD|FAILURE|^e: |error:|Error:') { $key.Add($all[$i]) }
+            }
+            $key = $key | Select-Object -Last 60
             Write-Host ('::notice title=build_android.ps1::' + (($key | ForEach-Object { $_ -replace '::', ': :' }) -join '%0A'))
           }
