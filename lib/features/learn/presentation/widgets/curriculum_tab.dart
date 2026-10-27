@@ -68,6 +68,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
   List<Map<String, dynamic>> _levels = [];
   String? _selectedLevel;
   List<Map<String, dynamic>> _units = [];
+  Map<String, dynamic>? _nextStage; // server: chặng kế tiếp ra mắt ngày X (chỉ người thấy bài mới)
   Map<String, dynamic>? _unitDetail;
 
   int _practiceStep = 0; // 0: ôn nhanh, 1: từ mới, 2: ngữ pháp, 3: quiz
@@ -124,6 +125,8 @@ class _CurriculumTabState extends State<CurriculumTab> {
       final res = await _dio.get('$_curBaseUrl/$_language/$level/units', options: await _authOptions);
       setState(() {
         _units = List<Map<String, dynamic>>.from(res.data['units']);
+        final ns = res.data['next_stage'];
+        _nextStage = ns is Map ? Map<String, dynamic>.from(ns) : null;
         _stage = _CurStage.unitList;
         _loading = false;
       });
@@ -162,6 +165,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
                     alreadyCompleted: unit['status'] == 'completed',
                     nextUnitId: next?['unit_id'] as String?,
                     isLastUnit: next == null,
+                    nextStage: _nextStage != null && _nextStage!['after_unit_id'] == unit['unit_id'] ? _nextStage : null,
                   )));
       if (res != null && res['fallback'] == true) {
         // Bai moi loi tai phien (server loi / mang / tat) -> tu dong dung BAI CU, khong ket man hinh loi.
@@ -286,6 +290,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
       _levels = [];
       _selectedLevel = null;
       _units = [];
+      _nextStage = null;
       _unitDetail = null;
     });
   }

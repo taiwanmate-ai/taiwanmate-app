@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
+import 'package:chinesemate/features/lesson_v2/situation/next_stage_card.dart';
 import 'package:chinesemate/features/lesson_v2/situation/unit_order.dart';
 import 'package:chinesemate/features/lesson_v2/arrange_card.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_runner.dart';
@@ -20,6 +21,7 @@ class LessonV2Screen extends ConsumerStatefulWidget {
   final bool alreadyCompleted;
   final String? nextUnitId;
   final bool isLastUnit;
+  final Map<String, dynamic>? nextStage; // bài mới cuối cùng: hiện "Chặng tiếp theo ra mắt ngày X"
   final PendingStore? pendingStore; // test hook (hàng đợi gửi lại)
   final List<Duration>? retryDelays; // test hook
   final Sleeper? sleeper; // test hook
@@ -32,6 +34,7 @@ class LessonV2Screen extends ConsumerStatefulWidget {
     this.alreadyCompleted = false,
     this.nextUnitId,
     this.isLastUnit = false,
+    this.nextStage,
     this.pendingStore,
     this.retryDelays,
     this.sleeper,
@@ -309,6 +312,7 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
           const SizedBox(height: 6),
           ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: done / total, minHeight: 10, color: kLessonGreen, backgroundColor: const Color(0xFFE0E3F0))),
         ],
+        if (widget.nextStage != null) ...[const SizedBox(height: 16), NextStageCard(nextStage: widget.nextStage!)],
         if (wrong > 0) Padding(padding: const EdgeInsets.only(top: 12), child: Text('Có $wrong từ cần ôn lại — hệ thống sẽ nhắc bạn.', style: const TextStyle(color: kLessonGrey))),
         if (_syncState != 'synced') _syncStatus(),
         const SizedBox(height: 22),
@@ -316,7 +320,7 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
           key: const Key('summary_continue'),
           onPressed: () => Navigator.pop(context, s),
           style: ElevatedButton.styleFrom(backgroundColor: kLessonPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-          child: Text(levelDone ? 'Về danh sách' : 'Bài tiếp theo →', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          child: Text(levelDone || widget.nextStage != null ? 'Về danh sách' : 'Bài tiếp theo →', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
         ),
       ]),
     );
