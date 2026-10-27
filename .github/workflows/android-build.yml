@@ -71,7 +71,7 @@ jobs:
           [System.IO.File]::WriteAllText($f, $orig.Replace('https://taiwanmate-backend-production.up.railway.app', 'http://localhost:8000'))
           $out = powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1 -PlayVersionCode 0 *>&1 | ForEach-Object { [string]$_ }
           $rc = $LASTEXITCODE; $out
-          [System.IO.File]::WriteAllText($f, $orig)
+          git checkout -- $f
           Write-Host ('::notice title=api localhost (exit ' + $rc + ')::' + (($out | Where-Object { $_ -cmatch 'LOI|OK:|====' }) -join '%0A'))
           if ($rc -eq 0) { throw 'Script phai dung khi baseUrl la localhost' }
           if (-not ($out -cmatch 'tro vao may local')) { throw 'Script dung vi ly do khac' }
