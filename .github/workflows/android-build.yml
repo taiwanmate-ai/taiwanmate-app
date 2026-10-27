@@ -20,7 +20,7 @@ jobs:
       run:
         shell: powershell
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cu phap moi .ps1 trong scripts/ (Windows PowerShell 5.1)
         run: |
@@ -36,7 +36,7 @@ jobs:
           }
           if ($bad) { exit 1 }
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -56,26 +56,35 @@ jobs:
       - name: Phai DUNG khi versionCode khong lon hon Play (truoc khi build)
         run: |
           $code = [int](Select-String -Path pubspec.yaml -Pattern '^version:\s*\S+\+(\d+)').Matches[0].Groups[1].Value
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1 -PlayVersionCode $code
-          if ($LASTEXITCODE -eq 0) { throw 'Script phai dung khi versionCode <= Play' }
+          $out = powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1 -PlayVersionCode $code *>&1 | ForEach-Object { [string]$_ }
+          $rc = $LASTEXITCODE; $out
+          Write-Host ('::notice title=versionCode <= Play (exit ' + $rc + ')::' + (($out | Where-Object { $_ -cmatch 'LOI|OK:|====' }) -join '%0A'))
+          if ($rc -eq 0) { throw 'Script phai dung khi versionCode <= Play' }
+          if (-not ($out -cmatch 'tren Play - Play se tu choi')) { throw 'Script dung vi ly do khac' }
           Write-Host 'OK: dung dung luc'
+          exit 0
 
       - name: Phai DUNG khi api_constants tro vao localhost
         run: |
           $f = 'lib\core\constants\api_constants.dart'
           $orig = [System.IO.File]::ReadAllText($f)
           [System.IO.File]::WriteAllText($f, $orig.Replace('https://taiwanmate-backend-production.up.railway.app', 'http://localhost:8000'))
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1 -PlayVersionCode 0
-          $rc = $LASTEXITCODE
+          $out = powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1 -PlayVersionCode 0 *>&1 | ForEach-Object { [string]$_ }
+          $rc = $LASTEXITCODE; $out
           [System.IO.File]::WriteAllText($f, $orig)
+          Write-Host ('::notice title=api localhost (exit ' + $rc + ')::' + (($out | Where-Object { $_ -cmatch 'LOI|OK:|====' }) -join '%0A'))
           if ($rc -eq 0) { throw 'Script phai dung khi baseUrl la localhost' }
+          if (-not ($out -cmatch 'tro vao may local')) { throw 'Script dung vi ly do khac' }
           Write-Host 'OK: dung dung luc'
+          exit 0
 
       - name: build_android.ps1 (versionCode tren Play nhap qua stdin)
         shell: cmd
         run: |
-          (echo 0) | powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1
-          if %ERRORLEVEL% NEQ 0 exit /b 1
+          (echo 0) | powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1 > "%RUNNER_TEMP%\build.log" 2>&1
+          set RC=%ERRORLEVEL%
+          type "%RUNNER_TEMP%\build.log"
+          if %RC% NEQ 0 exit /b 1
 
       - name: Kiem tra file .aab
         run: |
@@ -83,3 +92,12 @@ jobs:
           if (-not (Test-Path $aab)) { throw 'Khong co file .aab' }
           Get-Item $aab | Format-List Name, Length
           git diff --exit-code -- lib
+
+      - name: Annotation - dong chinh cua build_android.ps1
+        if: always()
+        run: |
+          $f = "$env:RUNNER_TEMP\build.log"
+          if (Test-Path $f) {
+            $key = Get-Content $f | Where-Object { $_ -cmatch '^====|^OK:|LOI|XONG|SHA|File:|pubspec|versionCode|BUILD|FAILURE|error' } | Select-Object -Last 40
+            Write-Host ('::notice title=build_android.ps1::' + (($key | ForEach-Object { $_ -replace '::', ': :' }) -join '%0A'))
+          }
