@@ -9,6 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:chinesemate/features/profile/presentation/screens/profile_screen.dart';
 import 'unit_practice_screen.dart';
 import 'stage_unit_list.dart';
+import 'legacy_section.dart';
 import 'package:chinesemate/features/lesson_v2/situation/pinyin_chart_screen.dart';
 import 'package:chinesemate/features/lesson_v2/situation/pron_test_screen.dart';
 
@@ -67,7 +68,10 @@ class _CurriculumTabState extends State<CurriculumTab> {
   String? _language;
   List<Map<String, dynamic>> _levels = [];
   String? _selectedLevel;
-  List<Map<String, dynamic>> _units = [];
+  List<Map<String, dynamic>> _units = []; // lo trinh chinh (server layout=v2: chi Chang 0..n khi cap co bai moi)
+  List<Map<String, dynamic>> _legacy = []; // "Bai luyen them (giao trinh cu)" — server `legacy_units` (mo het, giu tien do)
+  int _legacyCompleted = 0;
+  bool _experienced = false; // da hoc A1 cu: lo trinh moi mo san -> goi y bat dau tu Chang 0 / kiem tra bo qua
   Map<String, dynamic>? _nextStage; // server: chặng kế tiếp ra mắt ngày X (chỉ người thấy bài mới)
   Map<String, dynamic>? _unitDetail;
 
@@ -91,7 +95,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
             // _pickLevel cũng nuốt lỗi — chỉ mở tiếp khi ĐÃ có _units (đi đúng _stage.unitList),
             // và tìm thấy đúng unitId trong danh sách vừa tải (an toàn nếu id sai/đã bị xoá).
             if (mounted && _stage == _CurStage.unitList && unitId != null) {
-              final match = _units.where((u) => u['unit_id'] == unitId);
+              final match = [..._units, ..._legacy].where((u) => u['unit_id'] == unitId);
               if (match.isNotEmpty) _openUnit(match.first);
             }
           });
@@ -108,7 +112,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
   Future<void> _pickLanguage(String lang) async {
     setState(() { _language = lang; _loading = true; _errorMsg = null; });
     try {
-      final res = await _dio.get('$_curBaseUrl/$lang/levels', options: await _authOptions);
+      final res = await _dio.get('$_curBaseUrl/$lang/levels', queryParameters: const {'layout': 'v2'}, options: await _authOptions);
       setState(() {
         _levels = List<Map<String, dynamic>>.from(res.data['levels']);
         _stage = _CurStage.levelList;
@@ -122,9 +126,12 @@ class _CurriculumTabState extends State<CurriculumTab> {
   Future<void> _pickLevel(String level) async {
     setState(() { _selectedLevel = level; _loading = true; _errorMsg = null; });
     try {
-      final res = await _dio.get('$_curBaseUrl/$_language/$level/units', options: await _authOptions);
+      final res = await _dio.get('$_curBaseUrl/$_language/$level/units', queryParameters: const {'layout': 'v2'}, options: await _authOptions);
       setState(() {
         _units = List<Map<String, dynamic>>.from(res.data['units']);
+        _legacy = List<Map<String, dynamic>>.from(res.data['legacy_units'] ?? const []);
+        _legacyCompleted = (res.data['legacy_completed'] as num?)?.toInt() ?? 0;
+        _experienced = res.data['experienced'] == true;
         final ns = res.data['next_stage'];
         _nextStage = ns is Map ? Map<String, dynamic>.from(ns) : null;
         _stage = _CurStage.unitList;
@@ -154,14 +161,15 @@ class _CurriculumTabState extends State<CurriculumTab> {
       if (!mounted) return;
       _flushPendingResults(); // ket qua bai truoc con ket (mat mang) -> gui lai nen, khong chan
       final order = (unit['unit_order'] as num?)?.toInt() ?? 0;
-      final next = nextUnitAfter(_units, order);
+      final pool = _poolOf(unit); // bai luyen them: "bai ke tiep" chi trong muc luyen them, khong noi vao lo trinh
+      final next = nextUnitAfter(pool, order);
       final res = await Navigator.push<Map<String, dynamic>>(
           context,
           MaterialPageRoute(
               builder: (_) => LessonV2Screen(
                     unitId: unit['unit_id'] as String,
                     title: unit['topic_vi'] as String?,
-                    completedUnits: _units.where((u) => u['status'] == 'completed').length,
+                    completedUnits: pool.where((u) => u['status'] == 'completed').length,
                     alreadyCompleted: unit['status'] == 'completed',
                     nextUnitId: next?['unit_id'] as String?,
                     isLastUnit: next == null,
@@ -202,19 +210,25 @@ class _CurriculumTabState extends State<CurriculumTab> {
   void _applyLessonResult(Map<String, dynamic> unit, Map<String, dynamic> res) {
     final order = (unit['unit_order'] as num?)?.toInt() ?? 0;
     final wasCompleted = unit['status'] == 'completed';
-    final next = nextUnitAfter(_units, order);
+    final legacy = unit['legacy'] == true;
+    final pool = _poolOf(unit);
+    final next = nextUnitAfter(pool, order);
     setState(() {
-      for (final u in _units) {
+      for (final u in pool) {
         if (u['unit_id'] == unit['unit_id']) u['status'] = 'completed';
       }
       if (next != null && next['status'] == 'locked') next['status'] = 'unlocked';
+      if (!wasCompleted && legacy) _legacyCompleted++;
       if (!wasCompleted && _selectedLevel != null) {
+        final key = legacy ? 'legacy_completed' : 'completed_units'; // levels v2: bai cu dem rieng
         for (final l in _levels) {
-          if (l['level'] == _selectedLevel) l['completed_units'] = ((l['completed_units'] as num?)?.toInt() ?? 0) + 1;
+          if (l['level'] == _selectedLevel) l[key] = ((l[key] as num?)?.toInt() ?? 0) + 1;
         }
       }
     });
   }
+
+  List<Map<String, dynamic>> _poolOf(Map<String, dynamic> unit) => unit['legacy'] == true ? _legacy : _units;
 
   void _startPractice() {
     final reviewWords = List<Map<String, dynamic>>.from(_unitDetail!['review_words'] ?? []);
@@ -290,6 +304,9 @@ class _CurriculumTabState extends State<CurriculumTab> {
       _levels = [];
       _selectedLevel = null;
       _units = [];
+      _legacy = [];
+      _legacyCompleted = 0;
+      _experienced = false;
       _nextStage = null;
       _unitDetail = null;
     });
@@ -375,6 +392,7 @@ class _CurriculumTabState extends State<CurriculumTab> {
                         backgroundColor: _CurDS.teal.withOpacity(0.1), valueColor: const AlwaysStoppedAnimation(_CurDS.teal))),
                 const SizedBox(height: 2),
                 Text('$completed/$total buổi', style: const TextStyle(fontSize: 11, color: _CurDS.textGrey)),
+                legacyDoneLine((l['legacy_completed'] as num?)?.toInt() ?? 0, key: Key('legacy_done_line_${l['level']}')),
               ])),
               const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _CurDS.textGrey),
             ]),
@@ -390,11 +408,25 @@ class _CurriculumTabState extends State<CurriculumTab> {
       _buildBackButton(() => setState(() => _stage = _CurStage.levelList)),
       const SizedBox(height: 8),
       Text('Cấp $_selectedLevel', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _CurDS.textDark)),
+      legacyDoneLine(_legacyCompleted),
       const SizedBox(height: 16),
+      if (_experienced) _experiencedHint(),
       if (_units.any((u) => ((u['unit_order'] as num?)?.toInt() ?? 1) <= 0)) _situationTools(),
       StageUnitList(units: _units, onOpen: _openUnit, tileBuilder: _unitTile),
+      LegacySection(units: _legacy, completed: _legacyCompleted, tileBuilder: _unitTile),
     ]),
   );
+
+  /// Người đã học A1 cũ: lộ trình mới mở sẵn (CTO 31/10) — gợi ý nhẹ, không bắt buộc.
+  Widget _experiencedHint() => Container(
+        key: const Key('experienced_hint'),
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: _CurDS.teal.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        child: const Text('Giáo trình mới đã mở sẵn cho bạn. Gợi ý: bắt đầu từ Chặng 0 (Phát âm), hoặc làm bài kiểm tra "Đã biết pinyin?" để bỏ qua.',
+            style: TextStyle(fontSize: 13, color: _CurDS.textDark)),
+      );
 
   /// Chỉ hiện với người trong cờ SITUATION_V1 (server chỉ trả bài mới cho họ): Bảng pinyin (mở bất cứ lúc nào) + kiểm tra nhanh bỏ qua Chặng 0.
   Widget _situationTools() {

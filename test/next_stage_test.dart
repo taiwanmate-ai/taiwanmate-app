@@ -1,5 +1,5 @@
 // "Chặng tiếp theo ra mắt ngày X": học xong BÀI MỚI CUỐI CÙNG (server trả next_stage.after_unit_id) -> màn kết quả hiện thẻ ngày ra mắt
-// (ngày lấy từ server) + gợi ý ôn tập / học bài cũ, nút "Về danh sách". Bài khác không hiện thẻ.
+// (ngày lấy từ server) + gợi ý ôn tập (không mời học bài giáo trình cũ), nút "Về danh sách". Bài khác không hiện thẻ.
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -92,6 +92,27 @@ void main() {
     expect(find.byKey(const Key('next_stage_card')), findsOneWidget);
     expect(find.text('Chặng 2 ra mắt ngày 10/11/2026.'), findsOneWidget);
     expect(find.text('Về danh sách'), findsOneWidget);
+  });
+
+  testWidgets('layout v2: hết chặng của A1 -> "Cấp A2 sắp ra mắt", gợi ý ôn tập, KHÔNG mời học bài giáo trình cũ (CTO 31/10)', (tester) async {
+    await _finish(tester, {
+      'units': _units().where((u) => (u['unit_order'] as int) <= 0).toList(),
+      'legacy_units': [{..._u('o1', 1, 'Bài cũ 1', 0, 'unlocked'), 'legacy': true}],
+      'legacy_total': 1, 'legacy_completed': 0, 'experienced': false,
+      'next_stage': {'after_unit_id': 'b1', 'next': 'level', 'next_level': 'A2', 'launch_date': null},
+    });
+    expect(find.byKey(const Key('next_stage_card')), findsOneWidget);
+    expect(find.text('🎉 Bạn đã học hết lộ trình cấp này!'), findsOneWidget);
+    expect(find.text('Cấp A2 sắp ra mắt.'), findsOneWidget);
+    expect(find.byKey(const Key('next_stage_review')), findsOneWidget);
+    expect(find.textContaining('giáo trình cũ'), findsNothing);
+    expect(find.text('Về danh sách'), findsOneWidget);
+  });
+
+  testWidgets('layout v2: A2 có ngày -> "Cấp A2 ra mắt ngày ..."', (tester) async {
+    await _finish(tester, {'units': _units().where((u) => (u['unit_order'] as int) <= 0).toList(),
+      'next_stage': {'after_unit_id': 'b1', 'next': 'level', 'next_level': 'A2', 'launch_date': '2027-01-15'}});
+    expect(find.text('Cấp A2 ra mắt ngày 15/01/2027.'), findsOneWidget);
   });
 
   testWidgets('server chưa đặt ngày: "đang được soạn và sẽ ra mắt sớm"', (tester) async {
