@@ -12,7 +12,10 @@ class StageInfo {
   final int index; // so chang: SERVER tra ve (`stage`); thieu thi tinh theo cong thuc cu
   final List<Map<String, dynamic>> units;
   final String title; // `stage_title` do server tra ve ("Phát âm", "Những ngày đầu ở Đài Loan"); rong = chang cu (hien chu de noi bat)
-  StageInfo(this.index, this.units, {this.title = ''});
+  final int? number; // `stage_no`: so chang hien TRONG cap (A2 chang 7 -> 1); null = dung [index] (server cu / A1)
+  StageInfo(this.index, this.units, {this.title = '', this.number});
+
+  int get shown => number ?? index;
 
   int get total => units.length;
   int get completed => units.where((u) => u['status'] == 'completed').length;
@@ -37,6 +40,7 @@ List<StageInfo> groupIntoStages(List<Map<String, dynamic>> units, {int size = kS
   final sorted = [...units]..sort((a, b) => ((a['unit_order'] as num?) ?? 0).compareTo((b['unit_order'] as num?) ?? 0));
   final byStage = <int, List<Map<String, dynamic>>>{};
   final titles = <int, String>{};
+  final numbers = <int, int>{};
   for (final u in sorted) {
     final order = ((u['unit_order'] as num?) ?? 1).toInt();
     // Chang do SERVER quyet dinh (stage / stage_title). Chi khi server khong tra (ban cu) moi dung cong thuc cu.
@@ -44,9 +48,11 @@ List<StageInfo> groupIntoStages(List<Map<String, dynamic>> units, {int size = kS
     byStage.putIfAbsent(stage, () => []).add(u);
     final t = (u['stage_title'] as String?) ?? '';
     if (t.isNotEmpty) titles[stage] = t;
+    final no = (u['stage_no'] as num?)?.toInt();
+    if (no != null) numbers[stage] = no;
   }
   final keys = byStage.keys.toList()..sort();
-  return [for (final k in keys) StageInfo(k, byStage[k]!, title: titles[k] ?? '')];
+  return [for (final k in keys) StageInfo(k, byStage[k]!, title: titles[k] ?? '', number: numbers[k])];
 }
 
 /// Bai dang hoc: bai 'unlocked' co unit_order nho nhat (chua hoan thanh); khong co -> null.
@@ -159,7 +165,7 @@ class _StageUnitListState extends State<StageUnitList> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(st.title.isNotEmpty ? 'Chặng ${st.index} · ${st.title}' : 'Chặng ${st.index} · ${unitNumberLabel(st.firstOrder)}–${unitNumberLabel(st.lastOrder).replaceFirst('bài ', '')}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _dark)),
+                Text(st.title.isNotEmpty ? 'Chặng ${st.shown} · ${st.title}' : 'Chặng ${st.shown} · ${unitNumberLabel(st.firstOrder)}–${unitNumberLabel(st.lastOrder).replaceFirst('bài ', '')}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _dark)),
                 if (st.topics.isNotEmpty) Text(st.topics.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: _grey)),
                 const SizedBox(height: 6),
                 ClipRRect(

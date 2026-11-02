@@ -18,7 +18,7 @@ class NextStageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stage = nextStage['stage'];
+    final stage = nextStage['stage_no'] ?? nextStage['stage']; // server: so chang trong cap (A2 chang 7 -> 1)
     final nextLevel = nextStage['next'] == 'level' ? (nextStage['next_level'] as String?) : null;
     final date = nextStageDateLabel(nextStage['launch_date'] as String?);
     final upcoming = nextLevel != null ? 'Cấp $nextLevel' : 'Chặng $stage';
