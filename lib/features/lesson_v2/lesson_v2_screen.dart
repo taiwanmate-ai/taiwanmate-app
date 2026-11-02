@@ -188,7 +188,8 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
         return _intro(step);
       case 'review':
         return _QuestionFlow(
-          questions: (step['questions'] as List).cast<Map<String, dynamic>>(), alts: const {}, api: _api, header: 'Ôn lại những từ bạn hay quên',
+          questions: (step['questions'] as List).cast<Map<String, dynamic>>(), alts: const {}, api: _api,
+          header: (step['header'] as String?) ?? 'Ôn lại những từ bạn hay quên', skippable: step['skippable'] == true,
           onRecord: _records.add, onReport: _report, onFinished: _next, retry: false);
       case 'new_words':
         return _NewWordsFlow(pairs: (step['pairs'] as List).cast<Map<String, dynamic>>(), api: _api, onRecord: _records.add, onReport: _report, onFinished: _next);
@@ -359,7 +360,9 @@ class _QuestionFlow extends StatefulWidget {
   final _Report onReport;
   final VoidCallback onFinished;
   final bool retry;
-  const _QuestionFlow({required this.questions, required this.alts, required this.api, required this.header, required this.onRecord, required this.onReport, required this.onFinished, required this.retry});
+  /// Buoc on co the bo qua (A2 Chang 7 bai 1: on nhanh A1 cho nguoi vua hoc xong A1).
+  final bool skippable;
+  const _QuestionFlow({required this.questions, required this.alts, required this.api, required this.header, required this.onRecord, required this.onReport, required this.onFinished, required this.retry, this.skippable = false});
 
   @override
   State<_QuestionFlow> createState() => _QuestionFlowState();
@@ -395,20 +398,21 @@ class _QuestionFlowState extends State<_QuestionFlow> {
     return SingleChildScrollView(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          Text(widget.header, style: const TextStyle(fontWeight: FontWeight.w800, color: kLessonDark)),
-          const Spacer(),
+          Expanded(child: Text(widget.header, style: const TextStyle(fontWeight: FontWeight.w800, color: kLessonDark))),
           Text('${_queue.position + 1}/${_queue.total}', key: const Key('flow_progress'), style: const TextStyle(color: kLessonGrey)),
+          if (widget.skippable)
+            TextButton(key: const Key('flow_skip'), onPressed: widget.onFinished, child: const Text('Bỏ qua')),
         ]),
         const SizedBox(height: 14),
         if (isMatch)
           MatchPairsCard(key: key, question: q, onDone: _done)
         else if (isArrange)
-          ArrangeCard(key: key, question: q, onDone: _done, isRetry: _queue.attemptOfCurrent > 1, onReport: () => widget.onReport(q))
+          ArrangeCard(key: key, question: q, onDone: _done, isRetry: _queue.attemptOfCurrent > 1, onReport: q['reportable'] == false ? null : () => widget.onReport(q))
         else
           QuestionCard(
             key: key, question: q, api: widget.api, onDone: _done, isRetry: _queue.attemptOfCurrent > 1,
             reasonLabel: q['reason'] == 'wrong' ? 'Từ này bạn hay nhầm' : (q['reason'] == 'due' ? 'Đến lúc ôn lại từ này' : null),
-            onReport: () => widget.onReport(q)),
+            onReport: q['reportable'] == false ? null : () => widget.onReport(q)),
       ]),
     );
   }
