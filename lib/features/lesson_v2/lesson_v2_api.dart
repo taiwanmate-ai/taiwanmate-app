@@ -75,7 +75,7 @@ class HttpLessonV2Api implements LessonV2Api, SituationApi {
   @override
   Future<Map<String, dynamic>> fetchSession(String unitId) => _guard(() async {
         // caps: cac dang cau moi app nay biet hien thi (server chi gui dang moi khi app bao)
-        final r = await _dio.get('${ApiConstants.baseUrl}/lesson/$unitId/session', queryParameters: {'caps': 'arrange_sentence,situation_v1'}, options: await _auth);
+        final r = await _dio.get('${ApiConstants.baseUrl}/lesson/$unitId/session', queryParameters: {'caps': kSessionCaps}, options: await _auth);
         return Map<String, dynamic>.from(r.data as Map);
       });
 
@@ -160,10 +160,15 @@ class HttpLessonV2Api implements LessonV2Api, SituationApi {
         }
         _b64Cache[cacheKey] = b64;
       }
-      await webPlayAudio(b64);
+      // audio['rate'] (tùy chọn, vd 0.75 ở bài nghe chép): chỉ đổi tốc độ phát, KHÔNG đổi khóa cache / file tải về.
+      await webPlayAudio(b64, rate: (audio['rate'] as num?)?.toDouble() ?? 1.0);
     } catch (_) {}
   }
 }
+
+/// Các dạng câu / bước mà bản app này hiển thị được — server chỉ gửi dạng mới khi app báo (app cũ không gửi -> phiên như cũ).
+/// dictation: bước "Luyện viết" (nghe chép), chấm trên thiết bị (lib/features/lesson_v2/dictation/).
+const kSessionCaps = 'arrange_sentence,situation_v1,dictation';
 
 final lessonV2ApiProvider = Provider<LessonV2Api>((ref) => HttpLessonV2Api());
 

@@ -356,7 +356,8 @@ Future<bool> webUnlockAudio() async {
   }
 }
 
-Future<bool> webPlayAudio(String base64Mp3, {String mime = 'audio/mpeg'}) {
+/// [rate]: tốc độ phát (1.0 = bình thường; 0.75 = nghe chậm ở bài nghe chép). Element dùng chung -> LUÔN gán lại (lần sau về 1.0).
+Future<bool> webPlayAudio(String base64Mp3, {String mime = 'audio/mpeg', double rate = 1.0}) {
   webStopAudio(); // dừng audio cũ nếu còn đang phát dở
 
   final completer = Completer<bool>();
@@ -388,6 +389,7 @@ Future<bool> webPlayAudio(String base64Mp3, {String mime = 'audio/mpeg'}) {
 
     audio.src = url;
     audio.load();
+    audio.playbackRate = rate;
     audio.play().catchError((e) {
       if (!completer.isCompleted) completer.complete(false);
       _cleanupAudioUrl(url);

@@ -96,6 +96,7 @@ List<Map<String, dynamic>> visibleSteps(Map<String, dynamic> session) {
     final t = s['type'];
     if (t == 'review' && (s['questions'] as List).isEmpty) continue;
     if (t == 'practice' && (s['questions'] as List).isEmpty) continue;
+    if (t == 'writing' && ((s['questions'] as List?) ?? const []).isEmpty) continue;
     if (t == 'minigame' && (s['pairs'] as List).length < 4) continue;
     out.add(s);
   }

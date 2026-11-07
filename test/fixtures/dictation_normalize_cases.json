@@ -1,0 +1,4155 @@
+{
+ "version": 1,
+ "note": "Sinh boi scripts/build_dictation_fixtures.py (backend). App va backend phai cho DUNG `expect`. tiles: input = cac the noi bang '|'.",
+ "items": {
+  "yisheng": {
+   "answer_text": "我明天要去看醫生。",
+   "pinyin": "wǒ míng tiān yào qù kàn yī shēng.",
+   "chars": [
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "明",
+     "b": "ming",
+     "t": [
+      2
+     ]
+    },
+    {
+     "h": "天",
+     "b": "tian",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "要",
+     "b": "yao",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "去",
+     "b": "qu",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "看",
+     "b": "kan",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "醫",
+     "b": "yi",
+     "t": [
+      1
+     ],
+     "s": "医"
+    },
+    {
+     "h": "生",
+     "b": "sheng",
+     "t": [
+      1
+     ]
+    }
+   ]
+  },
+  "xiexie": {
+   "answer_text": "謝謝，不客氣，等一下！",
+   "pinyin": "xiè xie, bú kè qì, děng yí xià!",
+   "chars": [
+    {
+     "h": "謝",
+     "b": "xie",
+     "t": [
+      4
+     ],
+     "s": "谢"
+    },
+    {
+     "h": "謝",
+     "b": "xie",
+     "t": [
+      5,
+      4
+     ],
+     "s": "谢"
+    },
+    {
+     "h": "不",
+     "b": "bu",
+     "t": [
+      2,
+      4
+     ]
+    },
+    {
+     "h": "客",
+     "b": "ke",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "氣",
+     "b": "qi",
+     "t": [
+      4
+     ],
+     "s": "气"
+    },
+    {
+     "h": "等",
+     "b": "deng",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "一",
+     "b": "yi",
+     "t": [
+      2,
+      1
+     ]
+    },
+    {
+     "h": "下",
+     "b": "xia",
+     "t": [
+      4
+     ]
+    }
+   ]
+  },
+  "taiwan": {
+   "answer_text": "我住在台灣。",
+   "pinyin": "wǒ zhù zài tái wān.",
+   "chars": [
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "住",
+     "b": "zhu",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "在",
+     "b": "zai",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "台",
+     "b": "tai",
+     "t": [
+      2
+     ]
+    },
+    {
+     "h": "灣",
+     "b": "wan",
+     "t": [
+      1
+     ],
+     "s": "湾"
+    }
+   ]
+  },
+  "lvse": {
+   "answer_text": "她喜歡綠色的裙子。",
+   "pinyin": "tā xǐ huān lǜ sè de qún zi.",
+   "chars": [
+    {
+     "h": "她",
+     "b": "ta",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "喜",
+     "b": "xi",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "歡",
+     "b": "huan",
+     "t": [
+      1
+     ],
+     "s": "欢"
+    },
+    {
+     "h": "綠",
+     "b": "lv",
+     "t": [
+      4
+     ],
+     "s": "绿"
+    },
+    {
+     "h": "色",
+     "b": "se",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "的",
+     "b": "de",
+     "t": [
+      5
+     ]
+    },
+    {
+     "h": "裙",
+     "b": "qun",
+     "t": [
+      2
+     ]
+    },
+    {
+     "h": "子",
+     "b": "zi",
+     "t": [
+      5,
+      3
+     ]
+    }
+   ]
+  },
+  "xian": {
+   "answer_text": "我們去西安。",
+   "pinyin": "wǒ men qù xī ān.",
+   "chars": [
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "們",
+     "b": "men",
+     "t": [
+      5,
+      2,
+      4
+     ],
+     "s": "们"
+    },
+    {
+     "h": "去",
+     "b": "qu",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "西",
+     "b": "xi",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "安",
+     "b": "an",
+     "t": [
+      1
+     ]
+    }
+   ]
+  },
+  "nihao": {
+   "answer_text": "你好，我叫小安。",
+   "pinyin": "nǐ hǎo, wǒ jiào Xiǎo Ān.",
+   "chars": [
+    {
+     "h": "你",
+     "b": "ni",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "好",
+     "b": "hao",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "叫",
+     "b": "jiao",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "小",
+     "b": "xiao",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "安",
+     "b": "an",
+     "t": [
+      1
+     ]
+    }
+   ]
+  },
+  "henhao": {
+   "answer_text": "我很好。",
+   "pinyin": "wǒ hěn hǎo.",
+   "chars": [
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "很",
+     "b": "hen",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "好",
+     "b": "hao",
+     "t": [
+      3
+     ]
+    }
+   ]
+  },
+  "yibei": {
+   "answer_text": "我要一杯咖啡。",
+   "pinyin": "wǒ yào yì bēi kā fēi.",
+   "chars": [
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "要",
+     "b": "yao",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "一",
+     "b": "yi",
+     "t": [
+      4,
+      1
+     ]
+    },
+    {
+     "h": "杯",
+     "b": "bei",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "咖",
+     "b": "ka",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "啡",
+     "b": "fei",
+     "t": [
+      1
+     ]
+    }
+   ]
+  },
+  "buhao": {
+   "answer_text": "不好，不是這個。",
+   "pinyin": "bù hǎo, bú shì zhè ge.",
+   "chars": [
+    {
+     "h": "不",
+     "b": "bu",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "好",
+     "b": "hao",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "不",
+     "b": "bu",
+     "t": [
+      2,
+      4
+     ]
+    },
+    {
+     "h": "是",
+     "b": "shi",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "這",
+     "b": "zhe",
+     "t": [
+      4
+     ],
+     "s": "这"
+    },
+    {
+     "h": "個",
+     "b": "ge",
+     "t": [
+      5,
+      3,
+      4
+     ],
+     "s": "个"
+    }
+   ]
+  },
+  "diyi": {
+   "answer_text": "第一天上課。",
+   "pinyin": "dì yī tiān shàng kè.",
+   "chars": [
+    {
+     "h": "第",
+     "b": "di",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "一",
+     "b": "yi",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "天",
+     "b": "tian",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "上",
+     "b": "shang",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "課",
+     "b": "ke",
+     "t": [
+      4
+     ],
+     "s": "课"
+    }
+   ]
+  },
+  "len16": {
+   "answer_text": "我明天早上要去醫院看醫生，因為感冒。",
+   "pinyin": "wǒ míng tiān zǎo shàng yào qù yī yuàn kàn yī shēng, yīn wèi gǎn mào.",
+   "chars": [
+    {
+     "h": "我",
+     "b": "wo",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "明",
+     "b": "ming",
+     "t": [
+      2
+     ]
+    },
+    {
+     "h": "天",
+     "b": "tian",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "早",
+     "b": "zao",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "上",
+     "b": "shang",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "要",
+     "b": "yao",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "去",
+     "b": "qu",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "醫",
+     "b": "yi",
+     "t": [
+      1
+     ],
+     "s": "医"
+    },
+    {
+     "h": "院",
+     "b": "yuan",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "看",
+     "b": "kan",
+     "t": [
+      4
+     ]
+    },
+    {
+     "h": "醫",
+     "b": "yi",
+     "t": [
+      1
+     ],
+     "s": "医"
+    },
+    {
+     "h": "生",
+     "b": "sheng",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "因",
+     "b": "yin",
+     "t": [
+      1
+     ]
+    },
+    {
+     "h": "為",
+     "b": "wei",
+     "t": [
+      4
+     ],
+     "s": "为"
+    },
+    {
+     "h": "感",
+     "b": "gan",
+     "t": [
+      3
+     ]
+    },
+    {
+     "h": "冒",
+     "b": "mao",
+     "t": [
+      4
+     ]
+    }
+   ]
+  }
+ },
+ "cases": [
+  {
+   "name": "hz_exact",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我明天要去看醫生",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_punct_fullwidth",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我明天要去看醫生。",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_punct_ascii_spaces",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": " 我 明天 要去看 醫生 ! ",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_simplified_one",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我明天要去看医生",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "医",
+      "note": "simplified"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_homophone_sub",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我名天要去看醫生",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "sub",
+      "exp": "明",
+      "got": "名"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_missing_char",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我明天去看醫生",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "del",
+      "exp": "要",
+      "got": null
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_extra_char",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我明天要去看醫生了",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     },
+     {
+      "op": "ins",
+      "exp": null,
+      "got": "了"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_swapped",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "我天明要去看醫生",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.75,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "sub",
+      "exp": "明",
+      "got": "天"
+     },
+     {
+      "op": "sub",
+      "exp": "天",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_empty",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.0,
+    "ops": [
+     {
+      "op": "del",
+      "exp": "我",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "明",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "天",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "要",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "去",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "看",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "生",
+      "got": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_only_punct",
+   "item": "yisheng",
+   "mode": "hanzi",
+   "input": "。，！",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.0,
+    "ops": [
+     {
+      "op": "del",
+      "exp": "我",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "明",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "天",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "要",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "去",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "看",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "生",
+      "got": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_variant_tai",
+   "item": "taiwan",
+   "mode": "hanzi",
+   "input": "我住在臺灣",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "住",
+      "got": "住"
+     },
+     {
+      "op": "ok",
+      "exp": "在",
+      "got": "在"
+     },
+     {
+      "op": "ok",
+      "exp": "台",
+      "got": "臺",
+      "note": "variant"
+     },
+     {
+      "op": "ok",
+      "exp": "灣",
+      "got": "灣"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_simplified_wan",
+   "item": "taiwan",
+   "mode": "hanzi",
+   "input": "我住在台湾",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "住",
+      "got": "住"
+     },
+     {
+      "op": "ok",
+      "exp": "在",
+      "got": "在"
+     },
+     {
+      "op": "ok",
+      "exp": "台",
+      "got": "台"
+     },
+     {
+      "op": "ok",
+      "exp": "灣",
+      "got": "湾",
+      "note": "simplified"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_wrong_zai",
+   "item": "taiwan",
+   "mode": "hanzi",
+   "input": "我住再台灣",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.8,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "住",
+      "got": "住"
+     },
+     {
+      "op": "sub",
+      "exp": "在",
+      "got": "再"
+     },
+     {
+      "op": "ok",
+      "exp": "台",
+      "got": "台"
+     },
+     {
+      "op": "ok",
+      "exp": "灣",
+      "got": "灣"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_repeat_chars",
+   "item": "xiexie",
+   "mode": "hanzi",
+   "input": "謝謝不客氣等一下",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "謝",
+      "got": "謝"
+     },
+     {
+      "op": "ok",
+      "exp": "謝",
+      "got": "謝"
+     },
+     {
+      "op": "ok",
+      "exp": "不",
+      "got": "不"
+     },
+     {
+      "op": "ok",
+      "exp": "客",
+      "got": "客"
+     },
+     {
+      "op": "ok",
+      "exp": "氣",
+      "got": "氣"
+     },
+     {
+      "op": "ok",
+      "exp": "等",
+      "got": "等"
+     },
+     {
+      "op": "ok",
+      "exp": "一",
+      "got": "一"
+     },
+     {
+      "op": "ok",
+      "exp": "下",
+      "got": "下"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_repeat_missing_one",
+   "item": "xiexie",
+   "mode": "hanzi",
+   "input": "謝不客氣等一下",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "del",
+      "exp": "謝",
+      "got": null
+     },
+     {
+      "op": "ok",
+      "exp": "謝",
+      "got": "謝"
+     },
+     {
+      "op": "ok",
+      "exp": "不",
+      "got": "不"
+     },
+     {
+      "op": "ok",
+      "exp": "客",
+      "got": "客"
+     },
+     {
+      "op": "ok",
+      "exp": "氣",
+      "got": "氣"
+     },
+     {
+      "op": "ok",
+      "exp": "等",
+      "got": "等"
+     },
+     {
+      "op": "ok",
+      "exp": "一",
+      "got": "一"
+     },
+     {
+      "op": "ok",
+      "exp": "下",
+      "got": "下"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_nfd_input",
+   "item": "nihao",
+   "mode": "hanzi",
+   "input": "你好我叫小安",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "你",
+      "got": "你"
+     },
+     {
+      "op": "ok",
+      "exp": "好",
+      "got": "好"
+     },
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "叫",
+      "got": "叫"
+     },
+     {
+      "op": "ok",
+      "exp": "小",
+      "got": "小"
+     },
+     {
+      "op": "ok",
+      "exp": "安",
+      "got": "安"
+     }
+    ]
+   }
+  },
+  {
+   "name": "hz_latin_garbage",
+   "item": "nihao",
+   "mode": "hanzi",
+   "input": "ni hao",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.0,
+    "ops": [
+     {
+      "op": "del",
+      "exp": "你",
+      "got": null
+     },
+     {
+      "op": "sub",
+      "exp": "好",
+      "got": "n"
+     },
+     {
+      "op": "sub",
+      "exp": "我",
+      "got": "i"
+     },
+     {
+      "op": "sub",
+      "exp": "叫",
+      "got": "h"
+     },
+     {
+      "op": "sub",
+      "exp": "小",
+      "got": "a"
+     },
+     {
+      "op": "sub",
+      "exp": "安",
+      "got": "o"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_no_tones_spaced",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo ming tian yao qu kan yi sheng",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_no_tones_joined_words",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo mingtian yao qu kan yisheng",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_no_tones_all_joined",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "womingtianyaoqukanyisheng",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_marks",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wǒ míngtiān yào qù kàn yīshēng",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi1",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_numbers",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo3 ming2 tian1 yao4 qu4 kan4 yi1 sheng1",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi1",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_numbers_joined",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo3ming2tian1 yao4qu4 kan4 yi1sheng1",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi1",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_uppercase",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "WO MINGTIAN YAO QU KAN YISHENG",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_wrong_tone_warn",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wǒ míngtiān yào qù kàn yìshēng",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi4"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_wrong_syllable",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo mintian yao qu kan yisheng",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "sub",
+      "exp": "ming2",
+      "got": "min"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_missing_syllable",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo mingtian qu kan yisheng",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "del",
+      "exp": "yao4",
+      "got": null
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_extra_syllable",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo mingtian yao qu kan yisheng le",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "sheng1",
+      "got": "sheng"
+     },
+     {
+      "op": "ins",
+      "exp": null,
+      "got": "le"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_garbage",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "asdfgh",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.0,
+    "ops": [
+     {
+      "op": "del",
+      "exp": "wo3",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "ming2",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "tian1",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "yao4",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "qu4",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "kan4",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "yi1",
+      "got": null
+     },
+     {
+      "op": "sub",
+      "exp": "sheng1",
+      "got": "asdfgh"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_empty",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.0,
+    "ops": [
+     {
+      "op": "del",
+      "exp": "wo3",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "ming2",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "tian1",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "yao4",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "qu4",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "kan4",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "yi1",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "sheng1",
+      "got": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_v_for_u",
+   "item": "lvse",
+   "mode": "pinyin",
+   "input": "ta xihuan lvse de qunzi",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "ta1",
+      "got": "ta"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "xi3",
+      "got": "xi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "huan1",
+      "got": "huan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "lv4",
+      "got": "lv"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "se4",
+      "got": "se"
+     },
+     {
+      "op": "ok",
+      "exp": "de5",
+      "got": "de"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qun2",
+      "got": "qun"
+     },
+     {
+      "op": "ok",
+      "exp": "zi5",
+      "got": "zi"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_u_colon",
+   "item": "lvse",
+   "mode": "pinyin",
+   "input": "ta xihuan lu:se de qunzi",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "ta1",
+      "got": "ta"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "xi3",
+      "got": "xi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "huan1",
+      "got": "huan"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "lv4",
+      "got": "lv"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "se4",
+      "got": "se"
+     },
+     {
+      "op": "ok",
+      "exp": "de5",
+      "got": "de"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qun2",
+      "got": "qun"
+     },
+     {
+      "op": "ok",
+      "exp": "zi5",
+      "got": "zi"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_u_umlaut_mark",
+   "item": "lvse",
+   "mode": "pinyin",
+   "input": "tā xǐhuān lǜsè de qúnzi",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "ta1",
+      "got": "ta1"
+     },
+     {
+      "op": "ok",
+      "exp": "xi3",
+      "got": "xi3"
+     },
+     {
+      "op": "ok",
+      "exp": "huan1",
+      "got": "huan1"
+     },
+     {
+      "op": "ok",
+      "exp": "lv4",
+      "got": "lv4"
+     },
+     {
+      "op": "ok",
+      "exp": "se4",
+      "got": "se4"
+     },
+     {
+      "op": "ok",
+      "exp": "de5",
+      "got": "de"
+     },
+     {
+      "op": "ok",
+      "exp": "qun2",
+      "got": "qun2"
+     },
+     {
+      "op": "ok",
+      "exp": "zi5",
+      "got": "zi"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_lu_not_lv",
+   "item": "lvse",
+   "mode": "pinyin",
+   "input": "ta xihuan luse de qunzi",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "ta1",
+      "got": "ta"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "xi3",
+      "got": "xi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "huan1",
+      "got": "huan"
+     },
+     {
+      "op": "sub",
+      "exp": "lv4",
+      "got": "lu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "se4",
+      "got": "se"
+     },
+     {
+      "op": "ok",
+      "exp": "de5",
+      "got": "de"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qun2",
+      "got": "qun"
+     },
+     {
+      "op": "ok",
+      "exp": "zi5",
+      "got": "zi"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_apostrophe_xian",
+   "item": "xian",
+   "mode": "pinyin",
+   "input": "women qu xi'an",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "ok",
+      "exp": "men5",
+      "got": "men"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "xi1",
+      "got": "xi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "an1",
+      "got": "an"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_xian_no_apostrophe_lenient",
+   "item": "xian",
+   "mode": "pinyin",
+   "input": "women qu xian",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "ok",
+      "exp": "men5",
+      "got": "men"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "xi1",
+      "got": "xi"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "an1",
+      "got": "an"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_names_capital",
+   "item": "nihao",
+   "mode": "pinyin",
+   "input": "Nǐ hǎo, wǒ jiào Xiǎo Ān.",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "ni3",
+      "got": "ni3"
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     },
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "jiao4",
+      "got": "jiao4"
+     },
+     {
+      "op": "ok",
+      "exp": "xiao3",
+      "got": "xiao3"
+     },
+     {
+      "op": "ok",
+      "exp": "an1",
+      "got": "an1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_marks_exact",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wǒ míngtiān yào qù kàn yīshēng",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi1",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_numbers_exact",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo3 ming2 tian1 yao4 qu4 kan4 yi1 sheng1",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi1",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_no_tones",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wo mingtian yao qu kan yisheng",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.0,
+    "ops": [
+     {
+      "op": "tone",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone",
+      "exp": "ming2",
+      "got": "ming"
+     },
+     {
+      "op": "tone",
+      "exp": "tian1",
+      "got": "tian"
+     },
+     {
+      "op": "tone",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone",
+      "exp": "qu4",
+      "got": "qu"
+     },
+     {
+      "op": "tone",
+      "exp": "kan4",
+      "got": "kan"
+     },
+     {
+      "op": "tone",
+      "exp": "yi1",
+      "got": "yi"
+     },
+     {
+      "op": "tone",
+      "exp": "sheng1",
+      "got": "sheng"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_wrong_tone",
+   "item": "yisheng",
+   "mode": "pinyin",
+   "input": "wǒ míngtiān yào qù kàn yìshēng",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "ming2",
+      "got": "ming2"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "qu4",
+      "got": "qu4"
+     },
+     {
+      "op": "ok",
+      "exp": "kan4",
+      "got": "kan4"
+     },
+     {
+      "op": "tone",
+      "exp": "yi1",
+      "got": "yi4"
+     },
+     {
+      "op": "ok",
+      "exp": "sheng1",
+      "got": "sheng1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_neutral_unmarked",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xiè xie bú kè qì děng yí xià",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi2"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_neutral_as_5",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie4 xie5 bu2 ke4 qi4 deng3 yi2 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie5"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi2"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_neutral_as_base_tone",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie4 xie4 bu2 ke4 qi4 deng3 yi2 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi2"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_yi_base_tone",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie4 xie bu2 ke4 qi4 deng3 yi1 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_bu_base_tone",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie4 xie bu4 ke4 qi4 deng3 yi2 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu4"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi2"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_bu_tone3_wrong",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie4 xie bu3 ke4 qi4 deng3 yi2 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie"
+     },
+     {
+      "op": "tone",
+      "exp": "bu2",
+      "got": "bu3",
+      "msg": "不 đứng trước kè nên đọc là bú (bú kè); viết bù hoặc bú đều đúng."
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi2"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_first_xie_unmarked",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie xie bu2 ke4 qi4 deng3 yi2 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "tone",
+      "exp": "xie4",
+      "got": "xie"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "ok",
+      "exp": "yi2",
+      "got": "yi2"
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_lv_number",
+   "item": "lvse",
+   "mode": "pinyin",
+   "input": "ta1 xi3 huan1 lv4 se4 de5 qun2 zi5",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "ta1",
+      "got": "ta1"
+     },
+     {
+      "op": "ok",
+      "exp": "xi3",
+      "got": "xi3"
+     },
+     {
+      "op": "ok",
+      "exp": "huan1",
+      "got": "huan1"
+     },
+     {
+      "op": "ok",
+      "exp": "lv4",
+      "got": "lv4"
+     },
+     {
+      "op": "ok",
+      "exp": "se4",
+      "got": "se4"
+     },
+     {
+      "op": "ok",
+      "exp": "de5",
+      "got": "de5"
+     },
+     {
+      "op": "ok",
+      "exp": "qun2",
+      "got": "qun2"
+     },
+     {
+      "op": "ok",
+      "exp": "zi5",
+      "got": "zi5"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_nihao_sandhi_written_2",
+   "item": "nihao",
+   "mode": "pinyin",
+   "input": "ni2 hao3 wo3 jiao4 xiao3 an1",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.833,
+    "ops": [
+     {
+      "op": "tone",
+      "exp": "ni3",
+      "got": "ni2",
+      "msg": "Đọc là ní hǎo, nhưng viết vẫn là nǐ hǎo (3+3)."
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     },
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "jiao4",
+      "got": "jiao4"
+     },
+     {
+      "op": "ok",
+      "exp": "xiao3",
+      "got": "xiao3"
+     },
+     {
+      "op": "ok",
+      "exp": "an1",
+      "got": "an1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_nihao_33_msg",
+   "item": "nihao",
+   "mode": "pinyin",
+   "input": "ni2 hao3 wo3 jiao4 xiao3 an1",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.833,
+    "ops": [
+     {
+      "op": "tone",
+      "exp": "ni3",
+      "got": "ni2",
+      "msg": "Đọc là ní hǎo, nhưng viết vẫn là nǐ hǎo (3+3)."
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     },
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "jiao4",
+      "got": "jiao4"
+     },
+     {
+      "op": "ok",
+      "exp": "xiao3",
+      "got": "xiao3"
+     },
+     {
+      "op": "ok",
+      "exp": "an1",
+      "got": "an1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_nihao_33_warn_msg",
+   "item": "nihao",
+   "mode": "pinyin",
+   "input": "ní hǎo wǒ jiào xiǎo ān",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "ni3",
+      "got": "ni2",
+      "msg": "Đọc là ní hǎo, nhưng viết vẫn là nǐ hǎo (3+3)."
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     },
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "jiao4",
+      "got": "jiao4"
+     },
+     {
+      "op": "ok",
+      "exp": "xiao3",
+      "got": "xiao3"
+     },
+     {
+      "op": "ok",
+      "exp": "an1",
+      "got": "an1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_henhao_33_middle",
+   "item": "henhao",
+   "mode": "pinyin",
+   "input": "wo3 hen2 hao3",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.667,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "tone",
+      "exp": "hen3",
+      "got": "hen2",
+      "msg": "Đọc là hén hǎo, nhưng viết vẫn là hěn hǎo (3+3)."
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_henhao_written_base",
+   "item": "henhao",
+   "mode": "pinyin",
+   "input": "wǒ hěn hǎo",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "hen3",
+      "got": "hen3"
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_yi_wrong_before_4",
+   "item": "xiexie",
+   "mode": "pinyin",
+   "input": "xie4 xie bu2 ke4 qi4 deng3 yi4 xia4",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "xie4",
+      "got": "xie4"
+     },
+     {
+      "op": "ok",
+      "exp": "xie5",
+      "got": "xie"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     },
+     {
+      "op": "ok",
+      "exp": "qi4",
+      "got": "qi4"
+     },
+     {
+      "op": "ok",
+      "exp": "deng3",
+      "got": "deng3"
+     },
+     {
+      "op": "tone",
+      "exp": "yi2",
+      "got": "yi4",
+      "msg": "一 đứng trước xià nên đọc là yí (yí xià); viết yī hoặc yí đều đúng."
+     },
+     {
+      "op": "ok",
+      "exp": "xia4",
+      "got": "xia4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_yibei_sandhi_ok",
+   "item": "yibei",
+   "mode": "pinyin",
+   "input": "wo3 yao4 yi4 bei1 ka1 fei1",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi4",
+      "got": "yi4"
+     },
+     {
+      "op": "ok",
+      "exp": "bei1",
+      "got": "bei1"
+     },
+     {
+      "op": "ok",
+      "exp": "ka1",
+      "got": "ka1"
+     },
+     {
+      "op": "ok",
+      "exp": "fei1",
+      "got": "fei1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_yibei_base_ok",
+   "item": "yibei",
+   "mode": "pinyin",
+   "input": "wo3 yao4 yi1 bei1 ka1 fei1",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi4",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "bei1",
+      "got": "bei1"
+     },
+     {
+      "op": "ok",
+      "exp": "ka1",
+      "got": "ka1"
+     },
+     {
+      "op": "ok",
+      "exp": "fei1",
+      "got": "fei1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_yibei_yi2_wrong",
+   "item": "yibei",
+   "mode": "pinyin",
+   "input": "wo3 yao4 yi2 bei1 ka1 fei1",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.833,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "wo3",
+      "got": "wo3"
+     },
+     {
+      "op": "ok",
+      "exp": "yao4",
+      "got": "yao4"
+     },
+     {
+      "op": "tone",
+      "exp": "yi4",
+      "got": "yi2",
+      "msg": "一 đứng trước bēi nên đọc là yì (yì bēi); viết yī hoặc yì đều đúng."
+     },
+     {
+      "op": "ok",
+      "exp": "bei1",
+      "got": "bei1"
+     },
+     {
+      "op": "ok",
+      "exp": "ka1",
+      "got": "ka1"
+     },
+     {
+      "op": "ok",
+      "exp": "fei1",
+      "got": "fei1"
+     }
+    ]
+   }
+  },
+  {
+   "name": "py_yibei_yi2_warn_msg",
+   "item": "yibei",
+   "mode": "pinyin",
+   "input": "wo yao yí bei kafei",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "tone_warn",
+      "exp": "wo3",
+      "got": "wo"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yao4",
+      "got": "yao"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "yi4",
+      "got": "yi2",
+      "msg": "一 đứng trước bēi nên đọc là yì (yì bēi); viết yī hoặc yì đều đúng."
+     },
+     {
+      "op": "tone_warn",
+      "exp": "bei1",
+      "got": "bei"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "ka1",
+      "got": "ka"
+     },
+     {
+      "op": "tone_warn",
+      "exp": "fei1",
+      "got": "fei"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_buhao_bu2_wrong",
+   "item": "buhao",
+   "mode": "pinyin",
+   "input": "bu2 hao3 bu2 shi4 zhe4 ge",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.833,
+    "ops": [
+     {
+      "op": "tone",
+      "exp": "bu4",
+      "got": "bu2",
+      "msg": "不 chỉ đọc là bú khi đứng trước thanh 4; ở đây giữ thanh gốc: bù hǎo."
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu2"
+     },
+     {
+      "op": "ok",
+      "exp": "shi4",
+      "got": "shi4"
+     },
+     {
+      "op": "ok",
+      "exp": "zhe4",
+      "got": "zhe4"
+     },
+     {
+      "op": "ok",
+      "exp": "ge5",
+      "got": "ge"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_bushi_bu4_ok",
+   "item": "buhao",
+   "mode": "pinyin",
+   "input": "bu4 hao3 bu4 shi4 zhe4 ge",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "bu4",
+      "got": "bu4"
+     },
+     {
+      "op": "ok",
+      "exp": "hao3",
+      "got": "hao3"
+     },
+     {
+      "op": "ok",
+      "exp": "bu2",
+      "got": "bu4"
+     },
+     {
+      "op": "ok",
+      "exp": "shi4",
+      "got": "shi4"
+     },
+     {
+      "op": "ok",
+      "exp": "zhe4",
+      "got": "zhe4"
+     },
+     {
+      "op": "ok",
+      "exp": "ge5",
+      "got": "ge"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_diyi_yi4_wrong",
+   "item": "diyi",
+   "mode": "pinyin",
+   "input": "di4 yi4 tian1 shang4 ke4",
+   "strict_tones": true,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.8,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "di4",
+      "got": "di4"
+     },
+     {
+      "op": "tone",
+      "exp": "yi1",
+      "got": "yi4",
+      "msg": "一 ở đây giữ thanh gốc: yī tiān."
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "shang4",
+      "got": "shang4"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "st_diyi_base_ok",
+   "item": "diyi",
+   "mode": "pinyin",
+   "input": "dì yī tiān shàng kè",
+   "strict_tones": true,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "di4",
+      "got": "di4"
+     },
+     {
+      "op": "ok",
+      "exp": "yi1",
+      "got": "yi1"
+     },
+     {
+      "op": "ok",
+      "exp": "tian1",
+      "got": "tian1"
+     },
+     {
+      "op": "ok",
+      "exp": "shang4",
+      "got": "shang4"
+     },
+     {
+      "op": "ok",
+      "exp": "ke4",
+      "got": "ke4"
+     }
+    ]
+   }
+  },
+  {
+   "name": "rd_16_one_ok_half_even",
+   "item": "len16",
+   "mode": "hanzi",
+   "input": "我",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.062,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "del",
+      "exp": "明",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "天",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "早",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "上",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "要",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "去",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "院",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "看",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "生",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "因",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "為",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "感",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "冒",
+      "got": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "rd_16_three_ok_half_even_up",
+   "item": "len16",
+   "mode": "hanzi",
+   "input": "我明天",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.188,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "del",
+      "exp": "早",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "上",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "要",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "去",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "院",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "看",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "生",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "因",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "為",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "感",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "冒",
+      "got": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "rd_16_five_ok_half_even_down",
+   "item": "len16",
+   "mode": "hanzi",
+   "input": "我明天早上",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.312,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "早",
+      "got": "早"
+     },
+     {
+      "op": "ok",
+      "exp": "上",
+      "got": "上"
+     },
+     {
+      "op": "del",
+      "exp": "要",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "去",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "院",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "看",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "醫",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "生",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "因",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "為",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "感",
+      "got": null
+     },
+     {
+      "op": "del",
+      "exp": "冒",
+      "got": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "tl_exact",
+   "item": "yisheng",
+   "mode": "tiles",
+   "input": "我|明|天|要|去|看|醫|生",
+   "strict_tones": false,
+   "expect": {
+    "correct": true,
+    "accuracy": 1.0,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "tl_homophone",
+   "item": "yisheng",
+   "mode": "tiles",
+   "input": "我|名|天|要|去|看|醫|生",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "sub",
+      "exp": "明",
+      "got": "名"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "ok",
+      "exp": "生",
+      "got": "生"
+     }
+    ]
+   }
+  },
+  {
+   "name": "tl_short",
+   "item": "yisheng",
+   "mode": "tiles",
+   "input": "我|明|天|要|去|看|醫",
+   "strict_tones": false,
+   "expect": {
+    "correct": false,
+    "accuracy": 0.875,
+    "ops": [
+     {
+      "op": "ok",
+      "exp": "我",
+      "got": "我"
+     },
+     {
+      "op": "ok",
+      "exp": "明",
+      "got": "明"
+     },
+     {
+      "op": "ok",
+      "exp": "天",
+      "got": "天"
+     },
+     {
+      "op": "ok",
+      "exp": "要",
+      "got": "要"
+     },
+     {
+      "op": "ok",
+      "exp": "去",
+      "got": "去"
+     },
+     {
+      "op": "ok",
+      "exp": "看",
+      "got": "看"
+     },
+     {
+      "op": "ok",
+      "exp": "醫",
+      "got": "醫"
+     },
+     {
+      "op": "del",
+      "exp": "生",
+      "got": null
+     }
+    ]
+   }
+  }
+ ]
+}

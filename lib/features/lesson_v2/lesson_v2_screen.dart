@@ -4,6 +4,7 @@ import 'package:chinesemate/features/lesson_v2/lesson_result.dart';
 import 'package:chinesemate/features/lesson_v2/situation/next_stage_card.dart';
 import 'package:chinesemate/features/lesson_v2/situation/unit_order.dart';
 import 'package:chinesemate/features/lesson_v2/arrange_card.dart';
+import 'package:chinesemate/features/lesson_v2/dictation/dictation_card.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_runner.dart';
 import 'package:chinesemate/features/lesson_v2/lesson_v2_api.dart';
 import 'package:chinesemate/features/lesson_v2/match_widgets.dart';
@@ -227,6 +228,11 @@ class _LessonV2ScreenState extends ConsumerState<LessonV2Screen> {
         return _QuestionFlow(
           questions: (step['questions'] as List).cast<Map<String, dynamic>>(), alts: alts, api: _api, header: 'Luyện tập',
           onRecord: _records.add, onReport: _report, onFinished: _next, retry: true);
+      case 'writing':
+        // Luyen viet (nghe chep): cham tren may, khong hoi lai bang dang khac (cau khong gan tu)
+        return _QuestionFlow(
+          questions: (step['questions'] as List).cast<Map<String, dynamic>>(), alts: const {}, api: _api, header: (step['title'] as String?) ?? 'Luyện viết',
+          level: (_session!['unit'] as Map?)?['level'] as String?, onRecord: _records.add, onReport: _report, onFinished: _next, retry: false);
       case 'minigame':
         return _MinigameStep(step: step, api: _api, onDone: _next);
       default:
@@ -362,7 +368,9 @@ class _QuestionFlow extends StatefulWidget {
   final bool retry;
   /// Buoc on co the bo qua (A2 Chang 7 bai 1: on nhanh A1 cho nguoi vua hoc xong A1).
   final bool skippable;
-  const _QuestionFlow({required this.questions, required this.alts, required this.api, required this.header, required this.onRecord, required this.onReport, required this.onFinished, required this.retry, this.skippable = false});
+  /// Cap cua bai (A2/B1...) -> che do nhap mac dinh cua nghe chep.
+  final String? level;
+  const _QuestionFlow({required this.questions, required this.alts, required this.api, required this.header, required this.onRecord, required this.onReport, required this.onFinished, required this.retry, this.skippable = false, this.level});
 
   @override
   State<_QuestionFlow> createState() => _QuestionFlowState();
@@ -406,6 +414,8 @@ class _QuestionFlowState extends State<_QuestionFlow> {
         const SizedBox(height: 14),
         if (isMatch)
           MatchPairsCard(key: key, question: q, onDone: _done)
+        else if (q['kind'] == 'dictation')
+          DictationCard(key: key, question: q, api: widget.api, onDone: _done, level: widget.level, isRetry: _queue.attemptOfCurrent > 1, onReport: q['reportable'] == false ? null : () => widget.onReport(q))
         else if (isArrange)
           ArrangeCard(key: key, question: q, onDone: _done, isRetry: _queue.attemptOfCurrent > 1, onReport: q['reportable'] == false ? null : () => widget.onReport(q))
         else
