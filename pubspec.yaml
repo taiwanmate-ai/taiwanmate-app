@@ -5,6 +5,9 @@ version: 1.0.0+55
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
+  # Ghim DUNG ban Flutter dang build production (CTO 07/11/2026; xem README "Phien ban Flutter"). Ban khac -> `flutter pub get` tu choi,
+  # nen pubspec.lock khong bi doi vi lech SDK. Nang ban: sua o day + .fvmrc + README trong CUNG 1 commit, chay lai toan bo test.
+  flutter: 3.44.2
 
 dependencies:
   flutter:
